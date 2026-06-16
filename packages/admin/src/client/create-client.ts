@@ -1,5 +1,7 @@
+import type { ActionResult } from "@comp/core";
 import { CompClientError } from "./client-error.js";
 import type {
+  ActionRunBody,
   ClientOptions,
   CollectionSummary,
   CompClient,
@@ -81,6 +83,12 @@ export function createClient(options: ClientOptions): CompClient {
         { method: "DELETE" },
       );
       return unwrap(body);
+    },
+    async action(slug, name, body: ActionRunBody) {
+      return request<ActionResult>(
+        `/collections/${encodeURIComponent(slug)}/actions/${encodeURIComponent(name)}`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
     },
   };
 }

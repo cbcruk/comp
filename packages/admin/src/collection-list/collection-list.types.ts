@@ -2,6 +2,15 @@ import type { ReactNode } from "react";
 
 export type Row = Record<string, unknown>;
 
+/** Optional row-selection config; when present, a checkbox column is rendered. */
+export interface RowSelection {
+  getRowId: (row: Row) => string | null;
+  selected: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+  onToggleAll?: () => void;
+  allSelected?: boolean;
+}
+
 export interface CollectionListProps {
   /** Column keys to render, in order — mirrors a collection's `listDisplay`. */
   columns: string[];
@@ -12,4 +21,6 @@ export interface CollectionListProps {
   renderHeader?: (column: string) => ReactNode;
   /** Shown when there are no rows. */
   renderEmpty?: () => ReactNode;
+  /** Enables a leading checkbox column for bulk selection. */
+  selection?: RowSelection;
 }

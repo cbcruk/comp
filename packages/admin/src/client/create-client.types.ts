@@ -1,6 +1,12 @@
-import type { CollectionManifest, FieldMap } from "@comp/core";
+import type {
+  ActionManifest,
+  ActionResult,
+  CollectionManifest,
+  FieldMap,
+} from "@comp/core";
 
 export type Row = Record<string, unknown>;
+export type Id = string | number;
 
 /** The shape `@comp/server` returns from `GET /collections`. */
 export interface CollectionSummary {
@@ -11,6 +17,12 @@ export interface CollectionSummary {
   fields: FieldMap;
   primaryKey: string | null;
   manifest: CollectionManifest;
+  actions: ActionManifest[];
+}
+
+export interface ActionRunBody {
+  ids: Id[];
+  input?: unknown;
 }
 
 export interface ListResult {
@@ -38,8 +50,9 @@ export interface ClientOptions {
 export interface CompClient {
   collections(): Promise<CollectionSummary[]>;
   list(slug: string, query?: ListQuery): Promise<ListResult>;
-  get(slug: string, id: string | number): Promise<Row>;
+  get(slug: string, id: Id): Promise<Row>;
   create(slug: string, values: Row): Promise<Row>;
-  update(slug: string, id: string | number, values: Row): Promise<Row>;
-  remove(slug: string, id: string | number): Promise<Row>;
+  update(slug: string, id: Id, values: Row): Promise<Row>;
+  remove(slug: string, id: Id): Promise<Row>;
+  action(slug: string, name: string, body: ActionRunBody): Promise<ActionResult>;
 }

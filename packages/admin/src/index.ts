@@ -2,6 +2,7 @@ export { CollectionList } from "./collection-list/collection-list.js";
 export type {
   CollectionListProps,
   Row,
+  RowSelection,
 } from "./collection-list/collection-list.types.js";
 
 export { CollectionForm } from "./collection-form/collection-form.js";
@@ -37,6 +38,13 @@ export {
   hasPrevPage,
   pageCount,
 } from "./collection-browser/pagination.js";
+export {
+  allSelected,
+  rowId,
+  toggle,
+  toggleAll,
+  toIds,
+} from "./collection-browser/selection.js";
 
 export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";
