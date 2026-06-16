@@ -20,7 +20,8 @@ defineCollection({
 | -------------- | ------------------------------------------------------------ |
 | `@comp/core`   | Schema introspection, `defineCollection`, the query layer.   |
 | `@comp/server` | Hono route adapter that mounts the read API over `core`.     |
-| `@comp/admin`  | React admin UI (currently the list view).                    |
+| `@comp/admin`  | React admin UI (list browser, detail/edit form, client).     |
+| `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.  |
 | `@comp/cli`    | Scaffolding / codegen / deploy helpers (placeholder).        |
 
 `examples/blog-d1` is the reference app: Cloudflare D1 + Drizzle.
@@ -58,11 +59,14 @@ v0.1 in progress. Implemented end-to-end:
 - Zod schema derivation and validated create/update/delete mutations.
 - Read + write API over Hono, gated on the collection manifest.
 - Declarative bulk/custom actions carrying their own capability manifest.
-- Pluggable auth adapter (allow-all default) keyed on the same operations.
-- React API client, `useRecord` hook, and a schema-derived `CollectionForm`.
+- React client + `useRecord`/`useCollectionList` hooks, a schema-derived
+  `CollectionForm`, and a `CollectionBrowser` (search/filter/paginate, bulk
+  selection, action dispatch).
+- Auth: an allow-all default plus `@comp/auth` — real WebAuthn passkey
+  ceremonies, signed-session cookies, and a role policy, all keyed on the same
+  `CollectionOperation` vocabulary as the manifest.
 
-Next slices: the React list view wired to the client (filters/search/pagination
-UI), action invocation from the UI, a real auth adapter (passkeys), and CLI
-scaffolding/codegen.
+Next slices: CLI scaffolding/codegen, a D1-backed `PasskeyStore` for the
+example, and richer field widgets (relations, enums) in the form.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

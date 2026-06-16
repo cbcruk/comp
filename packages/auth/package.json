@@ -1,0 +1,29 @@
+{
+  "name": "@comp/auth",
+  "version": "0.0.0",
+  "description": "Pluggable auth for Comp: WebAuthn passkeys, signed sessions, role policy",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@comp/core": "workspace:*",
+    "@simplewebauthn/server": "^13.0.0"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "hono": "^4.6.14"
+  }
+}
