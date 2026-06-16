@@ -26,6 +26,13 @@ export type { SqliteDb } from "./query/build-list-query.js";
 export { buildGetByIdQuery } from "./query/build-get-query.js";
 export { primaryKeyColumn } from "./query/primary-key.js";
 
+export { allowAll } from "./auth/allow-all.js";
+export type {
+  AuthAdapter,
+  AuthorizeArgs,
+  Identity,
+} from "./auth/auth-adapter.types.js";
+
 export { bulkDeleteAction, defineAction } from "./action/define-action.js";
 export type {
   ActionConfig,

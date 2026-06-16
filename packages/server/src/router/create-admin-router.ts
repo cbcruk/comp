@@ -5,10 +5,12 @@ import {
   buildInsertQuery,
   buildListQuery,
   buildUpdateQuery,
+  allowAll,
   validateInsert,
   validateUpdate,
   ValidationError,
   type ActionDefinition,
+  type AuthAdapter,
   type Collection,
   type CollectionOperation,
   type SqliteDb,
@@ -20,6 +22,8 @@ export interface AdminRouterConfig {
   collections: Collection[];
   /** Bulk/custom actions, scoped to a collection by their `collection` slug. */
   actions?: ActionDefinition[];
+  /** Auth adapter; defaults to allow-all. */
+  auth?: AuthAdapter;
   /**
    * Resolve the database for a request. On Workers the D1 binding lives on
    * `c.env`, so the db must be built per request rather than at module load.
@@ -55,12 +59,22 @@ async function parseJsonBody(c: Context): Promise<unknown> {
  */
 export function createAdminRouter(config: AdminRouterConfig): Hono {
   const app = new Hono();
+  const auth = config.auth ?? allowAll;
   const bySlug = new Map(config.collections.map((c) => [c.slug, c]));
   const actionsBySlug = new Map<string, ActionDefinition[]>();
   for (const action of config.actions ?? []) {
     const list = actionsBySlug.get(action.collection) ?? [];
     list.push(action);
     actionsBySlug.set(action.collection, list);
+  }
+
+  async function authorized(
+    c: Context,
+    collection: Collection,
+    operation: CollectionOperation,
+  ): Promise<boolean> {
+    const identity = await auth.authenticate(c.req.raw);
+    return Boolean(await auth.authorize({ identity, collection, operation }));
   }
 
   app.get("/collections", (c) =>
@@ -83,6 +97,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   app.get("/collections/:slug", async (c) => {
     const collection = bySlug.get(c.req.param("slug"));
     if (!collection) return c.json({ error: "Unknown collection" }, 404);
+    if (!(await authorized(c, collection, "list"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
 
     const db = config.getDb(c);
     const params = parseListParams(collection, c.req.query());
@@ -101,6 +118,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   app.get("/collections/:slug/:id", async (c) => {
     const collection = bySlug.get(c.req.param("slug"));
     if (!collection) return c.json({ error: "Unknown collection" }, 404);
+    if (!(await authorized(c, collection, "read"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
 
     const db = config.getDb(c);
     const rows = await buildGetByIdQuery(
@@ -120,6 +140,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (!allows(collection, "create")) {
       return c.json({ error: "Create not allowed" }, 405);
     }
+    if (!(await authorized(c, collection, "create"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
 
     try {
       const values = validateInsert(collection, await parseJsonBody(c));
@@ -138,6 +161,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (!collection) return c.json({ error: "Unknown collection" }, 404);
     if (!allows(collection, "update")) {
       return c.json({ error: "Update not allowed" }, 405);
+    }
+    if (!(await authorized(c, collection, "update"))) {
+      return c.json({ error: "Forbidden" }, 403);
     }
 
     try {
@@ -164,6 +190,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (!allows(collection, "delete")) {
       return c.json({ error: "Delete not allowed" }, 405);
     }
+    if (!(await authorized(c, collection, "delete"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
 
     const rows = await buildDeleteQuery(
       config.getDb(c),
@@ -187,6 +216,11 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         { error: "Action exceeds the collection's capabilities" },
         403,
       );
+    }
+    for (const operation of action.operations) {
+      if (!(await authorized(c, collection, operation))) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
     }
 
     const body = (await parseJsonBody(c)) as

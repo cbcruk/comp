@@ -5,6 +5,8 @@ import {
   bulkDeleteAction,
   defineAction,
 } from "./action/define-action.js";
+import { allowAll } from "./auth/allow-all.js";
+import type { AuthAdapter } from "./auth/auth-adapter.types.js";
 import { defineCollection } from "./collection/define-collection.js";
 import { introspectTable } from "./introspection/introspect-table.js";
 import {
@@ -267,6 +269,42 @@ describe("bulkDeleteAction", () => {
     });
     expect(result.affected).toBe(3);
     expect(deleted).toHaveLength(3);
+  });
+});
+
+describe("auth adapter", () => {
+  it("allow-all yields an anonymous identity and authorizes everything", async () => {
+    expect(await allowAll.authenticate(new Request("http://x"))).toEqual({
+      subject: "anonymous",
+    });
+    expect(
+      await allowAll.authorize({
+        identity: { subject: "anonymous" },
+        collection: postCollection,
+        operation: "delete",
+      }),
+    ).toBe(true);
+  });
+
+  it("a custom adapter can deny by operation", async () => {
+    const readOnly: AuthAdapter = {
+      authenticate: () => ({ subject: "viewer" }),
+      authorize: ({ operation }) => operation === "list" || operation === "read",
+    };
+    expect(
+      await readOnly.authorize({
+        identity: { subject: "viewer" },
+        collection: postCollection,
+        operation: "list",
+      }),
+    ).toBe(true);
+    expect(
+      await readOnly.authorize({
+        identity: { subject: "viewer" },
+        collection: postCollection,
+        operation: "delete",
+      }),
+    ).toBe(false);
   });
 });
 

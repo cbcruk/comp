@@ -52,9 +52,17 @@ pnpm dev                           # http://localhost:8787/admin/collections
 
 ## Status
 
-v0.1 in progress. Implemented end-to-end: collection declaration →
-introspection → list/count query → Zod schema derivation → read API. Next
-slices: detail/read endpoint, create/update mutations with the derived schemas,
-and the React detail/edit forms.
+v0.1 in progress. Implemented end-to-end:
+
+- Collection declaration → introspection → list/count/get queries.
+- Zod schema derivation and validated create/update/delete mutations.
+- Read + write API over Hono, gated on the collection manifest.
+- Declarative bulk/custom actions carrying their own capability manifest.
+- Pluggable auth adapter (allow-all default) keyed on the same operations.
+- React API client, `useRecord` hook, and a schema-derived `CollectionForm`.
+
+Next slices: the React list view wired to the client (filters/search/pagination
+UI), action invocation from the UI, a real auth adapter (passkeys), and CLI
+scaffolding/codegen.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.
