@@ -3,3 +3,31 @@ export type {
   CollectionListProps,
   Row,
 } from "./collection-list/collection-list.types.js";
+
+export { CollectionForm } from "./collection-form/collection-form.js";
+export type {
+  CollectionFormProps,
+  FieldControl,
+} from "./collection-form/collection-form.types.js";
+export {
+  editableFields,
+  fromInputValue,
+  initialValues,
+  inputTypeFor,
+  toInputValue,
+  toPayload,
+} from "./collection-form/collection-form.utils.js";
+export type { InputType } from "./collection-form/collection-form.utils.js";
+
+export { createClient } from "./client/create-client.js";
+export { CompClientError } from "./client/client-error.js";
+export type {
+  ClientOptions,
+  CollectionSummary,
+  CompClient,
+  ListQuery,
+  ListResult,
+} from "./client/create-client.types.js";
+
+export { useRecord } from "./hooks/use-record.js";
+export type { UseRecordResult } from "./hooks/use-record.js";
