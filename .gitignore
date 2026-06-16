@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+.wrangler/
+.dev.vars
+.env
+.env.local
+
+.DS_Store
+*.log
+
+django-main/

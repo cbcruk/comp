@@ -1,0 +1,10 @@
+name = "comp-blog-d1"
+main = "src/worker.ts"
+compatibility_date = "2025-01-01"
+
+# Run `wrangler d1 create blog` and paste the returned database_id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "blog"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"

@@ -1,0 +1,46 @@
+import { getTableName, type Table } from "drizzle-orm";
+import { introspectTable } from "../introspection/introspect-table.js";
+import type {
+  Collection,
+  CollectionConfig,
+  CollectionOperation,
+} from "./define-collection.types.js";
+
+const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_OPERATIONS: CollectionOperation[] = [
+  "list",
+  "read",
+  "create",
+  "update",
+  "delete",
+];
+
+/**
+ * Declare a collection over a Drizzle table. The result is static and
+ * serializable: defaults are resolved here, once, and every downstream
+ * surface (UI, server routes, CLI) reads from the returned {@link Collection}
+ * rather than re-deriving anything per request.
+ */
+export function defineCollection<TTable extends Table>(
+  config: CollectionConfig<TTable>,
+): Collection {
+  const introspection = introspectTable(config.model);
+  const slug = config.slug ?? getTableName(config.model);
+  const operations = config.operations ?? DEFAULT_OPERATIONS;
+
+  return {
+    slug,
+    model: config.model,
+    fields: introspection.fields,
+    primaryKey: introspection.primaryKey,
+    listDisplay: config.listDisplay,
+    filters: config.filters ?? [],
+    search: config.search ?? [],
+    ordering: config.ordering ?? [],
+    pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
+    manifest: {
+      collection: slug,
+      operations,
+    },
+  };
+}

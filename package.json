@@ -1,0 +1,28 @@
+{
+  "name": "comp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Schema-driven, serverless admin framework for TypeScript",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @comp/example-blog-d1 dev",
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.0",
+    "eslint": "^10.5.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^2.1.8"
+  }
+}
