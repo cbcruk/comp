@@ -29,5 +29,16 @@ export type {
   ListResult,
 } from "./client/create-client.types.js";
 
+export { CollectionBrowser } from "./collection-browser/collection-browser.js";
+export type { CollectionBrowserProps } from "./collection-browser/collection-browser.types.js";
+export {
+  clampPage,
+  hasNextPage,
+  hasPrevPage,
+  pageCount,
+} from "./collection-browser/pagination.js";
+
 export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";
+export { useCollectionList } from "./hooks/use-collection-list.js";
+export type { UseCollectionListResult } from "./hooks/use-collection-list.js";

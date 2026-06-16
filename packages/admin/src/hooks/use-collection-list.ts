@@ -1,0 +1,90 @@
+import { useCallback, useEffect, useState } from "react";
+import type {
+  CompClient,
+  ListQuery,
+  Row,
+} from "../client/create-client.types.js";
+
+export interface UseCollectionListResult {
+  rows: Row[];
+  page: number;
+  pageSize: number;
+  total: number;
+  query: ListQuery;
+  loading: boolean;
+  error: Error | null;
+  /** Merge into the current query. Changing search/filters resets to page 1. */
+  setQuery: (next: Partial<ListQuery>) => void;
+  reload: () => void;
+}
+
+function resetsToFirstPage(next: Partial<ListQuery>): boolean {
+  return "q" in next || "filters" in next || "sort" in next;
+}
+
+/**
+ * Fetch a collection's list through the client, holding the query state
+ * (page/pageSize/search/filters/sort) and refetching when it changes.
+ */
+export function useCollectionList(
+  client: CompClient,
+  slug: string,
+  initialQuery: ListQuery = {},
+): UseCollectionListResult {
+  const [query, setQueryState] = useState<ListQuery>(initialQuery);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [page, setPage] = useState(initialQuery.page ?? 1);
+  const [pageSize, setPageSize] = useState(initialQuery.pageSize ?? 0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [nonce, setNonce] = useState(0);
+
+  const setQuery = useCallback((next: Partial<ListQuery>) => {
+    setQueryState((prev) => ({
+      ...prev,
+      ...next,
+      page: resetsToFirstPage(next) ? 1 : (next.page ?? prev.page),
+    }));
+  }, []);
+
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    client
+      .list(slug, query)
+      .then((result) => {
+        if (cancelled) return;
+        setRows(result.data);
+        setPage(result.page);
+        setPageSize(result.pageSize);
+        setTotal(result.total);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, slug, query, nonce]);
+
+  return {
+    rows,
+    page,
+    pageSize,
+    total,
+    query,
+    loading,
+    error,
+    setQuery,
+    reload,
+  };
+}
