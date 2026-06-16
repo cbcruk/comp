@@ -8,6 +8,7 @@ import {
   validateInsert,
   validateUpdate,
   ValidationError,
+  type ActionDefinition,
   type Collection,
   type CollectionOperation,
   type SqliteDb,
@@ -17,6 +18,8 @@ import { parseListParams } from "./list-params.js";
 
 export interface AdminRouterConfig {
   collections: Collection[];
+  /** Bulk/custom actions, scoped to a collection by their `collection` slug. */
+  actions?: ActionDefinition[];
   /**
    * Resolve the database for a request. On Workers the D1 binding lives on
    * `c.env`, so the db must be built per request rather than at module load.
@@ -26,6 +29,14 @@ export interface AdminRouterConfig {
 
 function allows(collection: Collection, op: CollectionOperation): boolean {
   return collection.manifest.operations.includes(op);
+}
+
+/** An action may only touch operations its target collection grants. */
+function withinCapabilities(
+  action: ActionDefinition,
+  collection: Collection,
+): boolean {
+  return action.operations.every((op) => allows(collection, op));
 }
 
 async function parseJsonBody(c: Context): Promise<unknown> {
@@ -45,6 +56,12 @@ async function parseJsonBody(c: Context): Promise<unknown> {
 export function createAdminRouter(config: AdminRouterConfig): Hono {
   const app = new Hono();
   const bySlug = new Map(config.collections.map((c) => [c.slug, c]));
+  const actionsBySlug = new Map<string, ActionDefinition[]>();
+  for (const action of config.actions ?? []) {
+    const list = actionsBySlug.get(action.collection) ?? [];
+    list.push(action);
+    actionsBySlug.set(action.collection, list);
+  }
 
   app.get("/collections", (c) =>
     c.json(
@@ -56,6 +73,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         fields: collection.fields,
         primaryKey: collection.primaryKey,
         manifest: collection.manifest,
+        actions: (actionsBySlug.get(collection.slug) ?? []).map(
+          (action) => action.manifest,
+        ),
       })),
     ),
   );
@@ -152,6 +172,35 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     );
     if (!rows[0]) return c.json({ error: "Not found" }, 404);
     return c.json({ data: rows[0] });
+  });
+
+  app.post("/collections/:slug/actions/:name", async (c) => {
+    const collection = bySlug.get(c.req.param("slug"));
+    if (!collection) return c.json({ error: "Unknown collection" }, 404);
+
+    const action = (actionsBySlug.get(collection.slug) ?? []).find(
+      (a) => a.name === c.req.param("name"),
+    );
+    if (!action) return c.json({ error: "Unknown action" }, 404);
+    if (!withinCapabilities(action, collection)) {
+      return c.json(
+        { error: "Action exceeds the collection's capabilities" },
+        403,
+      );
+    }
+
+    const body = (await parseJsonBody(c)) as
+      | { ids?: unknown[]; input?: unknown }
+      | undefined;
+    const ids = Array.isArray(body?.ids) ? body.ids : [];
+
+    const result = await action.handler({
+      db: config.getDb(c),
+      collection,
+      ids,
+      input: body?.input,
+    });
+    return c.json(result);
   });
 
   return app;

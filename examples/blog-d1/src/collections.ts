@@ -1,4 +1,4 @@
-import { defineCollection } from "@comp/core";
+import { bulkDeleteAction, defineCollection } from "@comp/core";
 import { posts } from "./schema.js";
 
 export const postCollection = defineCollection({
@@ -10,3 +10,5 @@ export const postCollection = defineCollection({
 });
 
 export const collections = [postCollection];
+
+export const actions = [bulkDeleteAction(postCollection.slug)];

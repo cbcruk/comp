@@ -1,6 +1,10 @@
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
+import {
+  bulkDeleteAction,
+  defineAction,
+} from "./action/define-action.js";
 import { defineCollection } from "./collection/define-collection.js";
 import { introspectTable } from "./introspection/introspect-table.js";
 import {
@@ -206,6 +210,63 @@ describe("validateInsert / validateUpdate", () => {
 
   it("accepts an empty update", () => {
     expect(validateUpdate(postCollection, {})).toEqual({});
+  });
+});
+
+describe("defineAction", () => {
+  it("normalizes config into a capability manifest", () => {
+    const action = defineAction({
+      name: "publish",
+      collection: "posts",
+      operations: ["update"],
+      handler: async () => ({ affected: 0 }),
+    });
+    expect(action.label).toBe("publish");
+    expect(action.manifest).toEqual({
+      name: "publish",
+      collection: "posts",
+      operations: ["update"],
+    });
+  });
+
+  it("requires a name and at least one operation", () => {
+    const handler = async () => ({ affected: 0 });
+    expect(() =>
+      defineAction({ name: "", collection: "posts", operations: ["update"], handler }),
+    ).toThrow(/name/);
+    expect(() =>
+      defineAction({ name: "x", collection: "posts", operations: [], handler }),
+    ).toThrow(/operations/);
+  });
+});
+
+describe("bulkDeleteAction", () => {
+  it("declares the delete capability", () => {
+    const action = bulkDeleteAction("posts");
+    expect(action.name).toBe("delete");
+    expect(action.operations).toEqual(["delete"]);
+  });
+
+  it("deletes each selected id and counts what was affected", async () => {
+    const deleted: unknown[] = [];
+    const fakeDb = {
+      delete: () => ({
+        where: () => ({
+          returning: () => {
+            deleted.push(true);
+            return Promise.resolve([{ id: deleted.length }]);
+          },
+        }),
+      }),
+    };
+    const action = bulkDeleteAction("posts");
+    const result = await action.handler({
+      db: fakeDb as never,
+      collection: postCollection,
+      ids: [1, 2, 3],
+    });
+    expect(result.affected).toBe(3);
+    expect(deleted).toHaveLength(3);
   });
 });
 

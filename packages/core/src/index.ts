@@ -25,6 +25,15 @@ export {
 export type { SqliteDb } from "./query/build-list-query.js";
 export { buildGetByIdQuery } from "./query/build-get-query.js";
 export { primaryKeyColumn } from "./query/primary-key.js";
+
+export { bulkDeleteAction, defineAction } from "./action/define-action.js";
+export type {
+  ActionConfig,
+  ActionContext,
+  ActionDefinition,
+  ActionManifest,
+  ActionResult,
+} from "./action/define-action.types.js";
 export type { ListParams } from "./query/list-query.types.js";
 
 export {

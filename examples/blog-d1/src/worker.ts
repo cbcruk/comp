@@ -1,7 +1,7 @@
 import { createAdminRouter } from "@comp/server";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
-import { collections } from "./collections.js";
+import { actions, collections } from "./collections.js";
 
 interface Env {
   DB: D1Database;
@@ -13,6 +13,7 @@ app.get("/", (c) => c.text("Comp — blog-d1 example. Admin API under /admin"));
 
 const admin = createAdminRouter({
   collections,
+  actions,
   getDb: (c) => drizzle(c.env.DB),
 });
 
