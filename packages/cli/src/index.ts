@@ -9,3 +9,9 @@ export function describeCollection(collection: Collection): string {
   const fields = Object.keys(collection.fields).join(", ");
   return `${collection.slug} [${ops}]\n  fields: ${fields}`;
 }
+
+export { listFlag, parseArgs } from "./args.js";
+export type { ParsedArgs } from "./args.js";
+export { scaffoldCollection } from "./codegen/scaffold-collection.js";
+export type { ScaffoldCollectionOptions } from "./codegen/scaffold-collection.js";
+export { toCamelCase, toKebabCase, toPascalCase } from "./naming.js";
