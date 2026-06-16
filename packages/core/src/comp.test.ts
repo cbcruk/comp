@@ -3,6 +3,11 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 import { defineCollection } from "./collection/define-collection.js";
 import { introspectTable } from "./introspection/introspect-table.js";
+import {
+  buildDeleteQuery,
+  buildInsertQuery,
+  buildUpdateQuery,
+} from "./mutation/build-mutations.js";
 import { buildGetByIdQuery } from "./query/build-get-query.js";
 import {
   buildCountQuery,
@@ -11,7 +16,10 @@ import {
 import {
   deriveInsertSchema,
   deriveUpdateSchema,
+  validateInsert,
+  validateUpdate,
 } from "./validation/derive-schema.js";
+import { ValidationError } from "./validation/validation-error.js";
 
 const posts = sqliteTable("posts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -176,5 +184,54 @@ describe("deriveInsertSchema", () => {
 
   it("makes every field optional for updates", () => {
     expect(deriveUpdateSchema(postCollection).safeParse({}).success).toBe(true);
+  });
+});
+
+describe("validateInsert / validateUpdate", () => {
+  it("returns parsed data on valid insert input", () => {
+    expect(validateInsert(postCollection, { title: "Hello" })).toMatchObject({
+      title: "Hello",
+    });
+  });
+
+  it("throws ValidationError with issues on invalid input", () => {
+    try {
+      validateInsert(postCollection, {});
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).issues.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("accepts an empty update", () => {
+    expect(validateUpdate(postCollection, {})).toEqual({});
+  });
+});
+
+describe("mutation queries", () => {
+  it("builds an insert with returning", () => {
+    const { sql, params } = buildInsertQuery(db, postCollection, {
+      title: "Hello",
+    }).toSQL();
+    expect(sql).toContain('insert into "posts"');
+    expect(sql).toContain("returning");
+    expect(params).toContain("Hello");
+  });
+
+  it("builds an update keyed on the primary key", () => {
+    const { sql, params } = buildUpdateQuery(db, postCollection, 7, {
+      title: "Edited",
+    }).toSQL();
+    expect(sql).toContain('update "posts"');
+    expect(sql).toContain('"posts"."id" = ?');
+    expect(params).toEqual(expect.arrayContaining(["Edited", 7]));
+  });
+
+  it("builds a delete keyed on the primary key", () => {
+    const { sql, params } = buildDeleteQuery(db, postCollection, 7).toSQL();
+    expect(sql).toContain('delete from "posts"');
+    expect(sql).toContain('"posts"."id" = ?');
+    expect(params).toContain(7);
   });
 });

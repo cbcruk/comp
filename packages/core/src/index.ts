@@ -28,6 +28,15 @@ export { primaryKeyColumn } from "./query/primary-key.js";
 export type { ListParams } from "./query/list-query.types.js";
 
 export {
+  buildDeleteQuery,
+  buildInsertQuery,
+  buildUpdateQuery,
+} from "./mutation/build-mutations.js";
+
+export {
   deriveInsertSchema,
   deriveUpdateSchema,
+  validateInsert,
+  validateUpdate,
 } from "./validation/derive-schema.js";
+export { ValidationError } from "./validation/validation-error.js";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Collection } from "../collection/define-collection.types.js";
 import type { FieldMeta } from "../introspection/introspect-table.types.js";
+import { ValidationError } from "./validation-error.js";
 
 function baseSchema(field: FieldMeta): z.ZodTypeAny {
   switch (field.dataType) {
@@ -45,4 +46,24 @@ export function deriveUpdateSchema(
   collection: Collection,
 ): z.ZodObject<z.ZodRawShape> {
   return deriveInsertSchema(collection).partial();
+}
+
+/** Validate insert input, throwing {@link ValidationError} on failure. */
+export function validateInsert(
+  collection: Collection,
+  input: unknown,
+): Record<string, unknown> {
+  const result = deriveInsertSchema(collection).safeParse(input);
+  if (!result.success) throw new ValidationError(result.error.issues);
+  return result.data;
+}
+
+/** Validate partial update input, throwing {@link ValidationError} on failure. */
+export function validateUpdate(
+  collection: Collection,
+  input: unknown,
+): Record<string, unknown> {
+  const result = deriveUpdateSchema(collection).safeParse(input);
+  if (!result.success) throw new ValidationError(result.error.issues);
+  return result.data;
 }
