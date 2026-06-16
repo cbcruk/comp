@@ -3,6 +3,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 import { defineCollection } from "./collection/define-collection.js";
 import { introspectTable } from "./introspection/introspect-table.js";
+import { buildGetByIdQuery } from "./query/build-get-query.js";
 import {
   buildCountQuery,
   buildListQuery,
@@ -124,6 +125,23 @@ describe("buildListQuery", () => {
       filters: { status: undefined },
     }).toSQL();
     expect(params).toEqual([25]);
+  });
+});
+
+describe("buildGetByIdQuery", () => {
+  it("filters on the primary key and limits to one row", () => {
+    const { sql, params } = buildGetByIdQuery(db, postCollection, 42).toSQL();
+    expect(sql).toContain('"posts"."id" = ?');
+    expect(sql).toContain("limit ?");
+    expect(params).toEqual([42, 1]);
+  });
+
+  it("throws when the collection has no primary key", () => {
+    const keyless = defineCollection({
+      model: sqliteTable("tags", { name: text("name") }),
+      listDisplay: ["name"],
+    });
+    expect(() => buildGetByIdQuery(db, keyless, "x")).toThrow(/primary key/);
   });
 });
 

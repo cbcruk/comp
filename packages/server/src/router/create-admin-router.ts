@@ -1,5 +1,6 @@
 import {
   buildCountQuery,
+  buildGetByIdQuery,
   buildListQuery,
   type Collection,
   type SqliteDb,
@@ -55,6 +56,22 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       pageSize: params.pageSize ?? collection.pageSize,
       total,
     });
+  });
+
+  app.get("/collections/:slug/:id", async (c) => {
+    const collection = bySlug.get(c.req.param("slug"));
+    if (!collection) return c.json({ error: "Unknown collection" }, 404);
+
+    const db = config.getDb(c);
+    const rows = await buildGetByIdQuery(
+      db,
+      collection,
+      c.req.param("id"),
+    ).all();
+    const row = rows[0];
+    if (!row) return c.json({ error: "Not found" }, 404);
+
+    return c.json({ data: row });
   });
 
   return app;
