@@ -81,7 +81,13 @@ the manual form. (`--from` imports the module at runtime, so it needs
 wrapping `@simplewebauthn/browser`) and a `PasskeyLogin` component that drive
 the `/auth` ceremonies.
 
-Next slices: a publish/build step that points package `exports` at `dist` so
-the CLI and packages run standalone, and a worked login screen in the example.
+Packages are source-first for development (`main`/`exports` point at `src` so
+the workspace, tests, and `tsc` read TypeScript directly). Each package's
+`publishConfig` repoints `main`/`types`/`exports` (and the CLI `bin`) at `dist`
+on publish, and `pnpm build` emits it — so a published/packed package resolves
+to compiled JS. `pnpm pack` reflects the published shape.
+
+Next slices: a worked login screen in the example, and richer list UI (sortable
+column headers, inline edit).
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

@@ -9,9 +9,18 @@
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "files": ["dist"],
+  "publishConfig": {
+    "bin": {
+      "comp": "./dist/bin.js"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@comp/core": "workspace:*"
