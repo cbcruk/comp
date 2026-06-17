@@ -1,10 +1,23 @@
 import type { FieldMap, FieldMeta } from "@comp/core";
 import type { Row } from "../client/create-client.types.js";
 
-export type InputType = "text" | "number" | "checkbox" | "datetime-local";
+export type InputType =
+  | "text"
+  | "number"
+  | "checkbox"
+  | "datetime-local"
+  | "select";
+
+/** Enum options for a field, or null when it is not an enum. */
+export function optionsFor(field: FieldMeta): string[] | null {
+  return field.enumValues && field.enumValues.length > 0
+    ? field.enumValues
+    : null;
+}
 
 /** Map a field's data type onto an HTML input type. */
 export function inputTypeFor(field: FieldMeta): InputType {
+  if (optionsFor(field)) return "select";
   switch (field.dataType) {
     case "number":
     case "bigint":

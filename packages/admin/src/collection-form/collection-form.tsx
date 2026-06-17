@@ -4,11 +4,35 @@ import {
   editableFields,
   initialValues,
   inputTypeFor,
+  optionsFor,
   toPayload,
 } from "./collection-form.utils.js";
 
 function DefaultField({ field, value, onChange }: FieldControl): JSX.Element {
   const type = inputTypeFor(field);
+  const required = field.notNull && !field.hasDefault;
+
+  if (type === "select") {
+    const options = optionsFor(field) ?? [];
+    return (
+      <label>
+        {field.name}
+        <select
+          value={value}
+          required={required}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">—</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
   if (type === "checkbox") {
     return (
       <label>
@@ -21,13 +45,14 @@ function DefaultField({ field, value, onChange }: FieldControl): JSX.Element {
       </label>
     );
   }
+
   return (
     <label>
       {field.name}
       <input
         type={type}
         value={value}
-        required={field.notNull && !field.hasDefault}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
       />
     </label>
@@ -45,6 +70,7 @@ export function CollectionForm({
   record,
   onSubmit,
   renderField,
+  fieldWidgets,
   submitLabel = "Save",
   busy = false,
 }: CollectionFormProps): JSX.Element {
@@ -68,9 +94,10 @@ export function CollectionForm({
           value: values[field.name] ?? "",
           onChange: (value) => setField(field.name, value),
         };
+        const widget = fieldWidgets?.[field.name] ?? renderField;
         return (
           <div key={field.name}>
-            {renderField ? renderField(control) : <DefaultField {...control} />}
+            {widget ? widget(control) : <DefaultField {...control} />}
           </div>
         );
       })}

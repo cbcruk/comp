@@ -5,6 +5,7 @@ import {
   fromInputValue,
   initialValues,
   inputTypeFor,
+  optionsFor,
   toInputValue,
   toPayload,
 } from "./collection-form.utils.js";
@@ -26,6 +27,11 @@ const fields: FieldMap = {
   views: field({ name: "views", dataType: "number" }),
   published: field({ name: "published", dataType: "boolean" }),
   createdAt: field({ name: "createdAt", dataType: "date" }),
+  status: field({
+    name: "status",
+    dataType: "string",
+    enumValues: ["draft", "published"],
+  }),
 };
 
 describe("inputTypeFor", () => {
@@ -35,12 +41,24 @@ describe("inputTypeFor", () => {
     expect(inputTypeFor(fields.published!)).toBe("checkbox");
     expect(inputTypeFor(fields.createdAt!)).toBe("datetime-local");
   });
+
+  it("renders enum fields as a select", () => {
+    expect(inputTypeFor(fields.status!)).toBe("select");
+    expect(optionsFor(fields.status!)).toEqual(["draft", "published"]);
+    expect(optionsFor(fields.title!)).toBeNull();
+  });
 });
 
 describe("editableFields", () => {
   it("drops the auto-managed primary key", () => {
     const names = editableFields(fields, "id").map((f) => f.name);
-    expect(names).toEqual(["title", "views", "published", "createdAt"]);
+    expect(names).toEqual([
+      "title",
+      "views",
+      "published",
+      "createdAt",
+      "status",
+    ]);
   });
 });
 

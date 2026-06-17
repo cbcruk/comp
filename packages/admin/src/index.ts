@@ -15,6 +15,7 @@ export {
   fromInputValue,
   initialValues,
   inputTypeFor,
+  optionsFor,
   toInputValue,
   toPayload,
 } from "./collection-form/collection-form.utils.js";

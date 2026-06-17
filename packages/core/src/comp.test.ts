@@ -73,6 +73,17 @@ describe("introspectTable", () => {
     expect(meta.fields.status?.hasDefault).toBe(true);
     expect(meta.fields.createdAt?.hasDefault).toBe(true);
   });
+
+  it("captures enum values when declared", () => {
+    const docs = sqliteTable("docs", {
+      state: text("state", { enum: ["open", "closed"] }),
+    });
+    expect(introspectTable(docs).fields.state?.enumValues).toEqual([
+      "open",
+      "closed",
+    ]);
+    expect(meta.fields.title?.enumValues).toBeUndefined();
+  });
 });
 
 describe("defineCollection", () => {

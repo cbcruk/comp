@@ -17,6 +17,7 @@ export function introspectTable(table: Table): TableIntrospection {
   let primaryKey: string | null = null;
 
   for (const [name, column] of Object.entries(columns)) {
+    const enumValues = column.enumValues;
     const meta: FieldMeta = {
       name,
       columnName: column.name,
@@ -25,6 +26,7 @@ export function introspectTable(table: Table): TableIntrospection {
       notNull: column.notNull,
       hasDefault: column.hasDefault,
       primaryKey: column.primary,
+      ...(enumValues && enumValues.length > 0 ? { enumValues } : {}),
     };
     fields[name] = meta;
     if (column.primary && primaryKey === null) {

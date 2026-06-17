@@ -10,6 +10,8 @@ export interface FieldMeta {
   notNull: boolean;
   hasDefault: boolean;
   primaryKey: boolean;
+  /** Allowed values for enum columns; empty/absent for free-form columns. */
+  enumValues?: string[];
 }
 
 export type FieldMap = Record<string, FieldMeta>;
