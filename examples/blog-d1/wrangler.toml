@@ -2,6 +2,13 @@ name = "comp-blog-d1"
 main = "src/worker.ts"
 compatibility_date = "2025-01-01"
 
+[vars]
+RP_ID = "localhost"
+RP_ORIGIN = "http://localhost:8787"
+# SESSION_SECRET is a secret, not a var. For local dev put it in .dev.vars:
+#   SESSION_SECRET="dev-secret-change-me"
+# For deploys: wrangler secret put SESSION_SECRET
+
 # Run `wrangler d1 create blog` and paste the returned database_id here.
 [[d1_databases]]
 binding = "DB"

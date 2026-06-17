@@ -1,5 +1,7 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export { passkeyChallenges, passkeyCredentials } from "@comp/auth";
+
 export const posts = sqliteTable("posts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),

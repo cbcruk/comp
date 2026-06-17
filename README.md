@@ -46,10 +46,16 @@ pnpm dev         # run the blog-d1 example (needs a D1 binding, see below)
 ```bash
 cd examples/blog-d1
 wrangler d1 create blog            # paste database_id into wrangler.toml
-pnpm db:generate                   # generate the initial migration from schema.ts
-pnpm db:migrate:local              # apply migrations to the local D1
-pnpm dev                           # http://localhost:8787/admin/collections
+echo 'SESSION_SECRET="dev-secret-change-me"' > .dev.vars
+pnpm db:migrate:local              # apply migrations/0001_init.sql to the local D1
+pnpm dev                           # http://localhost:8787
 ```
+
+The admin API is under `/admin` (gated: anonymous can read, writes need a role)
+and the passkey ceremonies under `/auth` (`register/options`, `register/verify`,
+`login/options`, `login/verify`, `logout`). `migrations/` is hand-written here;
+`pnpm db:generate` regenerates it from `schema.ts` (which includes the passkey
+tables) if you change the schema.
 
 ## Status
 

@@ -8,6 +8,13 @@ export { createRolePolicy } from "./policy.js";
 export type { RoleGrant, RolePolicyConfig } from "./policy.js";
 
 export { createMemoryStore } from "./memory-store.js";
+export { createDrizzlePasskeyStore } from "./drizzle-store.js";
+export {
+  passkeyChallenges,
+  passkeyCredentials,
+  parseTransports,
+  serializeTransports,
+} from "./passkey-schema.js";
 export type {
   PasskeyStore,
   StoredCredential,

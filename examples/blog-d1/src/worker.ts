@@ -1,22 +1,40 @@
+import { createAuthRoutes } from "@comp/auth";
 import { createAdminRouter } from "@comp/server";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
+import { createBlogAuth, type BlogAuthEnv } from "./auth.js";
 import { actions, collections } from "./collections.js";
 
-interface Env {
+interface Env extends BlogAuthEnv {
   DB: D1Database;
 }
 
-const app = new Hono<{ Bindings: Env }>();
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const db = drizzle(env.DB);
+    const { auth, store, rp } = createBlogAuth(env, db);
 
-app.get("/", (c) => c.text("Comp — blog-d1 example. Admin API under /admin"));
+    const app = new Hono();
+    app.get("/", (c) =>
+      c.text("Comp — blog-d1 example. Admin API under /admin, auth under /auth"),
+    );
 
-const admin = createAdminRouter({
-  collections,
-  actions,
-  getDb: (c) => drizzle(c.env.DB),
-});
+    app.route(
+      "/admin",
+      createAdminRouter({ collections, actions, getDb: () => db, auth }),
+    );
 
-app.route("/admin", admin);
+    app.route(
+      "/auth",
+      createAuthRoutes({
+        store,
+        rp,
+        auth,
+        // Example-only: grant every verified user the admin role.
+        resolveIdentity: (userId) => ({ subject: userId, roles: ["admin"] }),
+      }),
+    );
 
-export default app;
+    return app.fetch(request, env);
+  },
+};
