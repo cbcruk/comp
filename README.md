@@ -48,14 +48,16 @@ cd examples/blog-d1
 wrangler d1 create blog            # paste database_id into wrangler.toml
 echo 'SESSION_SECRET="dev-secret-change-me"' > .dev.vars
 pnpm db:migrate:local              # apply migrations/0001_init.sql to the local D1
+pnpm build:client                  # vite-build the React admin SPA → dist/client
 pnpm dev                           # http://localhost:8787
 ```
 
-The admin API is under `/admin` (gated: anonymous can read, writes need a role)
-and the passkey ceremonies under `/auth` (`register/options`, `register/verify`,
-`login/options`, `login/verify`, `logout`). `migrations/` is hand-written here;
-`pnpm db:generate` regenerates it from `schema.ts` (which includes the passkey
-tables) if you change the schema.
+Open `http://localhost:8787` for the admin UI: register/sign in with a passkey,
+then create and browse posts. The React app (`client/`) is served same-origin
+by the Worker (Cloudflare assets) so passkeys work; it talks to the admin API
+under `/admin` (anonymous can read, writes need a role) and the passkey
+ceremonies under `/auth`. `migrations/` is hand-written here; `pnpm db:generate`
+regenerates it from `schema.ts` (which includes the passkey tables).
 
 ## Status
 
@@ -87,7 +89,7 @@ the workspace, tests, and `tsc` read TypeScript directly). Each package's
 on publish, and `pnpm build` emits it — so a published/packed package resolves
 to compiled JS. `pnpm pack` reflects the published shape.
 
-Next slices: a worked login screen in the example, and richer list UI (sortable
-column headers, inline edit).
+Next slices: richer list UI (sortable column headers, inline edit) and CI
+(`pnpm test`/`typecheck`/`lint`/`build` as a gate).
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

@@ -2,6 +2,11 @@ name = "comp-blog-d1"
 main = "src/worker.ts"
 compatibility_date = "2025-01-01"
 
+[assets]
+# Built by `pnpm build:client` (vite). Served same-origin so passkeys work;
+# requests that match no asset (e.g. /admin, /auth) fall through to the worker.
+directory = "./dist/client"
+
 [vars]
 RP_ID = "localhost"
 RP_ORIGIN = "http://localhost:8787"
