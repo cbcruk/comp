@@ -89,6 +89,10 @@ importers:
       '@comp/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      drizzle-orm:
+        specifier: ^0.44.2
+        version: 0.44.7(@cloudflare/workers-types@4.20260616.1)(gel@2.2.0)
 
   packages/core:
     devDependencies:

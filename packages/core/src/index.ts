@@ -10,6 +10,7 @@ export type {
   SortDirection,
 } from "./collection/define-collection.types.js";
 
+export type { Table } from "drizzle-orm";
 export { introspectTable } from "./introspection/introspect-table.js";
 export type {
   FieldDataType,

@@ -22,7 +22,7 @@ defineCollection({
 | `@comp/server` | Hono route adapter that mounts the read API over `core`.     |
 | `@comp/admin`  | React admin UI (list browser, detail/edit form, client).     |
 | `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.  |
-| `@comp/cli`    | Scaffolding / codegen (`comp scaffold`) over the core API.   |
+| `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.  |
 
 `examples/blog-d1` is the reference app: Cloudflare D1 + Drizzle.
 
@@ -72,8 +72,12 @@ v0.1 in progress. Implemented end-to-end:
   ceremonies, signed-session cookies, and a role policy, all keyed on the same
   `CollectionOperation` vocabulary as the manifest.
 
-Next slices: a D1-backed `PasskeyStore` for the example, richer field widgets
-(relations, enums) in the form, and `comp scaffold` reading a live Drizzle
-schema to fill in `listDisplay`.
+`comp scaffold --from ./schema.js#posts` introspects a Drizzle table to derive
+`listDisplay`/`filters`/`search`; `comp scaffold <Name> --table --fields …` is
+the manual form. (`--from` imports the module at runtime, so it needs
+`@comp/core` resolvable as built JS — i.e. published or built packages.)
+
+Next slices: a browser passkey client + login UI, and a publish/build step that
+points package `exports` at `dist` so the CLI runs standalone.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.
