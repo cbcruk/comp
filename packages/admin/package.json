@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@comp/core": "workspace:*"
+    "@comp/core": "workspace:*",
+    "@simplewebauthn/browser": "^13.0.0"
   },
   "peerDependencies": {
     "react": "^19.0.0"

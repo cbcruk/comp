@@ -77,7 +77,11 @@ v0.1 in progress. Implemented end-to-end:
 the manual form. (`--from` imports the module at runtime, so it needs
 `@comp/core` resolvable as built JS — i.e. published or built packages.)
 
-Next slices: a browser passkey client + login UI, and a publish/build step that
-points package `exports` at `dist` so the CLI runs standalone.
+`@comp/admin` also ships a browser passkey client (`createPasskeyClient`,
+wrapping `@simplewebauthn/browser`) and a `PasskeyLogin` component that drive
+the `/auth` ceremonies.
+
+Next slices: a publish/build step that points package `exports` at `dist` so
+the CLI and packages run standalone, and a worked login screen in the example.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

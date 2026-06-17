@@ -51,3 +51,12 @@ export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";
 export { useCollectionList } from "./hooks/use-collection-list.js";
 export type { UseCollectionListResult } from "./hooks/use-collection-list.js";
+
+export { createPasskeyClient } from "./passkey/passkey-client.js";
+export type {
+  PasskeyClient,
+  PasskeyClientOptions,
+  WebAuthnBrowser,
+} from "./passkey/passkey-client.types.js";
+export { PasskeyLogin } from "./passkey/passkey-login.js";
+export type { PasskeyLoginProps } from "./passkey/passkey-login.js";
