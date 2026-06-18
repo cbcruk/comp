@@ -2,6 +2,7 @@ import {
   CollectionBrowser,
   CollectionForm,
   PasskeyLogin,
+  ReferenceSelect,
   createClient,
   createPasskeyClient,
   type CollectionSummary,
@@ -25,6 +26,7 @@ export function App(): JSX.Element {
   }, []);
 
   const posts = collections.find((c) => c.slug === "posts");
+  const authors = collections.find((c) => c.slug === "authors");
 
   return (
     <main>
@@ -37,15 +39,47 @@ export function App(): JSX.Element {
 
       {error && <p role="alert">{error}</p>}
 
+      {authors && (
+        <>
+          <section>
+            <h2>New {authors.slug}</h2>
+            <CollectionForm
+              key={`author-form-${version}`}
+              fields={authors.fields}
+              primaryKey={authors.primaryKey}
+              submitLabel="Create"
+              onSubmit={async (values) => {
+                await client.create(authors.slug, values);
+                setVersion((v) => v + 1);
+              }}
+            />
+          </section>
+          <section>
+            <h2>{authors.slug}</h2>
+            <CollectionBrowser key={`author-list-${version}`} client={client} collection={authors} editable />
+          </section>
+        </>
+      )}
+
       {posts && (
         <>
           <section>
             <h2>New {posts.slug}</h2>
             <CollectionForm
-              key={`form-${version}`}
+              key={`post-form-${version}`}
               fields={posts.fields}
               primaryKey={posts.primaryKey}
               submitLabel="Create"
+              fieldWidgets={{
+                authorId: (control) => (
+                  <ReferenceSelect
+                    client={client}
+                    collection="authors"
+                    labelField="name"
+                    control={control}
+                  />
+                ),
+              }}
               onSubmit={async (values) => {
                 await client.create(posts.slug, values);
                 setVersion((v) => v + 1);
@@ -55,12 +89,7 @@ export function App(): JSX.Element {
 
           <section>
             <h2>{posts.slug}</h2>
-            <CollectionBrowser
-              key={`list-${version}`}
-              client={client}
-              collection={posts}
-              editable
-            />
+            <CollectionBrowser key={`post-list-${version}`} client={client} collection={posts} editable />
           </section>
         </>
       )}

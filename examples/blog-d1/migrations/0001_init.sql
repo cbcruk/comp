@@ -1,9 +1,15 @@
+CREATE TABLE authors (
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL
+);
+
 CREATE TABLE posts (
   id integer PRIMARY KEY AUTOINCREMENT,
   title text NOT NULL,
   slug text NOT NULL,
   body text,
   status text NOT NULL DEFAULT 'draft',
+  author_id integer REFERENCES authors (id),
   created_at integer NOT NULL
 );
 

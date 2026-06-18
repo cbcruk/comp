@@ -95,7 +95,11 @@ pagination, bulk selection + actions, and opt-in click-to-edit cells.
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build (packages
 + example SPA) on every push and PR.
 
-Next slices: a relation (FK) `ReferenceSelect` widget wired in the example, and
-optimistic updates / toasts for the list UI.
+Relations are app-declared: a `ReferenceSelect` widget pulls options from
+another collection and drops into a form's `fieldWidgets` (the example wires
+`posts.authorId` → `authors`).
+
+Next slices: field-level validation errors (surface server `issues` on the
+form/inline edit), and optimistic updates / toasts for the list UI.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.
