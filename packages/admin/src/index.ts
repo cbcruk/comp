@@ -22,6 +22,13 @@ export {
 } from "./collection-form/collection-form.utils.js";
 export type { InputType } from "./collection-form/collection-form.utils.js";
 
+export {
+  extractIssues,
+  fieldMessage,
+  issuesByField,
+} from "./validation/issues.js";
+export type { FieldIssue } from "./validation/issues.js";
+
 export { createClient } from "./client/create-client.js";
 export { CompClientError } from "./client/client-error.js";
 export type {

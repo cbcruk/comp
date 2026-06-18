@@ -2,6 +2,7 @@ import type { FieldMeta } from "@comp/core";
 import { useState } from "react";
 import type { CompClient } from "../client/create-client.types.js";
 import { fromInputValue } from "../collection-form/collection-form.utils.js";
+import { extractIssues, fieldMessage } from "../validation/issues.js";
 import type { EditingCell } from "./inline-edit.js";
 
 export interface UseInlineEditResult {
@@ -54,7 +55,12 @@ export function useInlineEdit(
         onSaved();
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err : new Error(String(err)));
+        const issueMessage = fieldMessage(extractIssues(err), name);
+        if (issueMessage) {
+          setError(new Error(`${name}: ${issueMessage}`));
+        } else {
+          setError(err instanceof Error ? err : new Error(String(err)));
+        }
       })
       .finally(() => setBusy(false));
   }

@@ -1,4 +1,8 @@
 import { useState, type FormEvent, type JSX } from "react";
+import {
+  extractIssues,
+  issuesByField,
+} from "../validation/issues.js";
 import type { CollectionFormProps, FieldControl } from "./collection-form.types.js";
 import {
   editableFields,
@@ -76,18 +80,35 @@ export function CollectionForm({
 }: CollectionFormProps): JSX.Element {
   const editable = editableFields(fields, primaryKey);
   const [values, setValues] = useState(() => initialValues(editable, record));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function setField(name: string, value: string): void {
     setValues((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(event: FormEvent): void {
+  async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    void onSubmit(toPayload(editable, values));
+    setSubmitting(true);
+    setFieldErrors({});
+    setFormError(null);
+    try {
+      await onSubmit(toPayload(editable, values));
+    } catch (error) {
+      const issues = extractIssues(error);
+      if (issues) {
+        setFieldErrors(issuesByField(issues));
+      } else {
+        setFormError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={(e) => void handleSubmit(e)}>
       {editable.map((field) => {
         const control: FieldControl = {
           field,
@@ -95,13 +116,20 @@ export function CollectionForm({
           onChange: (value) => setField(field.name, value),
         };
         const widget = fieldWidgets?.[field.name] ?? renderField;
+        const errors = fieldErrors[field.name];
         return (
           <div key={field.name}>
             {widget ? widget(control) : <DefaultField {...control} />}
+            {errors?.map((message, i) => (
+              <span key={i} role="alert">
+                {message}
+              </span>
+            ))}
           </div>
         );
       })}
-      <button type="submit" disabled={busy}>
+      {formError && <p role="alert">{formError}</p>}
+      <button type="submit" disabled={busy || submitting}>
         {submitLabel}
       </button>
     </form>

@@ -99,7 +99,11 @@ Relations are app-declared: a `ReferenceSelect` widget pulls options from
 another collection and drops into a form's `fieldWidgets` (the example wires
 `posts.authorId` → `authors`).
 
-Next slices: field-level validation errors (surface server `issues` on the
-form/inline edit), and optimistic updates / toasts for the list UI.
+Server validation errors are surfaced field-by-field: a failed submit maps the
+returned Zod `issues` to messages beside each form field, and a failed inline
+edit shows the offending field's message.
+
+Next slices: optimistic updates / toasts for the list UI, and read-side
+relation display (show the author name in the list, not the raw id).
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.
