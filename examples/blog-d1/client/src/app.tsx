@@ -55,7 +55,12 @@ export function App(): JSX.Element {
 
           <section>
             <h2>{posts.slug}</h2>
-            <CollectionBrowser key={`list-${version}`} client={client} collection={posts} />
+            <CollectionBrowser
+              key={`list-${version}`}
+              client={client}
+              collection={posts}
+              editable
+            />
           </section>
         </>
       )}

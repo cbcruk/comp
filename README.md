@@ -89,7 +89,10 @@ the workspace, tests, and `tsc` read TypeScript directly). Each package's
 on publish, and `pnpm build` emits it — so a published/packed package resolves
 to compiled JS. `pnpm pack` reflects the published shape.
 
-Next slices: richer list UI (sortable column headers, inline edit) and CI
-(`pnpm test`/`typecheck`/`lint`/`build` as a gate).
+The list view supports search, per-column filters, sortable headers,
+pagination, bulk selection + actions, and opt-in click-to-edit cells.
+
+Next slices: CI (`pnpm test`/`typecheck`/`lint`/`build` as a gate) and a
+relation (FK) `ReferenceSelect` widget wired in the example.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

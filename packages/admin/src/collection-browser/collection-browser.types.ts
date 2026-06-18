@@ -11,4 +11,6 @@ export interface CollectionBrowserProps {
   pageSize?: number;
   /** Forwarded to the underlying table for custom cell rendering. */
   renderCell?: CollectionListProps["renderCell"];
+  /** Enable click-to-edit cells that PATCH on commit (ignored if renderCell is set). */
+  editable?: boolean;
 }

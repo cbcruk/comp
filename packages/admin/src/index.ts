@@ -49,6 +49,12 @@ export {
 } from "./collection-browser/selection.js";
 export { nextSort, parseSort } from "./collection-browser/sorting.js";
 export type { ParsedSort } from "./collection-browser/sorting.js";
+export { canEditColumn, isEditing } from "./collection-browser/inline-edit.js";
+export type { EditingCell } from "./collection-browser/inline-edit.js";
+export { useInlineEdit } from "./collection-browser/use-inline-edit.js";
+export type { UseInlineEditResult } from "./collection-browser/use-inline-edit.js";
+export { InlineInput } from "./collection-browser/inline-cell.js";
+export type { InlineInputProps } from "./collection-browser/inline-cell.js";
 
 export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";
