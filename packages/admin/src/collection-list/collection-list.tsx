@@ -12,6 +12,8 @@ function defaultCell(value: unknown): string {
  * presentational — it renders what the query layer resolved and nothing more.
  * Cell/header/empty rendering are render-prop slots rather than prop flags.
  */
+const SORT_INDICATOR = { asc: " ▲", desc: " ▼" } as const;
+
 export function CollectionList({
   columns,
   rows,
@@ -19,9 +21,27 @@ export function CollectionList({
   renderHeader,
   renderEmpty,
   selection,
+  sort,
 }: CollectionListProps): JSX.Element {
   if (rows.length === 0 && renderEmpty) {
     return <>{renderEmpty()}</>;
+  }
+
+  function headerContent(column: string): JSX.Element | string {
+    const label = renderHeader ? renderHeader(column) : column;
+    if (!sort) return <>{label}</>;
+    const active = sort.field === column ? sort.direction : null;
+    return (
+      <button type="button" onClick={() => sort.onSort(column)}>
+        {label}
+        {active ? SORT_INDICATOR[active] : ""}
+      </button>
+    );
+  }
+
+  function ariaSort(column: string): "ascending" | "descending" | "none" {
+    if (!sort || sort.field !== column || !sort.direction) return "none";
+    return sort.direction === "asc" ? "ascending" : "descending";
   }
 
   return (
@@ -41,7 +61,9 @@ export function CollectionList({
             </th>
           )}
           {columns.map((column) => (
-            <th key={column}>{renderHeader ? renderHeader(column) : column}</th>
+            <th key={column} aria-sort={sort ? ariaSort(column) : undefined}>
+              {headerContent(column)}
+            </th>
           ))}
         </tr>
       </thead>

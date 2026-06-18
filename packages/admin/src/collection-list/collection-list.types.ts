@@ -11,6 +11,13 @@ export interface RowSelection {
   allSelected?: boolean;
 }
 
+/** Optional sort config; when present, headers are clickable sort toggles. */
+export interface ColumnSort {
+  field: string | null;
+  direction: "asc" | "desc" | null;
+  onSort: (column: string) => void;
+}
+
 export interface CollectionListProps {
   /** Column keys to render, in order — mirrors a collection's `listDisplay`. */
   columns: string[];
@@ -23,4 +30,6 @@ export interface CollectionListProps {
   renderEmpty?: () => ReactNode;
   /** Enables a leading checkbox column for bulk selection. */
   selection?: RowSelection;
+  /** Enables clickable, sortable column headers. */
+  sort?: ColumnSort;
 }

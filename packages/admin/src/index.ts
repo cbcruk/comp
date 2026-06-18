@@ -1,6 +1,7 @@
 export { CollectionList } from "./collection-list/collection-list.js";
 export type {
   CollectionListProps,
+  ColumnSort,
   Row,
   RowSelection,
 } from "./collection-list/collection-list.types.js";
@@ -46,6 +47,8 @@ export {
   toggleAll,
   toIds,
 } from "./collection-browser/selection.js";
+export { nextSort, parseSort } from "./collection-browser/sorting.js";
+export type { ParsedSort } from "./collection-browser/sorting.js";
 
 export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";

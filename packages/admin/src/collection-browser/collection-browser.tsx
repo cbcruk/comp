@@ -4,6 +4,7 @@ import { useCollectionList } from "../hooks/use-collection-list.js";
 import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
 import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
+import { nextSort, parseSort } from "./sorting.js";
 
 /**
  * List view for a collection: search, per-column filters, the table with bulk
@@ -27,6 +28,7 @@ export function CollectionBrowser({
   const totalPages = pageCount(total, size || 1);
   const filters = query.filters ?? {};
   const pk = collection.primaryKey;
+  const currentSort = parseSort(query.sort);
 
   async function runAction(name: string): Promise<void> {
     setRunning(true);
@@ -89,6 +91,11 @@ export function CollectionBrowser({
         rows={rows}
         renderCell={renderCell}
         renderEmpty={() => <p>{loading ? "Loading…" : "No records"}</p>}
+        sort={{
+          field: currentSort?.field ?? null,
+          direction: currentSort?.direction ?? null,
+          onSort: (column) => setQuery({ sort: nextSort(query.sort, column) }),
+        }}
         selection={{
           getRowId: (row) => rowId(row, pk),
           selected,
