@@ -92,7 +92,10 @@ to compiled JS. `pnpm pack` reflects the published shape.
 The list view supports search, per-column filters, sortable headers,
 pagination, bulk selection + actions, and opt-in click-to-edit cells.
 
-Next slices: CI (`pnpm test`/`typecheck`/`lint`/`build` as a gate) and a
-relation (FK) `ReferenceSelect` widget wired in the example.
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build (packages
++ example SPA) on every push and PR.
+
+Next slices: a relation (FK) `ReferenceSelect` widget wired in the example, and
+optimistic updates / toasts for the list UI.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.
