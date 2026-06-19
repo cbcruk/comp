@@ -29,6 +29,7 @@ export function CollectionBrowser({
   pageSize,
   renderCell,
   editable = false,
+  onNotify,
 }: CollectionBrowserProps): JSX.Element {
   const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
@@ -81,11 +82,19 @@ export function CollectionBrowser({
     setRunning(true);
     setActionError(null);
     try {
-      await client.action(collection.slug, name, { ids: toIds(selected) });
+      const result = await client.action(collection.slug, name, {
+        ids: toIds(selected),
+      });
       setSelected(new Set());
       reload();
+      onNotify?.("success", result.message ?? `${name}: done`);
     } catch (err) {
-      setActionError(err instanceof Error ? err : new Error(String(err)));
+      const message = err instanceof Error ? err.message : String(err);
+      if (onNotify) {
+        onNotify("error", message);
+      } else {
+        setActionError(new Error(message));
+      }
     } finally {
       setRunning(false);
     }

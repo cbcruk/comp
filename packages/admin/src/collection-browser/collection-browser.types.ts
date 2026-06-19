@@ -13,4 +13,6 @@ export interface CollectionBrowserProps {
   renderCell?: CollectionListProps["renderCell"];
   /** Enable click-to-edit cells that PATCH on commit (ignored if renderCell is set). */
   editable?: boolean;
+  /** Notified on action success/failure; when set, action errors route here. */
+  onNotify?: (kind: "success" | "error", message: string) => void;
 }
