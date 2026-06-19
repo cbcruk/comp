@@ -3,6 +3,7 @@ import type {
   CompClient,
 } from "../client/create-client.types.js";
 import type { CollectionListProps } from "../collection-list/collection-list.types.js";
+import type { ReferenceConfig } from "./reference-labels.js";
 
 export interface CollectionBrowserProps {
   client: CompClient;
@@ -15,4 +16,6 @@ export interface CollectionBrowserProps {
   editable?: boolean;
   /** Notified on action success/failure; when set, action errors route here. */
   onNotify?: (kind: "success" | "error", message: string) => void;
+  /** Resolve FK columns to labels from another collection, keyed by column. */
+  references?: Record<string, ReferenceConfig>;
 }

@@ -7,9 +7,13 @@ import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
+import { resolveLabel } from "./reference-labels.js";
 import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
 import { nextSort, parseSort } from "./sorting.js";
 import { useInlineEdit } from "./use-inline-edit.js";
+import { useReferenceLabels } from "./use-reference-labels.js";
+
+const NO_REFERENCES = {} as const;
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -30,6 +34,7 @@ export function CollectionBrowser({
   renderCell,
   editable = false,
   onNotify,
+  references = NO_REFERENCES,
 }: CollectionBrowserProps): JSX.Element {
   const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
@@ -38,45 +43,55 @@ export function CollectionBrowser({
   const [running, setRunning] = useState(false);
   const [actionError, setActionError] = useState<Error | null>(null);
   const edit = useInlineEdit(client, collection.slug, reload);
+  const labels = useReferenceLabels(client, references);
 
   const totalPages = pageCount(total, size || 1);
   const filters = query.filters ?? {};
   const pk = collection.primaryKey;
   const currentSort = parseSort(query.sort);
 
-  const editableRenderCell: CollectionListProps["renderCell"] = ({
+  const customRenderCell: CollectionListProps["renderCell"] = ({
     column,
     value,
     row,
   }) => {
+    const display = resolveLabel(labels, column, value, displayValue(value));
     const field = collection.fields[column];
     const id = rowId(row, pk);
-    if (!field || id === null || !canEditColumn(collection.fields, pk, column)) {
-      return displayValue(value);
-    }
-    if (isEditing(edit.editing, id, column)) {
+
+    if (
+      editable &&
+      field &&
+      id !== null &&
+      canEditColumn(collection.fields, pk, column)
+    ) {
+      if (isEditing(edit.editing, id, column)) {
+        return (
+          <InlineInput
+            field={field}
+            value={edit.value}
+            busy={edit.busy}
+            onChange={edit.change}
+            onCommit={() => edit.commit(field)}
+            onCancel={edit.cancel}
+          />
+        );
+      }
       return (
-        <InlineInput
-          field={field}
-          value={edit.value}
-          busy={edit.busy}
-          onChange={edit.change}
-          onCommit={() => edit.commit(field)}
-          onCancel={edit.cancel}
-        />
+        <button
+          type="button"
+          onClick={() => edit.start(id, column, toInputValue(field, value))}
+        >
+          {display || "—"}
+        </button>
       );
     }
-    return (
-      <button
-        type="button"
-        onClick={() => edit.start(id, column, toInputValue(field, value))}
-      >
-        {displayValue(value) || "—"}
-      </button>
-    );
+    return display;
   };
 
-  const cellRenderer = renderCell ?? (editable ? editableRenderCell : undefined);
+  const hasReferences = Object.keys(references).length > 0;
+  const cellRenderer =
+    renderCell ?? (editable || hasReferences ? customRenderCell : undefined);
 
   async function runAction(name: string): Promise<void> {
     setRunning(true);

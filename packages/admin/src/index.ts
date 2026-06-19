@@ -56,6 +56,12 @@ export {
 } from "./collection-browser/selection.js";
 export { nextSort, parseSort } from "./collection-browser/sorting.js";
 export type { ParsedSort } from "./collection-browser/sorting.js";
+export {
+  buildLabelMap,
+  resolveLabel,
+} from "./collection-browser/reference-labels.js";
+export type { ReferenceConfig } from "./collection-browser/reference-labels.js";
+export { useReferenceLabels } from "./collection-browser/use-reference-labels.js";
 export { canEditColumn, isEditing } from "./collection-browser/inline-edit.js";
 export type { EditingCell } from "./collection-browser/inline-edit.js";
 export { useInlineEdit } from "./collection-browser/use-inline-edit.js";

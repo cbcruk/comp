@@ -105,6 +105,9 @@ export function App(): JSX.Element {
               collection={posts}
               editable
               onNotify={notify}
+              references={{
+                authorId: { collection: "authors", labelField: "name" },
+              }}
             />
           </section>
         </>
