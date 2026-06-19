@@ -1,4 +1,5 @@
-import type { JSX } from "react";
+import type { ComponentPropsWithoutRef, JSX } from "react";
+import { mergeProps } from "../merge-props/merge-props.js";
 import type { CollectionListProps } from "./collection-list.types.js";
 
 function defaultCell(value: unknown): string {
@@ -22,6 +23,7 @@ export function CollectionList({
   renderEmpty,
   selection,
   sort,
+  ...rest
 }: CollectionListProps): JSX.Element {
   if (rows.length === 0 && renderEmpty) {
     return <>{renderEmpty()}</>;
@@ -45,7 +47,7 @@ export function CollectionList({
   }
 
   return (
-    <table>
+    <table {...mergeProps<ComponentPropsWithoutRef<"table">>({}, rest)}>
       <thead>
         <tr>
           {selection && (

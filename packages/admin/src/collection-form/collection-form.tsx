@@ -1,4 +1,10 @@
-import { useState, type FormEvent, type JSX } from "react";
+import {
+  useState,
+  type ComponentPropsWithoutRef,
+  type FormEvent,
+  type JSX,
+} from "react";
+import { mergeProps } from "../merge-props/merge-props.js";
 import {
   extractIssues,
   issuesByField,
@@ -77,6 +83,7 @@ export function CollectionForm({
   fieldWidgets,
   submitLabel = "Save",
   busy = false,
+  ...rest
 }: CollectionFormProps): JSX.Element {
   const editable = editableFields(fields, primaryKey);
   const [values, setValues] = useState(() => initialValues(editable, record));
@@ -108,7 +115,12 @@ export function CollectionForm({
   }
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)}>
+    <form
+      {...mergeProps<ComponentPropsWithoutRef<"form">>(
+        { onSubmit: (e) => void handleSubmit(e as FormEvent) },
+        rest,
+      )}
+    >
       {editable.map((field) => {
         const control: FieldControl = {
           field,

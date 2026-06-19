@@ -1,3 +1,5 @@
+export { mergeProps } from "./merge-props/merge-props.js";
+
 export { CollectionList } from "./collection-list/collection-list.js";
 export type {
   CollectionListProps,

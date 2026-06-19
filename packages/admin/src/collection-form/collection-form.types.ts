@@ -1,5 +1,5 @@
 import type { FieldMap, FieldMeta } from "@comp/core";
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import type { Row } from "../client/create-client.types.js";
 
 export interface FieldControl {
@@ -8,7 +8,8 @@ export interface FieldControl {
   onChange: (value: string) => void;
 }
 
-export interface CollectionFormProps {
+export interface CollectionFormProps
+  extends Omit<ComponentPropsWithoutRef<"form">, "onSubmit"> {
   fields: FieldMap;
   primaryKey: string | null;
   /** Existing record when editing; omit for create. */

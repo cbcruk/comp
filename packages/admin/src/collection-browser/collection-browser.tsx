@@ -1,4 +1,5 @@
-import { useState, type JSX } from "react";
+import { useState, type ComponentPropsWithoutRef, type JSX } from "react";
+import { mergeProps } from "../merge-props/merge-props.js";
 import { toInputValue } from "../collection-form/collection-form.utils.js";
 import { CollectionList } from "../collection-list/collection-list.js";
 import type { CollectionListProps } from "../collection-list/collection-list.types.js";
@@ -35,6 +36,7 @@ export function CollectionBrowser({
   editable = false,
   onNotify,
   references = NO_REFERENCES,
+  ...rest
 }: CollectionBrowserProps): JSX.Element {
   const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload, applyLocal } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
@@ -118,7 +120,7 @@ export function CollectionBrowser({
   }
 
   return (
-    <div>
+    <div {...mergeProps<ComponentPropsWithoutRef<"div">>({}, rest)}>
       {collection.search.length > 0 && (
         <input
           type="search"

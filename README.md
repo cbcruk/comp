@@ -111,8 +111,11 @@ optimistically and reconcile with the server, and the example ships a small
 stylesheet. Admin components carry `aria-sort`/`aria-label`/`role` for
 accessibility.
 
-Next slices: optional `className`/`style` pass-through on admin components (Base
-UI `mergeProps` convention), then the post-v0.1 roadmap in `CLAUDE.md` (MCP
-server, sandboxed actions).
+Admin components accept their root element's HTML attributes and merge them via
+a Base UI–style `mergeProps` (className concat, style merge, handlers chained,
+external overrides internal), so apps can style/extend the roots.
+
+Next slices: the post-v0.1 roadmap in `CLAUDE.md` — a built-in MCP server over
+the same core surface, and sandboxed action execution.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

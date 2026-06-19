@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 export type Row = Record<string, unknown>;
 
@@ -18,7 +18,7 @@ export interface ColumnSort {
   onSort: (column: string) => void;
 }
 
-export interface CollectionListProps {
+export interface CollectionListProps extends ComponentPropsWithoutRef<"table"> {
   /** Column keys to render, in order — mirrors a collection's `listDisplay`. */
   columns: string[];
   rows: Row[];

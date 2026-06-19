@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import type {
   CollectionSummary,
   CompClient,
@@ -5,7 +6,7 @@ import type {
 import type { CollectionListProps } from "../collection-list/collection-list.types.js";
 import type { ReferenceConfig } from "./reference-labels.js";
 
-export interface CollectionBrowserProps {
+export interface CollectionBrowserProps extends ComponentPropsWithoutRef<"div"> {
   client: CompClient;
   collection: CollectionSummary;
   /** Initial page size; falls back to the server's default when omitted. */
