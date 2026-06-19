@@ -106,7 +106,13 @@ edit shows the offending field's message.
 Toast notifications (`useToasts` + `Toasts`) surface action success/failure;
 `CollectionBrowser` routes them through an optional `onNotify` callback.
 
-Next slices: read-side relation display (show the author name in the list, not
-the raw id) and optimistic inline-edit updates.
+The list resolves FK columns to labels (a `references` prop), inline edits apply
+optimistically and reconcile with the server, and the example ships a small
+stylesheet. Admin components carry `aria-sort`/`aria-label`/`role` for
+accessibility.
+
+Next slices: optional `className`/`style` pass-through on admin components (Base
+UI `mergeProps` convention), then the post-v0.1 roadmap in `CLAUDE.md` (MCP
+server, sandboxed actions).
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

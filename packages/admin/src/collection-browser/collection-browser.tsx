@@ -122,6 +122,7 @@ export function CollectionBrowser({
       {collection.search.length > 0 && (
         <input
           type="search"
+          aria-label={`Search ${collection.slug}`}
           placeholder={`Search ${collection.slug}`}
           value={query.q ?? ""}
           onChange={(e) => setQuery({ q: e.target.value })}

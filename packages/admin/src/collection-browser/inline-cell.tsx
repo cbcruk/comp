@@ -43,6 +43,7 @@ export function InlineInput({
     return (
       <select
         autoFocus
+        aria-label={field.name}
         disabled={busy}
         value={value}
         onChange={(e) => {
@@ -66,6 +67,7 @@ export function InlineInput({
       <input
         type="checkbox"
         autoFocus
+        aria-label={field.name}
         disabled={busy}
         checked={value === "true"}
         onChange={(e) => onChange(e.target.checked ? "true" : "")}
@@ -79,6 +81,7 @@ export function InlineInput({
     <input
       type={type}
       autoFocus
+      aria-label={field.name}
       disabled={busy}
       value={value}
       onChange={(e) => onChange(e.target.value)}
