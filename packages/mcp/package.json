@@ -1,0 +1,42 @@
+{
+  "name": "@comp/mcp",
+  "version": "0.0.0",
+  "description": "Expose Comp collections and actions over the Model Context Protocol",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@comp/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.36.0",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.6.14"
+  }
+}

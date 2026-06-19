@@ -22,6 +22,7 @@ defineCollection({
 | `@comp/server` | Hono route adapter that mounts the read API over `core`.     |
 | `@comp/admin`  | React admin UI (list browser, detail/edit form, client).     |
 | `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.  |
+| `@comp/mcp`    | Collections + actions over the Model Context Protocol.       |
 | `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.  |
 
 `examples/blog-d1` is the reference app: Cloudflare D1 + Drizzle.
@@ -115,7 +116,13 @@ Admin components accept their root element's HTML attributes and merge them via
 a Base UI–style `mergeProps` (className concat, style merge, handlers chained,
 external overrides internal), so apps can style/extend the roots.
 
-Next slices: the post-v0.1 roadmap in `CLAUDE.md` — a built-in MCP server over
-the same core surface, and sandboxed action execution.
+`@comp/mcp` exposes the same collections and actions over the Model Context
+Protocol (JSON-RPC, no SDK dependency): `createMcpHandler` generates
+`list`/`get`/`create`/`update`/`delete` + action tools from the declarations,
+gated by each manifest. The example mounts it at `/mcp` (unguarded for the demo
+— protect it in production, as it mirrors the write surface).
+
+Next slice: sandboxed action execution (lift the capability-bearing actions
+into isolates), per the post-v0.1 roadmap in `CLAUDE.md`.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

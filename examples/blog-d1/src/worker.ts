@@ -1,4 +1,5 @@
 import { createAuthRoutes } from "@comp/auth";
+import { createMcpHandler } from "@comp/mcp";
 import { createAdminRouter } from "@comp/server";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
@@ -23,6 +24,10 @@ export default {
       "/admin",
       createAdminRouter({ collections, actions, getDb: () => db, auth }),
     );
+
+    // Same operations over MCP (JSON-RPC). Protect this in production —
+    // it mirrors the write surface and is unguarded here for the demo.
+    app.route("/mcp", createMcpHandler({ collections, actions, getDb: () => db }));
 
     app.route(
       "/auth",

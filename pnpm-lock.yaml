@@ -38,6 +38,9 @@ importers:
       '@comp/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@comp/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@comp/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -126,6 +129,19 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.25.76
+
+  packages/mcp:
+    dependencies:
+      '@comp/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      drizzle-orm:
+        specifier: ^0.44.2
+        version: 0.44.7(@cloudflare/workers-types@4.20260616.1)(gel@2.2.0)
+      hono:
+        specifier: ^4.6.14
+        version: 4.12.25
 
   packages/server:
     dependencies:
