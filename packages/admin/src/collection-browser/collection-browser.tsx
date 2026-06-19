@@ -36,18 +36,20 @@ export function CollectionBrowser({
   onNotify,
   references = NO_REFERENCES,
 }: CollectionBrowserProps): JSX.Element {
-  const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload } =
+  const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload, applyLocal } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
 
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [running, setRunning] = useState(false);
   const [actionError, setActionError] = useState<Error | null>(null);
-  const edit = useInlineEdit(client, collection.slug, reload);
+  const pk = collection.primaryKey;
+  const edit = useInlineEdit(client, collection.slug, reload, (id, field, value) =>
+    applyLocal((row) => rowId(row, pk) === id, { [field]: value }),
+  );
   const labels = useReferenceLabels(client, references);
 
   const totalPages = pageCount(total, size || 1);
   const filters = query.filters ?? {};
-  const pk = collection.primaryKey;
   const currentSort = parseSort(query.sort);
 
   const customRenderCell: CollectionListProps["renderCell"] = ({

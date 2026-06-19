@@ -80,6 +80,7 @@ export { useRecord } from "./hooks/use-record.js";
 export type { UseRecordResult } from "./hooks/use-record.js";
 export { useCollectionList } from "./hooks/use-collection-list.js";
 export type { UseCollectionListResult } from "./hooks/use-collection-list.js";
+export { applyPatch } from "./hooks/row-patch.js";
 
 export { ReferenceSelect } from "./reference-select/reference-select.js";
 export type { ReferenceSelectProps } from "./reference-select/reference-select.types.js";

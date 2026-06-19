@@ -21,11 +21,15 @@ export interface UseInlineEditResult {
  * Own the single editing cell and its draft, committing through the client's
  * update — the same write path everything else uses. Coercion reuses the
  * form's `fromInputValue`, so inline edits and the form agree on types.
+ *
+ * `applyOptimistic` (optional) patches the visible row before the request; a
+ * `reload` on both success and error reconciles with the server (or reverts).
  */
 export function useInlineEdit(
   client: CompClient,
   slug: string,
   onSaved: () => void,
+  applyOptimistic?: (id: string, field: string, value: unknown) => void,
 ): UseInlineEditResult {
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [value, setValue] = useState("");
@@ -46,13 +50,14 @@ export function useInlineEdit(
   function commit(field: FieldMeta): void {
     if (!editing || busy) return;
     const { id, field: name } = editing;
+    const coerced = fromInputValue(field, value);
+    applyOptimistic?.(id, name, coerced);
     setBusy(true);
     setError(null);
     client
-      .update(slug, id, { [name]: fromInputValue(field, value) })
+      .update(slug, id, { [name]: coerced })
       .then(() => {
         setEditing(null);
-        onSaved();
       })
       .catch((err: unknown) => {
         const issueMessage = fieldMessage(extractIssues(err), name);
@@ -62,7 +67,12 @@ export function useInlineEdit(
           setError(err instanceof Error ? err : new Error(String(err)));
         }
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        setBusy(false);
+        // Reconcile with the server: confirms the optimistic value on success,
+        // reverts it on error.
+        onSaved();
+      });
   }
 
   return { editing, value, busy, error, start, change: setValue, cancel, commit };

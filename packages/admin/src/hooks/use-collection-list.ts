@@ -4,6 +4,7 @@ import type {
   ListQuery,
   Row,
 } from "../client/create-client.types.js";
+import { applyPatch } from "./row-patch.js";
 
 export interface UseCollectionListResult {
   rows: Row[];
@@ -16,6 +17,8 @@ export interface UseCollectionListResult {
   /** Merge into the current query. Changing search/filters resets to page 1. */
   setQuery: (next: Partial<ListQuery>) => void;
   reload: () => void;
+  /** Optimistically merge a patch into locally-held rows matching `predicate`. */
+  applyLocal: (predicate: (row: Row) => boolean, patch: Row) => void;
 }
 
 function resetsToFirstPage(next: Partial<ListQuery>): boolean {
@@ -49,6 +52,13 @@ export function useCollectionList(
   }, []);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  const applyLocal = useCallback(
+    (predicate: (row: Row) => boolean, patch: Row) => {
+      setRows((prev) => applyPatch(prev, predicate, patch));
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -86,5 +96,6 @@ export function useCollectionList(
     error,
     setQuery,
     reload,
+    applyLocal,
   };
 }
