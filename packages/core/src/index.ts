@@ -42,6 +42,13 @@ export type {
   ActionManifest,
   ActionResult,
 } from "./action/define-action.types.js";
+export {
+  CapabilityError,
+  createCapabilityDb,
+  inProcessExecutor,
+  runAction,
+} from "./action/run-action.js";
+export type { ActionExecutor } from "./action/run-action.js";
 export type { ListParams } from "./query/list-query.types.js";
 
 export {

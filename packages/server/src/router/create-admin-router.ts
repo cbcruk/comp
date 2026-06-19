@@ -6,6 +6,7 @@ import {
   buildListQuery,
   buildUpdateQuery,
   allowAll,
+  runAction,
   validateInsert,
   validateUpdate,
   ValidationError,
@@ -228,7 +229,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       | undefined;
     const ids = Array.isArray(body?.ids) ? body.ids : [];
 
-    const result = await action.handler({
+    const result = await runAction(action, {
       db: config.getDb(c),
       collection,
       ids,

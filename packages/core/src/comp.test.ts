@@ -5,6 +5,11 @@ import {
   bulkDeleteAction,
   defineAction,
 } from "./action/define-action.js";
+import {
+  CapabilityError,
+  createCapabilityDb,
+  runAction,
+} from "./action/run-action.js";
 import { allowAll } from "./auth/allow-all.js";
 import type { AuthAdapter } from "./auth/auth-adapter.types.js";
 import { defineCollection } from "./collection/define-collection.js";
@@ -316,6 +321,72 @@ describe("auth adapter", () => {
         operation: "delete",
       }),
     ).toBe(false);
+  });
+});
+
+describe("capability boundary", () => {
+  function stubDb() {
+    return {
+      select: () => "select",
+      insert: () => "insert",
+      update: () => "update",
+      delete: () => "delete",
+    };
+  }
+
+  it("permits only the declared operations", () => {
+    const scoped = createCapabilityDb(stubDb() as never, ["delete"]);
+    const db = scoped as unknown as Record<string, () => string>;
+    expect(db.delete!()).toBe("delete");
+    expect(() => db.insert!()).toThrow(CapabilityError);
+    expect(() => db.select!()).toThrow(CapabilityError);
+  });
+
+  it("maps list/read to select", () => {
+    const scoped = createCapabilityDb(stubDb() as never, ["list", "read"]);
+    const db = scoped as unknown as Record<string, () => string>;
+    expect(db.select!()).toBe("select");
+    expect(() => db.delete!()).toThrow(CapabilityError);
+  });
+
+  it("runAction scopes the db to the action's operations", async () => {
+    let sawDelete = false;
+    const action = defineAction({
+      name: "purge",
+      collection: "posts",
+      operations: ["delete"],
+      handler: async ({ db }) => {
+        (db as unknown as { delete: () => void }).delete();
+        sawDelete = true;
+        return { affected: 1 };
+      },
+    });
+    const result = await runAction(action, {
+      db: { delete: () => undefined } as never,
+      collection: postCollection,
+      ids: [1],
+    });
+    expect(result.affected).toBe(1);
+    expect(sawDelete).toBe(true);
+  });
+
+  it("runAction blocks an undeclared operation at the boundary", async () => {
+    const rogue = defineAction({
+      name: "rogue",
+      collection: "posts",
+      operations: ["read"],
+      handler: async ({ db }) => {
+        (db as unknown as { delete: () => void }).delete();
+        return { affected: 0 };
+      },
+    });
+    await expect(
+      runAction(rogue, {
+        db: { delete: () => undefined, select: () => undefined } as never,
+        collection: postCollection,
+        ids: [],
+      }),
+    ).rejects.toThrow(CapabilityError);
   });
 });
 

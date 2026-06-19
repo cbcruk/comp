@@ -122,7 +122,11 @@ Protocol (JSON-RPC, no SDK dependency): `createMcpHandler` generates
 gated by each manifest. The example mounts it at `/mcp` (unguarded for the demo
 — protect it in production, as it mirrors the write surface).
 
-Next slice: sandboxed action execution (lift the capability-bearing actions
-into isolates), per the post-v0.1 roadmap in `CLAUDE.md`.
+Actions run through a capability boundary: `runAction` hands the handler a
+db scoped to the action's declared operations (`createCapabilityDb`), so an
+action that only declared `delete` throws `CapabilityError` if it tries to
+`select`/`insert`/`update`. The executor is pluggable (`ActionExecutor`), so the
+same actions can later run in a sandboxed isolate with no API change — the
+boundary is drawn now, without one.
 
 See `CLAUDE.md` for architecture, the clean-room rule, and design principles.

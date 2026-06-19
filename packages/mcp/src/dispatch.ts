@@ -5,6 +5,7 @@ import {
   buildInsertQuery,
   buildListQuery,
   buildUpdateQuery,
+  runAction,
   validateInsert,
   validateUpdate,
   ValidationError,
@@ -110,7 +111,7 @@ async function runTool(
       );
       if (!action) return { ...text({ error: "Unknown action" }), isError: true };
       const ids = Array.isArray(args.ids) ? args.ids : [];
-      const result = await action.handler({ db, collection, ids, input: args.input });
+      const result = await runAction(action, { db, collection, ids, input: args.input });
       return text(result);
     }
   }
