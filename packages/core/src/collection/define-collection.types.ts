@@ -1,5 +1,8 @@
 import type { Table } from "drizzle-orm";
-import type { FieldMap } from "../introspection/introspect-table.types.js";
+import type {
+  FieldMap,
+  TableRelation,
+} from "../introspection/introspect-table.types.js";
 
 /** Field names of a Drizzle table, checked at the type level. */
 export type ColumnKey<TTable extends Table> = keyof TTable["$inferSelect"] &
@@ -47,6 +50,12 @@ export interface CollectionConfig<TTable extends Table> {
   filters?: ColumnKey<TTable>[];
   /** Columns matched by the free-text search box. */
   search?: ColumnKey<TTable>[];
+  /**
+   * Field that stands in for a whole record when another collection references
+   * it. Defaults to the first textual `listDisplay` column; set it when that
+   * guess reads badly.
+   */
+  labelField?: ColumnKey<TTable>;
   /** Default ordering applied when the request specifies none. */
   ordering?: OrderingSpec<TTable>[];
   /** Default page size for the list view. */
@@ -68,6 +77,10 @@ export interface Collection {
   model: Table;
   fields: FieldMap;
   primaryKey: string | null;
+  /** Foreign keys declared on the table, composite ones included. */
+  relations: TableRelation[];
+  /** Field representing a record when referenced from elsewhere. */
+  labelField: string | null;
   listDisplay: string[];
   filters: string[];
   search: string[];

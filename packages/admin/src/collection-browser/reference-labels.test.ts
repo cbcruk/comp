@@ -1,5 +1,10 @@
+import type { OutboundRelation } from "@comp/core";
 import { describe, expect, it } from "vitest";
-import { buildLabelMap, resolveLabel } from "./reference-labels.js";
+import {
+  buildLabelMap,
+  referencesFromRelations,
+  resolveLabel,
+} from "./reference-labels.js";
 
 const rows = [
   { id: 1, name: "Ada" },
@@ -26,5 +31,32 @@ describe("resolveLabel", () => {
     expect(resolveLabel(maps, "authorId", 99, "99")).toBe("99");
     expect(resolveLabel(maps, "status", "draft", "draft")).toBe("draft");
     expect(resolveLabel(maps, "authorId", null, "")).toBe("");
+  });
+});
+
+describe("referencesFromRelations", () => {
+  const relations: OutboundRelation[] = [
+    {
+      field: "authorId",
+      collection: "authors",
+      targetField: "id",
+      labelField: "name",
+    },
+  ];
+
+  it("keys the introspected relation by its FK column", () => {
+    expect(referencesFromRelations(relations)).toEqual({
+      authorId: { collection: "authors", labelField: "name", valueField: "id" },
+    });
+  });
+
+  it("skips a target with no label field", () => {
+    expect(
+      referencesFromRelations([{ ...relations[0]!, labelField: null }]),
+    ).toEqual({});
+  });
+
+  it("is empty when the collection has no relations", () => {
+    expect(referencesFromRelations([])).toEqual({});
   });
 });

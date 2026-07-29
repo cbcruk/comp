@@ -3,6 +3,8 @@ import type {
   ActionResult,
   CollectionManifest,
   FieldMap,
+  InboundRelation,
+  OutboundRelation,
 } from "@comp/core";
 
 export type Row = Record<string, unknown>;
@@ -16,6 +18,12 @@ export interface CollectionSummary {
   search: string[];
   fields: FieldMap;
   primaryKey: string | null;
+  /** Field standing in for a record when another collection references it. */
+  labelField: string | null;
+  /** Foreign keys on this collection, resolved to their target collection. */
+  relations: OutboundRelation[];
+  /** Foreign keys on other collections pointing at this one. */
+  inbound: InboundRelation[];
   manifest: CollectionManifest;
   actions: ActionManifest[];
 }

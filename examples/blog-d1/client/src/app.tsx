@@ -2,10 +2,10 @@ import {
   CollectionBrowser,
   CollectionForm,
   PasskeyLogin,
-  ReferenceSelect,
   Toasts,
   createClient,
   createPasskeyClient,
+  referenceWidgets,
   useToasts,
   type CollectionSummary,
 } from "@comp/admin";
@@ -80,16 +80,9 @@ export function App(): JSX.Element {
               fields={posts.fields}
               primaryKey={posts.primaryKey}
               submitLabel="Create"
-              fieldWidgets={{
-                authorId: (control) => (
-                  <ReferenceSelect
-                    client={client}
-                    collection="authors"
-                    labelField="name"
-                    control={control}
-                  />
-                ),
-              }}
+              // Relation selects come from the schema's foreign keys; the app
+              // never names the target collection.
+              fieldWidgets={referenceWidgets(client, posts.relations)}
               onSubmit={async (values) => {
                 await client.create(posts.slug, values);
                 setVersion((v) => v + 1);
@@ -105,9 +98,6 @@ export function App(): JSX.Element {
               collection={posts}
               editable
               onNotify={notify}
-              references={{
-                authorId: { collection: "authors", labelField: "name" },
-              }}
             />
           </section>
         </>

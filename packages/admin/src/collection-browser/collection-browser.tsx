@@ -1,4 +1,4 @@
-import { useState, type ComponentPropsWithoutRef, type JSX } from "react";
+import { useMemo, useState, type ComponentPropsWithoutRef, type JSX } from "react";
 import { mergeProps } from "../merge-props/merge-props.js";
 import { toInputValue } from "../collection-form/collection-form.utils.js";
 import { CollectionList } from "../collection-list/collection-list.js";
@@ -8,13 +8,11 @@ import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
-import { resolveLabel } from "./reference-labels.js";
+import { referencesFromRelations, resolveLabel } from "./reference-labels.js";
 import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
 import { nextSort, parseSort } from "./sorting.js";
 import { useInlineEdit } from "./use-inline-edit.js";
 import { useReferenceLabels } from "./use-reference-labels.js";
-
-const NO_REFERENCES = {} as const;
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -35,9 +33,15 @@ export function CollectionBrowser({
   renderCell,
   editable = false,
   onNotify,
-  references = NO_REFERENCES,
+  references,
   ...rest
 }: CollectionBrowserProps): JSX.Element {
+  // FK columns resolve to labels from the introspected relation graph; the
+  // prop is an override, not the only way in.
+  const resolvedReferences = useMemo(
+    () => references ?? referencesFromRelations(collection.relations),
+    [references, collection.relations],
+  );
   const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload, applyLocal } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
 
@@ -48,7 +52,7 @@ export function CollectionBrowser({
   const edit = useInlineEdit(client, collection.slug, reload, (id, field, value) =>
     applyLocal((row) => rowId(row, pk) === id, { [field]: value }),
   );
-  const labels = useReferenceLabels(client, references);
+  const labels = useReferenceLabels(client, resolvedReferences);
 
   const totalPages = pageCount(total, size || 1);
   const filters = query.filters ?? {};
@@ -93,7 +97,7 @@ export function CollectionBrowser({
     return display;
   };
 
-  const hasReferences = Object.keys(references).length > 0;
+  const hasReferences = Object.keys(resolvedReferences).length > 0;
   const cellRenderer =
     renderCell ?? (editable || hasReferences ? customRenderCell : undefined);
 

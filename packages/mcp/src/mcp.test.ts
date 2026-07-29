@@ -17,6 +17,19 @@ const postCollection = defineCollection({
   listDisplay: ["title", "status"],
 });
 
+const comments = sqliteTable("comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  body: text("body").notNull(),
+  postId: integer("post_id")
+    .notNull()
+    .references(() => posts.id),
+});
+
+const commentCollection = defineCollection({
+  model: comments,
+  listDisplay: ["body", "postId"],
+});
+
 const readOnly = defineCollection({
   model: posts,
   slug: "articles",
@@ -39,6 +52,15 @@ describe("fieldsToJsonSchema", () => {
 
   it("makes everything optional for update", () => {
     expect(fieldsToJsonSchema(postCollection.fields, { forUpdate: true }).required).toBeUndefined();
+  });
+
+  it("tells the caller what a foreign key points at", () => {
+    const schema = fieldsToJsonSchema(commentCollection.fields);
+    expect(schema.properties?.postId).toEqual({
+      type: "number",
+      description: "Foreign key → posts.id",
+    });
+    expect(schema.properties?.body?.description).toBeUndefined();
   });
 });
 

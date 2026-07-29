@@ -1,7 +1,7 @@
 import type { FieldMap, FieldMeta } from "@comp/core";
 import type { JsonSchema } from "./json-schema.js";
 
-function fieldSchema(field: FieldMeta): JsonSchema {
+function baseSchema(field: FieldMeta): JsonSchema {
   if (field.enumValues && field.enumValues.length > 0) {
     return { type: "string", enum: field.enumValues };
   }
@@ -14,6 +14,16 @@ function fieldSchema(field: FieldMeta): JsonSchema {
     default:
       return { type: "string" };
   }
+}
+
+function fieldSchema(field: FieldMeta): JsonSchema {
+  const schema = baseSchema(field);
+  // Say what a foreign key points at, so a model filling this tool in knows
+  // the value is an id from another table rather than a free number.
+  if (field.relation) {
+    schema.description = `Foreign key → ${field.relation.table}.${field.relation.column}`;
+  }
+  return schema;
 }
 
 /**

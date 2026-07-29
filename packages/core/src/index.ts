@@ -10,14 +10,26 @@ export type {
   SortDirection,
 } from "./collection/define-collection.types.js";
 
+export { resolveLabelField } from "./collection/label-field.js";
+
 export type { Table } from "drizzle-orm";
 export { introspectTable } from "./introspection/introspect-table.js";
 export type {
   FieldDataType,
   FieldMap,
   FieldMeta,
+  FieldRelation,
+  ReferentialAction,
   TableIntrospection,
+  TableRelation,
 } from "./introspection/introspect-table.types.js";
+
+export { resolveRelations } from "./relations/resolve-relations.js";
+export type {
+  InboundRelation,
+  OutboundRelation,
+  RelationGraph,
+} from "./relations/resolve-relations.types.js";
 
 export {
   buildCountQuery,

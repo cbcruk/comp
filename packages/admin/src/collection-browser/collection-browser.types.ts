@@ -17,6 +17,9 @@ export interface CollectionBrowserProps extends ComponentPropsWithoutRef<"div"> 
   editable?: boolean;
   /** Notified on action success/failure; when set, action errors route here. */
   onNotify?: (kind: "success" | "error", message: string) => void;
-  /** Resolve FK columns to labels from another collection, keyed by column. */
+  /**
+   * Override how FK columns resolve to labels, keyed by column. Omit it and
+   * the collection's introspected relations are used.
+   */
   references?: Record<string, ReferenceConfig>;
 }

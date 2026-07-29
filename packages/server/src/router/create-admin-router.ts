@@ -6,6 +6,7 @@ import {
   buildListQuery,
   buildUpdateQuery,
   allowAll,
+  resolveRelations,
   runAction,
   validateInsert,
   validateUpdate,
@@ -62,6 +63,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   const app = new Hono();
   const auth = config.auth ?? allowAll;
   const bySlug = new Map(config.collections.map((c) => [c.slug, c]));
+  // The relation graph is a property of the whole registry, so it is resolved
+  // once here rather than per request — and served to clients so the UI never
+  // has to be told which collection an FK points at.
+  const relations = resolveRelations(config.collections);
   const actionsBySlug = new Map<string, ActionDefinition[]>();
   for (const action of config.actions ?? []) {
     const list = actionsBySlug.get(action.collection) ?? [];
@@ -87,6 +92,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         search: collection.search,
         fields: collection.fields,
         primaryKey: collection.primaryKey,
+        labelField: collection.labelField,
+        relations: relations.outbound[collection.slug] ?? [],
+        inbound: relations.inbound[collection.slug] ?? [],
         manifest: collection.manifest,
         actions: (actionsBySlug.get(collection.slug) ?? []).map(
           (action) => action.manifest,

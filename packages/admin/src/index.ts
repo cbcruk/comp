@@ -60,6 +60,7 @@ export { nextSort, parseSort } from "./collection-browser/sorting.js";
 export type { ParsedSort } from "./collection-browser/sorting.js";
 export {
   buildLabelMap,
+  referencesFromRelations,
   resolveLabel,
 } from "./collection-browser/reference-labels.js";
 export type { ReferenceConfig } from "./collection-browser/reference-labels.js";
@@ -88,6 +89,7 @@ export { ReferenceSelect } from "./reference-select/reference-select.js";
 export type { ReferenceSelectProps } from "./reference-select/reference-select.types.js";
 export { toOptions } from "./reference-select/reference-select.utils.js";
 export type { ReferenceOption } from "./reference-select/reference-select.utils.js";
+export { referenceWidgets } from "./reference-select/reference-widgets.js";
 
 export { createPasskeyClient } from "./passkey/passkey-client.js";
 export type {
