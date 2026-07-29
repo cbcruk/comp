@@ -24,6 +24,29 @@ export type {
   TableRelation,
 } from "./introspection/introspect-table.types.js";
 
+export { inlineSummary, resolveInlines } from "./inline/resolve-inlines.js";
+export {
+  InlineError,
+  inlineOperations,
+  prepareInlineWrite,
+  readInlines,
+  writeInlines,
+} from "./inline/inline-write.js";
+export type {
+  InlineConfig,
+  InlineSpec,
+  InlineSummary,
+  InlineWrite,
+  InlineWritePayload,
+  InlineWriteResult,
+  PreparedInlineWrite,
+} from "./inline/inline.types.js";
+export {
+  buildInlineDeleteQuery,
+  buildInlineListQuery,
+  buildInlineUpdateQuery,
+} from "./query/build-inline-query.js";
+
 export { resolveRelations } from "./relations/resolve-relations.js";
 export type {
   InboundRelation,

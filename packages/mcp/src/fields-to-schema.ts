@@ -1,4 +1,4 @@
-import type { FieldMap, FieldMeta } from "@comp/core";
+import type { FieldMap, FieldMeta, InlineSpec } from "@comp/core";
 import type { JsonSchema } from "./json-schema.js";
 
 function baseSchema(field: FieldMeta): JsonSchema {
@@ -29,17 +29,20 @@ function fieldSchema(field: FieldMeta): JsonSchema {
 /**
  * Build a JSON Schema for a collection's writable fields. For inserts, a field
  * is required when it is not-null, has no default, and is not the primary key;
- * for updates every field is optional.
+ * for updates every field is optional. `skip` drops fields the caller does not
+ * get to set — an inline's parent key is filled in from the record being
+ * edited, so offering it would invite a write that is then ignored.
  */
 export function fieldsToJsonSchema(
   fields: FieldMap,
-  options: { forUpdate?: boolean } = {},
+  options: { forUpdate?: boolean; skip?: string[] } = {},
 ): JsonSchema {
   const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
+  const skipped = new Set(options.skip ?? []);
 
   for (const field of Object.values(fields)) {
-    if (field.primaryKey) continue;
+    if (field.primaryKey || skipped.has(field.name)) continue;
     properties[field.name] = fieldSchema(field);
     if (!options.forUpdate && field.notNull && !field.hasDefault) {
       required.push(field.name);
@@ -49,4 +52,64 @@ export function fieldsToJsonSchema(
   const schema: JsonSchema = { type: "object", properties };
   if (required.length > 0) schema.required = required;
   return schema;
+}
+
+/**
+ * Build the `inlines` property for a parent's write tools: per child, the
+ * create/update/delete operations it grants. Generated from the same resolved
+ * inlines the HTTP API uses, so a model calling the tool sees exactly the
+ * nested write the UI performs — no separate hand-written tool per child.
+ */
+export function inlinesToJsonSchema(specs: InlineSpec[]): JsonSchema | null {
+  if (specs.length === 0) return null;
+
+  const properties: Record<string, JsonSchema> = {};
+  for (const spec of specs) {
+    const child = spec.collection;
+    const granted = child.manifest.operations;
+    const operations: Record<string, JsonSchema> = {};
+
+    if (granted.includes("create")) {
+      operations.create = {
+        type: "array",
+        description: `New ${child.slug} rows; ${spec.field} is set from the parent.`,
+        items: fieldsToJsonSchema(child.fields, { skip: [spec.field] }),
+      };
+    }
+    if (granted.includes("update")) {
+      operations.update = {
+        type: "array",
+        description: `Edits to existing ${child.slug} rows of this record.`,
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "Primary key of the row" },
+            values: fieldsToJsonSchema(child.fields, {
+              forUpdate: true,
+              skip: [spec.field],
+            }),
+          },
+          required: ["id"],
+        },
+      };
+    }
+    if (spec.canDelete && granted.includes("delete")) {
+      operations.delete = {
+        type: "array",
+        description: `Ids of ${child.slug} rows to remove from this record.`,
+        items: { type: "string" },
+      };
+    }
+
+    if (Object.keys(operations).length > 0) {
+      properties[child.slug] = { type: "object", properties: operations };
+    }
+  }
+
+  if (Object.keys(properties).length === 0) return null;
+  return {
+    type: "object",
+    description: "Child rows edited together with this record.",
+    properties,
+  };
 }

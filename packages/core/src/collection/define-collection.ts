@@ -47,6 +47,7 @@ export function defineCollection<TTable extends Table>(
     search: config.search ?? [],
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
+    inlines: config.inlines ?? [],
     manifest: {
       collection: slug,
       operations,

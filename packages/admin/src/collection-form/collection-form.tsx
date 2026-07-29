@@ -81,6 +81,7 @@ export function CollectionForm({
   onSubmit,
   renderField,
   fieldWidgets,
+  children,
   submitLabel = "Save",
   busy = false,
   ...rest
@@ -140,6 +141,7 @@ export function CollectionForm({
           </div>
         );
       })}
+      {children}
       {formError && <p role="alert">{formError}</p>}
       <button type="submit" disabled={busy || submitting}>
         {submitLabel}

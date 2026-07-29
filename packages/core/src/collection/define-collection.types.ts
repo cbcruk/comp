@@ -1,4 +1,5 @@
 import type { Table } from "drizzle-orm";
+import type { InlineConfig } from "../inline/inline.types.js";
 import type {
   FieldMap,
   TableRelation,
@@ -62,6 +63,12 @@ export interface CollectionConfig<TTable extends Table> {
   pageSize?: number;
   /** Operations this collection exposes; defaults to full CRUD. */
   operations?: CollectionOperation[];
+  /**
+   * Child collections edited alongside a record of this one. The foreign key
+   * tying them together is read from the schema; name it only when the child
+   * points here more than once.
+   */
+  inlines?: InlineConfig[];
 }
 
 /**
@@ -86,5 +93,7 @@ export interface Collection {
   search: string[];
   ordering: FieldOrdering[];
   pageSize: number;
+  /** Declared inlines, as authored; `resolveInlines` binds them to the graph. */
+  inlines: InlineConfig[];
   manifest: CollectionManifest;
 }

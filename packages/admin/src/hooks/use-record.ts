@@ -3,6 +3,8 @@ import type { CompClient, Row } from "../client/create-client.types.js";
 
 export interface UseRecordResult {
   record: Row | null;
+  /** Child rows per inline, as the server resolved them; empty when none. */
+  inlines: Record<string, Row[]>;
   loading: boolean;
   error: Error | null;
 }
@@ -17,12 +19,14 @@ export function useRecord(
   id: string | number | null,
 ): UseRecordResult {
   const [record, setRecord] = useState<Row | null>(null);
+  const [inlines, setInlines] = useState<Record<string, Row[]>>({});
   const [loading, setLoading] = useState(id !== null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (id === null) {
       setRecord(null);
+      setInlines({});
       setLoading(false);
       return;
     }
@@ -31,9 +35,11 @@ export function useRecord(
     setLoading(true);
     setError(null);
     client
-      .get(slug, id)
-      .then((data) => {
-        if (!cancelled) setRecord(data);
+      .getRecord(slug, id)
+      .then((result) => {
+        if (cancelled) return;
+        setRecord(result.data);
+        setInlines(result.inlines ?? {});
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
@@ -47,5 +53,5 @@ export function useRecord(
     };
   }, [client, slug, id]);
 
-  return { record, loading, error };
+  return { record, inlines, loading, error };
 }

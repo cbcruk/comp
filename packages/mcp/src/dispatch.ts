@@ -5,12 +5,16 @@ import {
   buildInsertQuery,
   buildListQuery,
   buildUpdateQuery,
+  readInlines,
   runAction,
   validateInsert,
   validateUpdate,
   ValidationError,
+  writeInlines,
   type ActionDefinition,
   type Collection,
+  type InlineSpec,
+  type InlineWritePayload,
   type ListParams,
   type SqliteDb,
 } from "@comp/core";
@@ -46,6 +50,27 @@ interface ToolResult {
 
 function text(value: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+}
+
+/** Read a record back with its child rows, the shape the HTTP API returns. */
+async function withInlines(
+  db: SqliteDb,
+  specs: InlineSpec[],
+  row: Record<string, unknown>,
+): Promise<unknown> {
+  if (specs.length === 0) return row;
+  return { ...row, inlines: await readInlines(db, specs, row) };
+}
+
+/** Apply the tool call's inline changes, if it made any. */
+async function applyInlines(
+  db: SqliteDb,
+  specs: InlineSpec[],
+  row: Record<string, unknown>,
+  payload: unknown,
+): Promise<void> {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+  await writeInlines(db, specs, row, payload as InlineWritePayload);
 }
 
 function parseOrdering(sort: unknown): ListParams["ordering"] {
@@ -85,20 +110,32 @@ async function runTool(
     }
     case "get": {
       const rows = await buildGetByIdQuery(db, collection, args.id).all();
-      if (!rows[0]) return { ...text({ error: "Not found" }), isError: true };
-      return text(rows[0]);
+      const row = rows[0] as Record<string, unknown> | undefined;
+      if (!row) return { ...text({ error: "Not found" }), isError: true };
+      return text(await withInlines(db, binding.inlines, row));
     }
     case "create": {
-      const values = validateInsert(collection, args);
+      const { inlines, ...rest } = args;
+      const values = validateInsert(collection, rest);
       const rows = await buildInsertQuery(db, collection, values);
-      return text(rows[0]);
+      const row = rows[0] as Record<string, unknown> | undefined;
+      if (!row) return { ...text({ error: "Insert returned no row" }), isError: true };
+      await applyInlines(db, binding.inlines, row, inlines);
+      return text(await withInlines(db, binding.inlines, row));
     }
     case "update": {
-      const { id, ...rest } = args;
+      const { id, inlines, ...rest } = args;
       const values = validateUpdate(collection, rest);
-      const rows = await buildUpdateQuery(db, collection, id, values);
-      if (!rows[0]) return { ...text({ error: "Not found" }), isError: true };
-      return text(rows[0]);
+      // Editing only the child rows is a real edit; don't force an empty
+      // UPDATE on the parent just to reach them.
+      const rows =
+        Object.keys(values).length > 0
+          ? await buildUpdateQuery(db, collection, id, values)
+          : await buildGetByIdQuery(db, collection, id).all();
+      const row = rows[0] as Record<string, unknown> | undefined;
+      if (!row) return { ...text({ error: "Not found" }), isError: true };
+      await applyInlines(db, binding.inlines, row, inlines);
+      return text(await withInlines(db, binding.inlines, row));
     }
     case "delete": {
       const rows = await buildDeleteQuery(db, collection, args.id);

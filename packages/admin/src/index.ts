@@ -27,7 +27,9 @@ export type { InputType } from "./collection-form/collection-form.utils.js";
 export {
   extractIssues,
   fieldMessage,
+  inlineIssuesByRow,
   issuesByField,
+  ownIssues,
 } from "./validation/issues.js";
 export type { FieldIssue } from "./validation/issues.js";
 
@@ -39,6 +41,7 @@ export type {
   CompClient,
   ListQuery,
   ListResult,
+  RecordResult,
 } from "./client/create-client.types.js";
 
 export { CollectionBrowser } from "./collection-browser/collection-browser.js";
@@ -84,6 +87,20 @@ export type { UseRecordResult } from "./hooks/use-record.js";
 export { useCollectionList } from "./hooks/use-collection-list.js";
 export type { UseCollectionListResult } from "./hooks/use-collection-list.js";
 export { applyPatch } from "./hooks/row-patch.js";
+
+export { InlineEditor } from "./inline-editor/inline-editor.js";
+export type { InlineEditorProps } from "./inline-editor/inline-editor.types.js";
+export {
+  addInlineRow,
+  inlineRowsFrom,
+  hasInlineChanges,
+  inlineFields,
+  removeInlineRow,
+  restoreInlineRow,
+  setInlineValue,
+  toInlineWrite,
+} from "./inline-editor/inline-rows.js";
+export type { InlineRow } from "./inline-editor/inline-rows.js";
 
 export { ReferenceSelect } from "./reference-select/reference-select.js";
 export type { ReferenceSelectProps } from "./reference-select/reference-select.types.js";

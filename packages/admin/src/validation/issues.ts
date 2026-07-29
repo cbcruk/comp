@@ -36,3 +36,28 @@ export function fieldMessage(
   );
   return hit ? hit.message : null;
 }
+
+/**
+ * Issues belonging to one inline, keyed `<rowIndex>.<field>` — the shape
+ * `InlineEditor` puts messages in. The server prefixes an inline's issue paths
+ * with `inlines.<slug>.<index>`, so a nested failure still lands on the exact
+ * row and field that caused it instead of collapsing into one form-level error.
+ */
+export function inlineIssuesByRow(
+  issues: FieldIssue[],
+  slug: string,
+): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const issue of issues) {
+    const [scope, collection, index, ...rest] = issue.path;
+    if (scope !== "inlines" || collection !== slug || index === undefined) continue;
+    const key = `${String(index)}.${rest.length > 0 ? String(rest[0]) : "_"}`;
+    (map[key] ??= []).push(issue.message);
+  }
+  return map;
+}
+
+/** Issues that belong to the record itself, not to any of its inlines. */
+export function ownIssues(issues: FieldIssue[]): FieldIssue[] {
+  return issues.filter((issue) => issue.path[0] !== "inlines");
+}

@@ -4,6 +4,8 @@ import type {
   CollectionManifest,
   FieldMap,
   InboundRelation,
+  InlineSummary,
+  InlineWritePayload,
   OutboundRelation,
 } from "@comp/core";
 
@@ -24,6 +26,8 @@ export interface CollectionSummary {
   relations: OutboundRelation[];
   /** Foreign keys on other collections pointing at this one. */
   inbound: InboundRelation[];
+  /** Child collections edited alongside a record of this one. */
+  inlines: InlineSummary[];
   manifest: CollectionManifest;
   actions: ActionManifest[];
 }
@@ -31,6 +35,12 @@ export interface CollectionSummary {
 export interface ActionRunBody {
   ids: Id[];
   input?: unknown;
+}
+
+/** A record together with the child rows of its inlines. */
+export interface RecordResult {
+  data: Row;
+  inlines?: Record<string, Row[]>;
 }
 
 export interface ListResult {
@@ -59,8 +69,15 @@ export interface CompClient {
   collections(): Promise<CollectionSummary[]>;
   list(slug: string, query?: ListQuery): Promise<ListResult>;
   get(slug: string, id: Id): Promise<Row>;
-  create(slug: string, values: Row): Promise<Row>;
-  update(slug: string, id: Id, values: Row): Promise<Row>;
+  /** Like `get`, but keeps the inline rows the server sent with the record. */
+  getRecord(slug: string, id: Id): Promise<RecordResult>;
+  create(slug: string, values: Row, inlines?: InlineWritePayload): Promise<Row>;
+  update(
+    slug: string,
+    id: Id,
+    values: Row,
+    inlines?: InlineWritePayload,
+  ): Promise<Row>;
   remove(slug: string, id: Id): Promise<Row>;
   action(slug: string, name: string, body: ActionRunBody): Promise<ActionResult>;
 }
