@@ -1,5 +1,6 @@
 import { getTableName, type Table } from "drizzle-orm";
 import { introspectTable } from "../introspection/introspect-table.js";
+import { resolveFilters } from "../filters/resolve-filters.js";
 import { resolveLabelField } from "./label-field.js";
 import type {
   Collection,
@@ -43,7 +44,7 @@ export function defineCollection<TTable extends Table>(
         introspection.primaryKey,
       ),
     listDisplay: config.listDisplay,
-    filters: config.filters ?? [],
+    filters: resolveFilters(introspection.fields, config.filters ?? []),
     search: config.search ?? [],
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,

@@ -5,7 +5,11 @@ import {
   type Collection,
   type InlineSpec,
 } from "@comp/core";
-import { fieldsToJsonSchema, inlinesToJsonSchema } from "./fields-to-schema.js";
+import {
+  fieldsToJsonSchema,
+  filtersToJsonSchema,
+  inlinesToJsonSchema,
+} from "./fields-to-schema.js";
 import type { JsonSchema } from "./json-schema.js";
 
 export type ToolKind = "list" | "get" | "create" | "update" | "delete" | "action";
@@ -31,16 +35,18 @@ const ID_SCHEMA: JsonSchema = {
   required: ["id"],
 };
 
-const LIST_SCHEMA: JsonSchema = {
-  type: "object",
-  properties: {
-    page: { type: "number" },
-    pageSize: { type: "number" },
-    q: { type: "string", description: "Free-text search" },
-    sort: { type: "string", description: "field:asc | field:desc" },
-    filters: { type: "object", description: "Equality filters by column" },
-  },
-};
+function listSchema(collection: Collection): JsonSchema {
+  return {
+    type: "object",
+    properties: {
+      page: { type: "number" },
+      pageSize: { type: "number" },
+      q: { type: "string", description: "Free-text search" },
+      sort: { type: "string", description: "field:asc | field:desc" },
+      filters: filtersToJsonSchema(collection),
+    },
+  };
+}
 
 function toolName(slug: string, suffix: string): string {
   return `${slug}__${suffix}`;
@@ -79,7 +85,7 @@ function readTools(
       tool: {
         name: toolName(slug, "list"),
         description: `List ${slug} records (search, filter, sort, paginate).`,
-        inputSchema: LIST_SCHEMA,
+        inputSchema: listSchema(collection),
       },
     });
   }

@@ -7,6 +7,7 @@ import { useCollectionList } from "../hooks/use-collection-list.js";
 import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
+import { FilterField } from "./filter-field.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
 import { referencesFromRelations, resolveLabel } from "./reference-labels.js";
 import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
@@ -135,17 +136,21 @@ export function CollectionBrowser({
         />
       )}
 
-      {collection.filters.map((field) => (
-        <label key={field}>
-          {field}
-          <input
-            type="text"
-            value={filters[field] ?? ""}
-            onChange={(e) =>
-              setQuery({ filters: { ...filters, [field]: e.target.value } })
-            }
-          />
-        </label>
+      {collection.filters.map((filter) => (
+        <FilterField
+          key={filter.field}
+          client={client}
+          filter={filter}
+          value={filters[filter.field] ?? ""}
+          onChange={(value) =>
+            // Changing a filter returns to the first page: page 4 of the old
+            // result set says nothing about the new one.
+            setQuery({
+              page: 1,
+              filters: { ...filters, [filter.field]: value },
+            })
+          }
+        />
       ))}
 
       {collection.actions.length > 0 && (

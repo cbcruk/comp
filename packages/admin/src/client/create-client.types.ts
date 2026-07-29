@@ -3,6 +3,7 @@ import type {
   ActionResult,
   CollectionManifest,
   FieldMap,
+  FilterSummary,
   InboundRelation,
   InlineSummary,
   InlineWritePayload,
@@ -16,7 +17,8 @@ export type Id = string | number;
 export interface CollectionSummary {
   slug: string;
   listDisplay: string[];
-  filters: string[];
+  /** Filters with their kind, choices, and relation binding resolved. */
+  filters: FilterSummary[];
   search: string[];
   fields: FieldMap;
   primaryKey: string | null;

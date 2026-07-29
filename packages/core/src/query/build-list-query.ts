@@ -2,7 +2,6 @@ import {
   and,
   asc,
   desc,
-  eq,
   getTableColumns,
   like,
   or,
@@ -13,6 +12,8 @@ import {
 } from "drizzle-orm";
 import type { BaseSQLiteDatabase, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Collection } from "../collection/define-collection.types.js";
+import type { FilterMap, FilterValue } from "../filters/filter.types.js";
+import { filterConditions } from "./build-filter-where.js";
 import type { ListParams } from "./list-query.types.js";
 
 /** Async SQLite database (Cloudflare D1, sqlite-proxy, etc.). */
@@ -20,6 +21,21 @@ export type SqliteDb = BaseSQLiteDatabase<"async", unknown>;
 
 function columnsOf(model: Table): Record<string, Column> {
   return getTableColumns(model) as Record<string, Column>;
+}
+
+const FILTER_OPS = new Set(["exact", "in", "isnull", "range", "preset"]);
+
+/** A caller may pass a bare scalar; read it as the exact match it means. */
+function asFilterValue(value: unknown): FilterValue | null {
+  if (value === undefined || value === null) return null;
+  if (
+    typeof value === "object" &&
+    "op" in value &&
+    FILTER_OPS.has(String((value as { op: unknown }).op))
+  ) {
+    return value as FilterValue;
+  }
+  return { op: "exact", value };
 }
 
 function buildWhere(
@@ -30,11 +46,14 @@ function buildWhere(
   const conditions: SQL[] = [];
 
   if (params.filters) {
-    for (const [field, value] of Object.entries(params.filters)) {
-      if (value === undefined) continue;
-      const column = columns[field];
-      if (column) conditions.push(eq(column, value));
+    const values: FilterMap = {};
+    for (const [field, raw] of Object.entries(params.filters)) {
+      const value = asFilterValue(raw);
+      if (value) values[field] = value;
     }
+    conditions.push(
+      ...filterConditions(collection, columns, values, params.now ?? new Date()),
+    );
   }
 
   const term = params.search?.trim();
@@ -93,11 +112,15 @@ export function buildListQuery(
   return query.limit(pageSize).offset(offset);
 }
 
-/** Companion count query for pagination totals, sharing the same filters. */
+/**
+ * Companion count query for pagination totals, sharing the same filters — and
+ * the same `now`, so a relative filter cannot resolve to one window for the
+ * rows and another for the total.
+ */
 export function buildCountQuery(
   db: SqliteDb,
   collection: Collection,
-  params: Pick<ListParams, "search" | "filters"> = {},
+  params: Pick<ListParams, "search" | "filters" | "now"> = {},
 ) {
   const where = buildWhere(collection, params);
   const query = db

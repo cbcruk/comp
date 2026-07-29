@@ -5,6 +5,7 @@ import {
   buildInsertQuery,
   buildListQuery,
   buildUpdateQuery,
+  parseFilterValue,
   readInlines,
   runAction,
   validateInsert,
@@ -13,6 +14,7 @@ import {
   writeInlines,
   type ActionDefinition,
   type Collection,
+  type FilterMap,
   type InlineSpec,
   type InlineWritePayload,
   type ListParams,
@@ -80,15 +82,33 @@ function parseOrdering(sort: unknown): ListParams["ordering"] {
   return [{ field, direction: direction === "desc" ? "desc" : "asc" }];
 }
 
+/**
+ * Read the tool call's filters with the same encoding the query string uses —
+ * `in:`, `isnull:`, `range:`, `preset:` — so a model and the admin UI narrow a
+ * list identically instead of each transport inventing its own dialect.
+ */
+function parseFilters(raw: unknown): FilterMap | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+
+  const filters: FilterMap = {};
+  for (const [field, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const value =
+      typeof entry === "string"
+        ? parseFilterValue(entry)
+        : { op: "exact" as const, value: entry };
+    if (value) filters[field] = value;
+  }
+  return Object.keys(filters).length > 0 ? filters : undefined;
+}
+
 function listParams(args: Record<string, unknown>): ListParams {
   return {
+    // One instant per call, shared by the rows and their total.
+    now: new Date(),
     page: typeof args.page === "number" ? args.page : undefined,
     pageSize: typeof args.pageSize === "number" ? args.pageSize : undefined,
     search: typeof args.q === "string" ? args.q : undefined,
-    filters:
-      args.filters && typeof args.filters === "object"
-        ? (args.filters as Record<string, unknown>)
-        : undefined,
+    filters: parseFilters(args.filters),
     ordering: parseOrdering(args.sort),
   };
 }

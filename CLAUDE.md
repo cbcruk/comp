@@ -35,8 +35,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 
 **Done**
 
-- `list_display` / `list_filter` (equality) / `search_fields` (substring),
-  ordering, pagination.
+- `list_display` / `search_fields` (substring), ordering, pagination.
 - Change/add form derived from the schema, with Zod validation surfaced
   field-by-field.
 - `list_editable`-style inline cell editing in the list.
@@ -60,20 +59,30 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   Writes apply delete → update → create sequentially; D1 has no interactive
   transactions, so `writeInlines` is the seam where a batch lands when it can.
 
+- **`list_filter` with real lookups** — a filter is a *spec*, not a bare
+  value. `resolveFilters` reads each declared column's kind off the schema
+  (enum → its values, boolean → yes/no, date → named windows, FK → the records
+  it points at) and whether it is nullable; a value states its operation on the
+  wire (`in:`, `isnull:`, `range:`, `preset:`), so a filtered list is a
+  shareable link that keeps meaning what it said. Operands are coerced to the
+  column's type — without that a numeric column silently matches nothing.
+  Relative windows resolve against a `now` passed into `ListParams`, shared by
+  the rows and their count, so the query stays pure and reproducible.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Richer `list_filter`.** Today every filter is `eq`. Django resolves a
-  filter to a _lookup_ and offers ready-made choices: enum values from the
-  column, date ranges (today / this month / this year), boolean, null/not-null,
-  and filtering across a relation. Model this in the query layer as a filter
-  *spec* per field, not a bare value.
 - **Search lookups.** Django's `search_fields` accepts prefixes (exact,
   starts-with, related traversal) and splits the query into terms ANDed
   together. Comp ORs one substring across columns.
 - **Form layout.** `fieldsets`/`fields`/`exclude` (grouping and ordering),
   `readonly_fields`, `prepopulated_fields` (the example's `slug` from `title`
   is exactly this), `radio_fields`.
-- **`date_hierarchy`.** Drill-down navigation by a date column.
+- **`date_hierarchy`.** Drill-down navigation by a date column. The date filter
+  already resolves named windows to a half-open range; this is the same lookup
+  driven by a year → month → day trail instead of a select.
+- **Distinct-value filters.** Django's `AllValuesFieldListFilter` offers the
+  values actually present in a column. Comp leaves a plain column as a text box
+  because enumerating them needs a `DISTINCT` query per filter per request.
 - **History.** Who changed which record, when, and what the change was —
   Django's `LogEntry` and per-object history view. Needs a write-side hook in
   the mutation layer plus a storage adapter.
@@ -118,7 +127,8 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 ```
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
-                           the relation graph, inlines (nested read/validate/write),
+                           the relation graph, filters (kind + lookup resolution),
+                           inlines (nested read/validate/write),
                            query+validation+mutation, actions + capability boundary,
                            the AuthAdapter shape
   server/  → @comp/server  Hono read/write API; manifest- and auth-gated
@@ -175,7 +185,8 @@ truth.
   per-request reflection that can't be introspected ahead of time.
 - **Structure is introspected, not re-declared.** If a fact is already in the
   Drizzle schema — a column's type, its nullability, a foreign key — read it;
-  do not make the app repeat it in a config or a UI prop. Facts that span
+  do not make the app repeat it in a config or a UI prop. A declaration names
+  *what* to expose (`filters: ["status"]`); the schema decides what that means. Facts that span
   tables (which collection owns a referenced table, what points back at this
   one) belong to the registry, so resolve them once over the collection array
   (`resolveRelations`) rather than per component.
@@ -229,6 +240,10 @@ truth.
   something from the collection metadata (FK labels, relation selects), do that
   and let the prop override it — don't require the app to supply what the
   schema already says.
+- **Time is an argument, never ambient.** Anything relative — a date window,
+  an expiry — takes the instant it resolves against (`ListParams.now`), so the
+  same inputs give the same query and a test does not race the clock. Resolve it
+  once per request and pass it down.
 - **Errors:** plain throws + typed error objects (`ValidationError` carrying Zod
   issues, `CapabilityError`, `CompClientError`). **No `Result`/`neverthrow`
   channel** until concrete pain accumulates. Surface `ValidationError.issues`
@@ -292,8 +307,8 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, inlines, the query layer, validation, or the capability boundary;
-  that's where silent regressions hide.
+  graph, filters, inlines, the query layer, validation, or the capability
+  boundary; that's where silent regressions hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.
 - Prefer small, vertical slices (core → API/MCP → UI) over disconnected layers.

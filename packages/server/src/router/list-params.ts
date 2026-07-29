@@ -1,4 +1,10 @@
-import type { Collection, FieldOrdering, ListParams } from "@comp/core";
+import {
+  parseFilterValue,
+  type Collection,
+  type FieldOrdering,
+  type FilterMap,
+  type ListParams,
+} from "@comp/core";
 
 function toPositiveInt(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
@@ -10,15 +16,22 @@ function toPositiveInt(value: string | undefined): number | undefined {
  * Translate a request's query string into {@link ListParams}. Only the
  * collection's declared filter/search columns are honored, so the URL surface
  * can never reach a column the declaration didn't opt in to.
+ *
+ * A filter's value carries its operation (`in:`, `isnull:`, `range:`,
+ * `preset:`), so a filtered view is a shareable link that keeps meaning what
+ * it said — and a value the encoding does not recognize is dropped rather than
+ * guessed at.
  */
 export function parseListParams(
   collection: Collection,
   query: Record<string, string>,
 ): ListParams {
-  const filters: Record<string, unknown> = {};
-  for (const field of collection.filters) {
-    const value = query[field];
-    if (value !== undefined && value !== "") filters[field] = value;
+  const filters: FilterMap = {};
+  for (const filter of collection.filters) {
+    const raw = query[filter.field];
+    if (raw === undefined) continue;
+    const value = parseFilterValue(raw);
+    if (value) filters[filter.field] = value;
   }
 
   const ordering: FieldOrdering[] = [];
@@ -30,6 +43,9 @@ export function parseListParams(
   }
 
   return {
+    // One instant for the whole request, so the rows and their total resolve a
+    // relative filter to the same window.
+    now: new Date(),
     page: toPositiveInt(query.page),
     pageSize: toPositiveInt(query.pageSize),
     search: query.q?.trim() || undefined,

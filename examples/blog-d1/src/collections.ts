@@ -10,7 +10,7 @@ export const authorCollection = defineCollection({
 export const postCollection = defineCollection({
   model: posts,
   listDisplay: ["title", "status", "authorId", "createdAt"],
-  filters: ["status"],
+  filters: ["status", "authorId"],
   search: ["title", "body"],
   ordering: [{ field: "createdAt", direction: "desc" }],
 });

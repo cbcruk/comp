@@ -1,4 +1,8 @@
 import type { Table } from "drizzle-orm";
+import type {
+  FilterConfig,
+  ResolvedFilter,
+} from "../filters/filter.types.js";
 import type { InlineConfig } from "../inline/inline.types.js";
 import type {
   FieldMap,
@@ -47,8 +51,12 @@ export interface CollectionConfig<TTable extends Table> {
   slug?: string;
   /** Columns shown as columns in the list view. */
   listDisplay: ColumnKey<TTable>[];
-  /** Columns offered as equality filters. */
-  filters?: ColumnKey<TTable>[];
+  /**
+   * Columns offered as filters. A bare name infers what the column supports —
+   * an enum offers its values, a date offers ranges, a foreign key offers the
+   * related records — or state the kind with `{ field, kind }`.
+   */
+  filters?: FilterConfig<ColumnKey<TTable>>[];
   /** Columns matched by the free-text search box. */
   search?: ColumnKey<TTable>[];
   /**
@@ -89,7 +97,8 @@ export interface Collection {
   /** Field representing a record when referenced from elsewhere. */
   labelField: string | null;
   listDisplay: string[];
-  filters: string[];
+  /** Filters with their kind, choices, and nullability resolved. */
+  filters: ResolvedFilter[];
   search: string[];
   ordering: FieldOrdering[];
   pageSize: number;

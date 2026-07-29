@@ -5,9 +5,9 @@ rebuilt for the edge. Declare a collection over a Drizzle schema and Comp
 generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
-Comp covers the single-table slice of Django's admin plus relations and
-inlines; richer filters, form layout, history, and an admin site are the open
-work. See the parity backlog in `CLAUDE.md`.
+Comp covers the single-table slice of Django's admin plus relations, inlines,
+and real filter lookups; search lookups, form layout, history, and an admin site
+are the open work. See the parity backlog in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -73,6 +73,10 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- Filters that know what a column can be asked: an enum offers its values, a
+  date named windows, a foreign key the records it points at, a nullable column
+  empty/not-empty. The value carries its operation (`in:`, `isnull:`, `range:`,
+  `preset:`), so a filtered list is a link that keeps meaning what it said.
 - Inlines: a parent's dependent rows read with it and written in the same
   request (`inlines: ["order_items"]`), resolved against the relation graph and
   scoped to the parent in SQL. Exposed over HTTP, MCP, and the React
@@ -102,8 +106,9 @@ the workspace, tests, and `tsc` read TypeScript directly). Each package's
 on publish, and `pnpm build` emits it — so a published/packed package resolves
 to compiled JS. `pnpm pack` reflects the published shape.
 
-The list view supports search, per-column filters, sortable headers,
-pagination, bulk selection + actions, and opt-in click-to-edit cells.
+The list view supports search, per-column filters (rendered from each filter's
+resolved kind — select, relation picker, or text), sortable headers, pagination,
+bulk selection + actions, and opt-in click-to-edit cells.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build (packages
 + example SPA) on every push and PR.
