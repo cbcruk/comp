@@ -49,6 +49,10 @@ export interface CollectionConfig<TTable extends Table> {
   model: TTable;
   /** URL-safe identifier; defaults to the table name. */
   slug?: string;
+  /** Name for one record; defaults to the slug, humanized and singularized. */
+  label?: string;
+  /** Name for the collection; defaults to the slug, humanized. */
+  labelPlural?: string;
   /** Columns shown as columns in the list view. */
   listDisplay: ColumnKey<TTable>[];
   /**
@@ -89,6 +93,10 @@ export interface CollectionConfig<TTable extends Table> {
  */
 export interface Collection {
   slug: string;
+  /** Display name for one record — Django's `verbose_name`. */
+  label: string;
+  /** Display name for the collection — Django's `verbose_name_plural`. */
+  labelPlural: string;
   model: Table;
   fields: FieldMap;
   primaryKey: string | null;

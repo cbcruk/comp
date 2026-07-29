@@ -1,3 +1,5 @@
+import type { ReferentialAction } from "../introspection/introspect-table.types.js";
+
 /** An FK on this collection, resolved to the collection it points at. */
 export interface OutboundRelation {
   /** Field on this collection holding the foreign key. */
@@ -18,6 +20,8 @@ export interface InboundRelation {
   field: string;
   /** Field on this collection being referenced (usually its pk). */
   targetField: string;
+  /** What the key says happens to those rows when this record is deleted. */
+  onDelete?: ReferentialAction;
 }
 
 /**

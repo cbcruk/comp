@@ -5,6 +5,7 @@ import {
   buildInsertQuery,
   buildListQuery,
   buildUpdateQuery,
+  collectDeleteImpact,
   parseFilterValue,
   readInlines,
   runAction,
@@ -156,6 +157,14 @@ async function runTool(
       if (!row) return { ...text({ error: "Not found" }), isError: true };
       await applyInlines(db, binding.inlines, row, inlines);
       return text(await withInlines(db, binding.inlines, row));
+    }
+    case "delete_preview": {
+      const rows = await buildGetByIdQuery(db, collection, args.id).all();
+      const row = rows[0] as Record<string, unknown> | undefined;
+      if (!row) return { ...text({ error: "Not found" }), isError: true };
+      return text(
+        await collectDeleteImpact(db, collection, row, binding.deleteRelations ?? []),
+      );
     }
     case "delete": {
       const rows = await buildDeleteQuery(db, collection, args.id);

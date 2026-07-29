@@ -14,6 +14,47 @@ It is deliberately unauthenticated so the code stays about the admin surface;
 `blog-d1` is where auth lives. Put a real `AuthAdapter` in front of both routers
 before deploying anything like it.
 
+## The site
+
+The whole client is:
+
+```tsx
+<AdminSite
+  client={client}
+  collections={collections}
+  route={route}
+  onNavigate={navigate}
+/>
+```
+
+That gives you the index, each collection's list, the add and change forms —
+with relation selects and the line-item inline — and the delete confirmation.
+There is no screen written per collection: `AdminSite` reads the same summaries
+everything else does.
+
+The index only shows collections this caller can list, and only offers Add
+where they may create, because `/collections` narrows the manifest by
+permission before answering. `useHashRoute` keeps the current screen in the URL
+fragment; an app with its own router passes `route`/`onNavigate` itself, and
+`renderScreen` replaces any single screen.
+
+## The delete confirmation
+
+Deleting an order is not local: line items go with it. The confirmation says so
+before you commit, counted from the database rather than guessed:
+
+```
+Delete order 1?
+This will also delete 3 related records.
+  · 3 order_items will be deleted with it
+```
+
+Each line comes from what the foreign key itself says — `cascade` deletes them,
+`set null` clears the link, and a key with no stated action means SQL will
+refuse the delete, so the button is disabled instead of failing. The same
+reckoning is on MCP as `orders__delete_preview`, so an agent can check before
+calling `orders__delete`.
+
 ## The inline
 
 `orders` declares one line:

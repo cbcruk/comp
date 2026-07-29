@@ -34,6 +34,7 @@ export function CollectionBrowser({
   renderCell,
   editable = false,
   onNotify,
+  onOpenRecord,
   references,
   ...rest
 }: CollectionBrowserProps): JSX.Element {
@@ -68,6 +69,14 @@ export function CollectionBrowser({
     const field = collection.fields[column];
     const id = rowId(row, pk);
 
+    if (onOpenRecord && id !== null && column === collection.listDisplay[0]) {
+      return (
+        <button type="button" onClick={() => onOpenRecord(id)}>
+          {display || "—"}
+        </button>
+      );
+    }
+
     if (
       editable &&
       field &&
@@ -100,7 +109,8 @@ export function CollectionBrowser({
 
   const hasReferences = Object.keys(resolvedReferences).length > 0;
   const cellRenderer =
-    renderCell ?? (editable || hasReferences ? customRenderCell : undefined);
+    renderCell ??
+    (editable || hasReferences || onOpenRecord ? customRenderCell : undefined);
 
   async function runAction(name: string): Promise<void> {
     setRunning(true);

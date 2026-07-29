@@ -2,6 +2,8 @@ import type {
   ActionManifest,
   ActionResult,
   CollectionManifest,
+  CollectionOperation,
+  DeleteImpact,
   FieldMap,
   FilterSummary,
   InboundRelation,
@@ -16,6 +18,12 @@ export type Id = string | number;
 /** The shape `@comp/server` returns from `GET /collections`. */
 export interface CollectionSummary {
   slug: string;
+  /** Display name for one record. */
+  label: string;
+  /** Display name for the collection. */
+  labelPlural: string;
+  /** What the caller may do here — the manifest narrowed by permission. */
+  permitted: CollectionOperation[];
   listDisplay: string[];
   /** Filters with their kind, choices, and relation binding resolved. */
   filters: FilterSummary[];
@@ -80,6 +88,8 @@ export interface CompClient {
     values: Row,
     inlines?: InlineWritePayload,
   ): Promise<Row>;
+  /** What deleting this record would reach, before doing it. */
+  deletePreview(slug: string, id: Id): Promise<DeleteImpact>;
   remove(slug: string, id: Id): Promise<Row>;
   action(slug: string, name: string, body: ActionRunBody): Promise<ActionResult>;
 }

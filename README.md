@@ -6,8 +6,9 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-and real filter lookups; search lookups, form layout, history, and an admin site
-are the open work. See the parity backlog in `CLAUDE.md`.
+real filter lookups, and a generated admin site; search lookups, form layout,
+history, and per-object permissions are the open work. See the parity backlog in
+`CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -30,9 +31,10 @@ defineCollection({
 | `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.  |
 
 Two examples: `examples/blog-d1` is the stack reference (Cloudflare D1 +
-Drizzle, passkeys, MCP), and `examples/shop-d1` is the admin-features one —
-orders with line items edited inline, plus a second relation, an enum, and a
-date.
+Drizzle, passkeys, MCP) and shows composing the admin components by hand;
+`examples/shop-d1` is the admin-features one — orders with line items edited
+inline, a second relation, an enum, and a date — and its whole client is
+`<AdminSite/>`.
 
 The data contract flows one way: `defineCollection` → `@comp/core` resolves
 queries → `@comp/server` adapts HTTP → `@comp/admin` renders. No SQL lives in
@@ -73,6 +75,11 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- An admin site from the registry: `AdminSite` renders the index, list, add,
+  change, and delete confirmation for whatever collections the server reports.
+  The index is narrowed by permission — a collection you cannot list is not on
+  it — and the delete confirmation counts what the delete reaches, saying per
+  foreign key whether those rows cascade, get cleared, or refuse the delete.
 - Filters that know what a column can be asked: an enum offers its values, a
   date named windows, a foreign key the records it points at, a nullable column
   empty/not-empty. The value carries its operation (`in:`, `isnull:`, `range:`,

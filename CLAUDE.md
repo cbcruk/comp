@@ -58,6 +58,16 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   inline never grants more than the child collection's own manifest does.
   Writes apply delete → update → create sequentially; D1 has no interactive
   transactions, so `writeInlines` is the seam where a batch lands when it can.
+- **An admin site, not just components** — `AdminSite` renders the index, list,
+  add, change, and delete confirmation for whatever collections the server
+  reports, so an app stops assembling a screen per collection. The screens are
+  named in core (`AdminRoute`/`adminPath`) so links agree across surfaces, and
+  the site is controlled: bring a router, or take `useHashRoute`. Two rules hold
+  it up — `/collections` is narrowed by permission and reports what this caller
+  may do, so the index never advertises a screen that would 403; and the delete
+  confirmation counts what the delete reaches (`collectDeleteImpact`) from the
+  inbound relation graph, saying per key whether the rows cascade, get cleared,
+  or refuse the delete outright.
 
 - **`list_filter` with real lookups** — a filter is a *spec*, not a bare
   value. `resolveFilters` reads each declared column's kind off the schema
@@ -86,10 +96,6 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 - **History.** Who changed which record, when, and what the change was —
   Django's `LogEntry` and per-object history view. Needs a write-side hook in
   the mutation layer plus a storage adapter.
-- **An admin site, not just components.** Registering collections should give
-  you an index of them and routes per collection (list → change → delete
-  confirmation), rather than an app hand-assembling one screen per collection
-  as `examples/blog-d1` does.
 - **Per-object permissions.** `AuthAdapter.authorize` is keyed on
   (identity, collection, operation); Django also decides per _record_ and
   narrows the queryset per user. Extend the adapter shape before call sites
@@ -128,11 +134,12 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
                            the relation graph, filters (kind + lookup resolution),
-                           inlines (nested read/validate/write),
-                           query+validation+mutation, actions + capability boundary,
-                           the AuthAdapter shape
+                           inlines (nested read/validate/write), the site's route
+                           vocabulary + delete impact, query+validation+mutation,
+                           actions + capability boundary, the AuthAdapter shape
   server/  → @comp/server  Hono read/write API; manifest- and auth-gated
-  admin/   → @comp/admin    React UI + a fetch client and hooks
+  admin/   → @comp/admin    React UI (AdminSite + the pieces it is built from),
+                           a fetch client and hooks
   auth/    → @comp/auth     WebAuthn passkeys, signed-session cookies, role policy,
                            a pluggable PasskeyStore (+ a Drizzle/D1 impl)
   mcp/     → @comp/mcp      collections + actions over MCP (JSON-RPC, no SDK dep)
@@ -141,9 +148,12 @@ examples/
   blog-d1/                 deployment reference: Cloudflare D1 + Drizzle, React SPA,
                            passkeys, MCP. Two tables and one FK — it shows the stack
                            working, and deliberately does *not* exercise the backlog.
+                           Also the worked example of composing the admin components
+                           by hand, rather than mounting the generated site.
   shop-d1/                 admin-features reference: orders → order_items (the inline),
-                           a second relation, an enum, a date. Unauthenticated on
-                           purpose so it stays about the admin surface.
+                           a second relation, an enum, a date. Its whole client is
+                           `<AdminSite/>` — no screen assembled per collection.
+                           Unauthenticated on purpose so it stays about the admin.
 ```
 
 `blog-d1` is a stack demo, not the parity target. Backlog features need a schema
@@ -239,7 +249,9 @@ truth.
 - **Derived by default, overridable by prop.** Where a component can compute
   something from the collection metadata (FK labels, relation selects), do that
   and let the prop override it — don't require the app to supply what the
-  schema already says.
+  schema already says. When a screen needs different behavior, add the prop that
+  names the behavior (`onOpenRecord`) rather than making the caller replace the
+  whole renderer — an override that costs you the derived behavior is a trap.
 - **Time is an argument, never ambient.** Anything relative — a date window,
   an expiry — takes the instant it resolves against (`ListParams.now`), so the
   same inputs give the same query and a test does not race the clock. Resolve it
@@ -307,8 +319,8 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, filters, inlines, the query layer, validation, or the capability
-  boundary; that's where silent regressions hide.
+  graph, filters, inlines, delete impact, the query layer, validation, or the
+  capability boundary; that's where silent regressions hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.
 - Prefer small, vertical slices (core → API/MCP → UI) over disconnected layers.
