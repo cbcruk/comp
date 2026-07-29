@@ -2,8 +2,12 @@
 
 Schema-driven, serverless admin framework for TypeScript — Django's admin,
 rebuilt for the edge. Declare a collection over a Drizzle schema and Comp
-generates the list view, filters, search, and (soon) detail/edit forms and bulk
-actions, running on Cloudflare Workers.
+generates the list view, filters, search, detail/edit forms, relation widgets,
+and bulk actions, running on Cloudflare Workers.
+
+Comp covers the single-table slice of Django's admin today; inlines, richer
+filters, form layout, history, and an admin site are the open work. See the
+parity backlog in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -18,7 +22,7 @@ defineCollection({
 
 | Package        | Role                                                          |
 | -------------- | ------------------------------------------------------------ |
-| `@comp/core`   | Schema introspection, `defineCollection`, the query layer.   |
+| `@comp/core`   | Introspection (columns + relations), `defineCollection`, queries. |
 | `@comp/server` | Hono route adapter that mounts the read API over `core`.     |
 | `@comp/admin`  | React admin UI (list browser, detail/edit form, client).     |
 | `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.  |
@@ -64,7 +68,8 @@ regenerates it from `schema.ts` (which includes the passkey tables).
 
 v0.1 in progress. Implemented end-to-end:
 
-- Collection declaration → introspection → list/count/get queries.
+- Collection declaration → introspection (columns + foreign keys) →
+  list/count/get queries.
 - Zod schema derivation and validated create/update/delete mutations.
 - Read + write API over Hono, gated on the collection manifest.
 - Declarative bulk/custom actions carrying their own capability manifest.
@@ -96,9 +101,13 @@ pagination, bulk selection + actions, and opt-in click-to-edit cells.
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build (packages
 + example SPA) on every push and PR.
 
-Relations are app-declared: a `ReferenceSelect` widget pulls options from
-another collection and drops into a form's `fieldWidgets` (the example wires
-`posts.authorId` → `authors`).
+Relations are introspected, not declared. `introspectTable` reads the schema's
+foreign keys onto the fields that hold them, and `resolveRelations` links them
+across the registry into a two-way graph — outbound (which collection this FK
+points at, and its `labelField`) and inbound (what points back here). The server
+serves both with each collection, so `CollectionBrowser` resolves FK columns to
+labels and `referenceWidgets` renders a `ReferenceSelect` per FK field without
+the app naming a target collection. Both stay overridable by prop.
 
 Server validation errors are surfaced field-by-field: a failed submit maps the
 returned Zod `issues` to messages beside each form field, and a failed inline
