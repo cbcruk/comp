@@ -24,6 +24,33 @@ export type {
   TableRelation,
 } from "./introspection/introspect-table.types.js";
 
+export {
+  coerceFilterOperand,
+  dateRangeFor,
+  formatFilterValue,
+  parseFilterValue,
+} from "./filters/filter-value.js";
+export {
+  filterFields,
+  filterSummaries,
+  inferFilterKind,
+  resolveFilters,
+} from "./filters/resolve-filters.js";
+export type {
+  DatePreset,
+  FilterConfig,
+  FilterKind,
+  FilterMap,
+  FilterOption,
+  FilterSummary,
+  FilterValue,
+  ResolvedFilter,
+} from "./filters/filter.types.js";
+export {
+  filterCondition,
+  filterConditions,
+} from "./query/build-filter-where.js";
+
 export { inlineSummary, resolveInlines } from "./inline/resolve-inlines.js";
 export {
   InlineError,

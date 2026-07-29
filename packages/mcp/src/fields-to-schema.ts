@@ -1,4 +1,10 @@
-import type { FieldMap, FieldMeta, InlineSpec } from "@comp/core";
+import type {
+  Collection,
+  FieldMap,
+  FieldMeta,
+  InlineSpec,
+  ResolvedFilter,
+} from "@comp/core";
 import type { JsonSchema } from "./json-schema.js";
 
 function baseSchema(field: FieldMeta): JsonSchema {
@@ -110,6 +116,55 @@ export function inlinesToJsonSchema(specs: InlineSpec[]): JsonSchema | null {
   return {
     type: "object",
     description: "Child rows edited together with this record.",
+    properties,
+  };
+}
+
+const PRESET_HINT = "preset:today | preset:past7 | preset:month | preset:year";
+
+/** How one field may be narrowed, in the words its kind allows. */
+function filterHint(filter: ResolvedFilter): string {
+  const parts: string[] = [];
+  switch (filter.kind) {
+    case "choices":
+    case "boolean":
+      parts.push(
+        `one of ${filter.options.map((o) => o.value).join(", ")}`,
+        `or in:${filter.options.map((o) => o.value).join(",")}`,
+      );
+      break;
+    case "date":
+      parts.push(PRESET_HINT, "or range:FROM..TO (ISO dates, upper bound exclusive)");
+      break;
+    case "relation":
+      parts.push(`an id from ${filter.table ?? "the referenced table"}`, "or in:1,2");
+      break;
+    default:
+      parts.push("an exact value");
+  }
+  if (filter.nullable) parts.push("or isnull:true / isnull:false");
+  return parts.join("; ");
+}
+
+/**
+ * Describe a collection's filters as tool input. The generated `filters`
+ * property says per field what it accepts — the enum's own values, the date
+ * presets, whether null is a thing it can be — so a model narrows a list the
+ * same way the UI does instead of guessing at a value the query layer would
+ * silently drop.
+ */
+export function filtersToJsonSchema(collection: Collection): JsonSchema {
+  if (collection.filters.length === 0) {
+    return { type: "object", description: "This collection declares no filters." };
+  }
+
+  const properties: Record<string, JsonSchema> = {};
+  for (const filter of collection.filters) {
+    properties[filter.field] = { type: "string", description: filterHint(filter) };
+  }
+  return {
+    type: "object",
+    description: "Filters by column; each value carries its own operation.",
     properties,
   };
 }

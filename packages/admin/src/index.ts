@@ -60,6 +60,17 @@ export {
   toIds,
 } from "./collection-browser/selection.js";
 export { nextSort, parseSort } from "./collection-browser/sorting.js";
+export { FilterField } from "./collection-browser/filter-field.js";
+export type { FilterFieldProps } from "./collection-browser/filter-field.js";
+export {
+  DATE_PRESETS,
+  NULL_OPTIONS,
+  activeLabel,
+  controlFor,
+  optionsFor as filterOptionsFor,
+} from "./collection-browser/filter-controls.js";
+export type { FilterControl } from "./collection-browser/filter-controls.js";
+export { useReferenceOptions } from "./collection-browser/use-reference-options.js";
 export type { ParsedSort } from "./collection-browser/sorting.js";
 export {
   buildLabelMap,

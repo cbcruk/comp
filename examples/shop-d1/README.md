@@ -7,7 +7,8 @@ a schema that is *hard* for an admin:
 - **orders → order_items**: dependent rows that only make sense edited with
   their parent. This is the inline.
 - **orders → customers**: a second relation, resolved to a label.
-- an enum (`status`) and a date (`placedAt`).
+- an enum (`status`) and a date (`placedAt`) — three columns that each filter
+  a different way.
 
 It is deliberately unauthenticated so the code stays about the admin surface;
 `blog-d1` is where auth lives. Put a real `AuthAdapter` in front of both routers
@@ -65,6 +66,27 @@ carry an `inlines` property generated from the child's schema) and in the client
 Writes are applied in order on one handle. D1 has no interactive transactions,
 so this is not atomic there yet; `writeInlines` is the single seam where a
 driver-level batch drops in.
+
+## The filters
+
+`orders` declares `filters: ["status", "customerId", "placedAt"]` and nothing
+else. What each one *is* comes from the column:
+
+| Column | Kind | What it offers |
+| --- | --- | --- |
+| `status` | `choices` | its own enum values, singly or `in:draft,paid` |
+| `customerId` | `relation` | the customers it points at, plus Empty / Not empty |
+| `placedAt` | `date` | Today, Past 7 days, This month, This year, or `range:FROM..TO` |
+
+The value carries its operation, so the URL stays a shareable link that keeps
+meaning what it said: `?status=in:draft,paid&placedAt=preset:month`. Relative
+windows resolve against one instant per request, shared by the rows and the
+count, and against UTC — an edge worker has no local timezone worth trusting.
+Operands are coerced to the column's type first: `customerId=1` compares an
+integer to an integer, not to the text `"1"`.
+
+The same encoding works on the MCP `orders__list` tool, whose generated
+`filters` schema names each column's allowed values.
 
 ## Running it
 

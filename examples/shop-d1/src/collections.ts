@@ -21,7 +21,10 @@ export const orderItemCollection = defineCollection({
 export const orderCollection = defineCollection({
   model: orders,
   listDisplay: ["reference", "customerId", "status", "placedAt"],
-  filters: ["status"],
+  // Each of these filters a different way, and none of it is configured here:
+  // status offers its enum values, customerId the customers it points at plus
+  // empty/not-empty, placedAt the date windows.
+  filters: ["status", "customerId", "placedAt"],
   search: ["reference"],
   ordering: [{ field: "placedAt", direction: "desc" }],
   inlines: ["order_items"],

@@ -6,6 +6,7 @@ import {
   buildListQuery,
   buildUpdateQuery,
   allowAll,
+  filterSummaries,
   InlineError,
   inlineOperations,
   inlineSummary,
@@ -168,7 +169,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       config.collections.map((collection) => ({
         slug: collection.slug,
         listDisplay: collection.listDisplay,
-        filters: collection.filters,
+        filters: filterSummaries(
+          collection.filters,
+          relations.outbound[collection.slug] ?? [],
+        ),
         search: collection.search,
         fields: collection.fields,
         primaryKey: collection.primaryKey,
