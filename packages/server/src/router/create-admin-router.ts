@@ -6,11 +6,13 @@ import {
   buildListQuery,
   buildUpdateQuery,
   allowAll,
+  collectDeleteImpact,
   filterSummaries,
   InlineError,
   inlineOperations,
   inlineSummary,
   readInlines,
+  resolveDeleteRelations,
   resolveInlines,
   resolveRelations,
   runAction,
@@ -22,6 +24,7 @@ import {
   type AuthAdapter,
   type Collection,
   type CollectionOperation,
+  type DeleteRelation,
   type InlineSpec,
   type InlineWritePayload,
   type SqliteDb,
@@ -95,6 +98,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   // graph, and a bad declaration throws here, at startup, not on a request.
   const relations = resolveRelations(config.collections);
   const inlines = resolveInlines(config.collections);
+  const deleteRelations = resolveDeleteRelations(config.collections);
   const actionsBySlug = new Map<string, ActionDefinition[]>();
   for (const action of config.actions ?? []) {
     const list = actionsBySlug.get(action.collection) ?? [];
@@ -164,10 +168,34 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     return null;
   }
 
-  app.get("/collections", (c) =>
-    c.json(
-      config.collections.map((collection) => ({
+  /** The operations this caller may actually perform on a collection. */
+  async function permittedOperations(
+    c: Context,
+    collection: Collection,
+  ): Promise<CollectionOperation[]> {
+    const permitted: CollectionOperation[] = [];
+    for (const operation of collection.manifest.operations) {
+      if (await authorized(c, collection, operation)) permitted.push(operation);
+    }
+    return permitted;
+  }
+
+  /**
+   * The site index. A collection this caller cannot list is left out entirely
+   * rather than listed and then refused — an index that advertises screens you
+   * are not allowed to open is worse than no index.
+   */
+  app.get("/collections", async (c) => {
+    const summaries = [];
+    for (const collection of config.collections) {
+      const permitted = await permittedOperations(c, collection);
+      if (!permitted.includes("list")) continue;
+      summaries.push({
         slug: collection.slug,
+        label: collection.label,
+        labelPlural: collection.labelPlural,
+        // What this caller may do: the manifest narrowed by permission.
+        permitted,
         listDisplay: collection.listDisplay,
         filters: filterSummaries(
           collection.filters,
@@ -184,9 +212,31 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         actions: (actionsBySlug.get(collection.slug) ?? []).map(
           (action) => action.manifest,
         ),
-      })),
-    ),
-  );
+      });
+    }
+    return c.json(summaries);
+  });
+
+  app.get("/collections/:slug/:id/delete-preview", async (c) => {
+    const collection = bySlug.get(c.req.param("slug"));
+    if (!collection) return c.json({ error: "Unknown collection" }, 404);
+    if (!allows(collection, "delete")) {
+      return c.json({ error: "Delete not allowed" }, 405);
+    }
+    if (!(await authorized(c, collection, "delete"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    const db = config.getDb(c);
+    const rows = await buildGetByIdQuery(db, collection, c.req.param("id")).all();
+    const row = rows[0] as Record<string, unknown> | undefined;
+    if (!row) return c.json({ error: "Not found" }, 404);
+
+    const relations: DeleteRelation[] = deleteRelations.get(collection.slug) ?? [];
+    return c.json({
+      data: await collectDeleteImpact(db, collection, row, relations),
+    });
+  });
 
   app.get("/collections/:slug", async (c) => {
     const collection = bySlug.get(c.req.param("slug"));

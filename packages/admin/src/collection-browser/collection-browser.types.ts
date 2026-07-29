@@ -18,6 +18,12 @@ export interface CollectionBrowserProps extends ComponentPropsWithoutRef<"div"> 
   /** Notified on action success/failure; when set, action errors route here. */
   onNotify?: (kind: "success" | "error", message: string) => void;
   /**
+   * Turn the first displayed column into the way in to a record — Django's
+   * list makes its first column the change link. A prop rather than a
+   * `renderCell` override so FK labels and click-to-edit keep working.
+   */
+  onOpenRecord?: (id: string) => void;
+  /**
    * Override how FK columns resolve to labels, keyed by column. Omit it and
    * the collection's introspected relations are used.
    */

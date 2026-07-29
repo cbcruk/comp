@@ -163,8 +163,15 @@ describe("resolveRelations", () => {
   });
 
   it("derives the reverse direction a single table cannot see", () => {
+    // The key's own onDelete comes with it: what happens to these rows when
+    // the record they point at is deleted is a fact about the key.
     expect(graph.inbound.authors).toEqual([
-      { collection: "posts", field: "authorId", targetField: "id" },
+      {
+        collection: "posts",
+        field: "authorId",
+        targetField: "id",
+        onDelete: "cascade",
+      },
     ]);
     expect(graph.inbound.posts).toEqual([
       { collection: "comments", field: "postId", targetField: "id" },
@@ -199,7 +206,12 @@ describe("resolveRelations", () => {
     const withRenamed = resolveRelations([postCollection, renamed]);
     expect(withRenamed.outbound.posts?.[0]?.collection).toBe("people");
     expect(withRenamed.inbound.people).toEqual([
-      { collection: "posts", field: "authorId", targetField: "id" },
+      {
+        collection: "posts",
+        field: "authorId",
+        targetField: "id",
+        onDelete: "cascade",
+      },
     ]);
   });
 

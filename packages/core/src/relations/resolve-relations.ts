@@ -63,6 +63,7 @@ export function resolveRelations(collections: Collection[]): RelationGraph {
         collection: collection.slug,
         field: field.name,
         targetField,
+        ...(relation.onDelete ? { onDelete: relation.onDelete } : {}),
       });
     }
   }

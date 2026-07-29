@@ -75,6 +75,24 @@ export {
 } from "./query/build-inline-query.js";
 
 export { resolveRelations } from "./relations/resolve-relations.js";
+
+export { humanize, resolveLabels, singularize } from "./site/labels.js";
+export { INDEX_ROUTE, adminPath, parseAdminPath } from "./site/routes.js";
+export type { AdminRoute, AdminView } from "./site/routes.js";
+export {
+  collectDeleteImpact,
+  resolveDeleteRelations,
+} from "./site/delete-impact.js";
+export type {
+  DeleteEffect,
+  DeleteImpact,
+  DeleteImpactEntry,
+  DeleteRelation,
+} from "./site/delete-impact.js";
+export {
+  buildReferenceCountQuery,
+  columnFor,
+} from "./query/build-relation-query.js";
 export type {
   InboundRelation,
   OutboundRelation,

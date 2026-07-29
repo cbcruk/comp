@@ -1,8 +1,10 @@
 import {
   inlineSummary,
+  resolveDeleteRelations,
   resolveInlines,
   type ActionDefinition,
   type Collection,
+  type DeleteRelation,
   type InlineSpec,
 } from "@comp/core";
 import {
@@ -12,7 +14,14 @@ import {
 } from "./fields-to-schema.js";
 import type { JsonSchema } from "./json-schema.js";
 
-export type ToolKind = "list" | "get" | "create" | "update" | "delete" | "action";
+export type ToolKind =
+  | "list"
+  | "get"
+  | "create"
+  | "update"
+  | "delete"
+  | "delete_preview"
+  | "action";
 
 export interface McpTool {
   name: string;
@@ -26,6 +35,8 @@ export interface ToolBinding {
   collection: Collection;
   /** Inlines of this collection, so a write tool can apply them. */
   inlines: InlineSpec[];
+  /** Inbound keys, so a delete can be described before it runs. */
+  deleteRelations?: DeleteRelation[];
   actionName?: string;
 }
 
@@ -137,6 +148,19 @@ function readTools(
   }
   if (ops.includes("delete")) {
     bindings.push({
+      kind: "delete_preview",
+      collection,
+      inlines,
+      tool: {
+        name: toolName(slug, "delete_preview"),
+        description:
+          `What deleting a ${slug} record would reach: how many rows in other ` +
+          `collections point at it, and whether a foreign key would refuse the ` +
+          `delete. Check this before calling ${toolName(slug, "delete")}.`,
+        inputSchema: ID_SCHEMA,
+      },
+    });
+    bindings.push({
       kind: "delete",
       collection,
       inlines,
@@ -163,10 +187,14 @@ export function buildToolRegistry(
   // Inlines bind to the relation graph over the whole registry, exactly as in
   // the HTTP API — one resolution, two transports.
   const inlines = resolveInlines(collections);
+  const deleteRelations = resolveDeleteRelations(collections);
 
   for (const collection of collections) {
     for (const binding of readTools(collection, inlines.get(collection.slug) ?? [])) {
-      registry.set(binding.tool.name, binding);
+      registry.set(binding.tool.name, {
+        ...binding,
+        deleteRelations: deleteRelations.get(collection.slug) ?? [],
+      });
     }
   }
 
@@ -179,6 +207,7 @@ export function buildToolRegistry(
       kind: "action",
       collection,
       inlines: [],
+      deleteRelations: [],
       actionName: action.name,
       tool: {
         name,

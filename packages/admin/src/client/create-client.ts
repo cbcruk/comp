@@ -1,4 +1,4 @@
-import type { ActionResult, InlineWritePayload } from "@comp/core";
+import type { ActionResult, DeleteImpact, InlineWritePayload } from "@comp/core";
 import { CompClientError } from "./client-error.js";
 import type {
   ActionRunBody,
@@ -86,6 +86,12 @@ export function createClient(options: ClientOptions): CompClient {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
         { method: "PATCH", body: JSON.stringify(withInlines(values, inlines)) },
+      );
+      return unwrap(body);
+    },
+    async deletePreview(slug, id) {
+      const body = await request<{ data: DeleteImpact }>(
+        `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}/delete-preview`,
       );
       return unwrap(body);
     },
