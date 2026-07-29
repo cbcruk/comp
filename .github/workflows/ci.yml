@@ -33,5 +33,7 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Build example SPA
-        run: pnpm --filter @comp/example-blog-d1 build:client
+      - name: Build example SPAs
+        run: |
+          pnpm --filter @comp/example-blog-d1 build:client
+          pnpm --filter @comp/example-shop-d1 build:client

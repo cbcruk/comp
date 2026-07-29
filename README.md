@@ -5,9 +5,9 @@ rebuilt for the edge. Declare a collection over a Drizzle schema and Comp
 generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
-Comp covers the single-table slice of Django's admin today; inlines, richer
-filters, form layout, history, and an admin site are the open work. See the
-parity backlog in `CLAUDE.md`.
+Comp covers the single-table slice of Django's admin plus relations and
+inlines; richer filters, form layout, history, and an admin site are the open
+work. See the parity backlog in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -29,7 +29,10 @@ defineCollection({
 | `@comp/mcp`    | Collections + actions over the Model Context Protocol.       |
 | `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.  |
 
-`examples/blog-d1` is the reference app: Cloudflare D1 + Drizzle.
+Two examples: `examples/blog-d1` is the stack reference (Cloudflare D1 +
+Drizzle, passkeys, MCP), and `examples/shop-d1` is the admin-features one —
+orders with line items edited inline, plus a second relation, an enum, and a
+date.
 
 The data contract flows one way: `defineCollection` → `@comp/core` resolves
 queries → `@comp/server` adapts HTTP → `@comp/admin` renders. No SQL lives in
@@ -70,6 +73,10 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- Inlines: a parent's dependent rows read with it and written in the same
+  request (`inlines: ["order_items"]`), resolved against the relation graph and
+  scoped to the parent in SQL. Exposed over HTTP, MCP, and the React
+  `InlineEditor`.
 - Zod schema derivation and validated create/update/delete mutations.
 - Read + write API over Hono, gated on the collection manifest.
 - Declarative bulk/custom actions carrying their own capability manifest.

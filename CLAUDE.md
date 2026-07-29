@@ -26,8 +26,8 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
 ```
 
 **That snippet is the starting point, not the target.** Comp today covers the
-single-table slice of Django's admin. The parity backlog below is the real
-scope; treat it as the roadmap, not as a wishlist.
+single-table slice of Django's admin, plus relations and inlines. The parity
+backlog below is the real scope; treat it as the roadmap, not as a wishlist.
 
 ## Django admin parity — the backlog
 
@@ -49,13 +49,19 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 - Relation **widgets on the read/write side**: FK columns render labels and FK
   fields render a select, both driven by the introspected graph rather than
   hand-declared props.
+- **Inlines** — a parent edited together with its dependent rows (Django's
+  `TabularInline`). `inlines: ["order_items"]` binds to `RelationGraph.inbound`
+  at startup (`resolveInlines`); the record's children are read with it and
+  written in the same request, over HTTP, MCP, and the React `InlineEditor`.
+  Rules worth keeping: every child update/delete is scoped to the parent **in
+  SQL**, the parent key is set on create and stripped from update (no
+  re-parenting), issue paths carry `inlines.<slug>.<index>.<field>`, and an
+  inline never grants more than the child collection's own manifest does.
+  Writes apply delete → update → create sequentially; D1 has no interactive
+  transactions, so `writeInlines` is the seam where a batch lands when it can.
 
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Inlines.** Editing a parent together with its dependent rows
-  (Django's `TabularInline`/`StackedInline`). `RelationGraph.inbound` is
-  already the input; what is missing is a nested read query, nested validation,
-  and a transactional nested write.
 - **Richer `list_filter`.** Today every filter is `eq`. Django resolves a
   filter to a _lookup_ and offers ready-made choices: enum values from the
   column, date ranges (today / this month / this year), boolean, null/not-null,
@@ -112,8 +118,9 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 ```
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
-                           the relation graph, query+validation+mutation,
-                           actions + capability boundary, the AuthAdapter shape
+                           the relation graph, inlines (nested read/validate/write),
+                           query+validation+mutation, actions + capability boundary,
+                           the AuthAdapter shape
   server/  → @comp/server  Hono read/write API; manifest- and auth-gated
   admin/   → @comp/admin    React UI + a fetch client and hooks
   auth/    → @comp/auth     WebAuthn passkeys, signed-session cookies, role policy,
@@ -124,12 +131,15 @@ examples/
   blog-d1/                 deployment reference: Cloudflare D1 + Drizzle, React SPA,
                            passkeys, MCP. Two tables and one FK — it shows the stack
                            working, and deliberately does *not* exercise the backlog.
+  shop-d1/                 admin-features reference: orders → order_items (the inline),
+                           a second relation, an enum, a date. Unauthenticated on
+                           purpose so it stays about the admin surface.
 ```
 
-`blog-d1` is a stack demo, not the parity target. Features from the backlog
-need a schema that is hard for an admin: dependent rows to inline, a m2m, date
-columns worth drilling into, records worth auditing. Add that example alongside
-`blog-d1` rather than bending `blog-d1` into it.
+`blog-d1` is a stack demo, not the parity target. Backlog features need a schema
+that is hard for an admin — dependent rows to inline, a m2m, date columns worth
+drilling into, records worth auditing — which is what `shop-d1` is for. Extend
+`shop-d1` (or add another example beside it) rather than bending `blog-d1`.
 
 ### The one rule that shapes everything
 
@@ -195,14 +205,20 @@ truth.
 ## Conventions discovered while building (follow them)
 
 - **Extract pure logic into its own module and unit-test it.** The regression-
-  prone parts — introspection, the relation graph, query building, validation,
+  prone parts — introspection, the relation graph, inline resolution/row state,
+  query building, validation,
   value coercion, capability enforcement, sort/selection/pagination/label math —
   are all pure functions with vitest tests (`*.test.ts`, run via the root
   `vitest.config.ts`, `include: packages/*/src/**/*.test.ts`). React components
-  and transport adapters are verified by `typecheck` + the example's
+  and transport adapters are verified by `typecheck` + the examples'
   `vite build` (there is no React Testing Library / jsdom setup). When you add
   behavior, push the logic into a tested pure function and keep the
   component/adapter a thin shell.
+- **Where a request spans layers, test it against a real database.** Pure
+  functions and `.toSQL()` miss what only shows up when the query actually runs
+  — `inline-routes.test.ts` drives the Hono router over `node:sqlite` and caught
+  an empty UPDATE that every unit test passed. Import `node:sqlite` through
+  `createRequire`; Vite's builtin list predates it.
 - **Admin components are headless.** No imposed styles. They render plain
   elements with `role`/`aria-*` and expose **render-prop slots** (`renderCell`,
   `renderField`, `fieldWidgets`, `renderEmpty`, …) rather than boolean-prop
@@ -276,8 +292,8 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, the query layer, validation, or the capability boundary; that's where
-  silent regressions hide.
+  graph, inlines, the query layer, validation, or the capability boundary;
+  that's where silent regressions hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.
 - Prefer small, vertical slices (core → API/MCP → UI) over disconnected layers.
