@@ -1,5 +1,11 @@
-import type { ActionDefinition, Collection } from "@comp/core";
-import { fieldsToJsonSchema } from "./fields-to-schema.js";
+import {
+  inlineSummary,
+  resolveInlines,
+  type ActionDefinition,
+  type Collection,
+  type InlineSpec,
+} from "@comp/core";
+import { fieldsToJsonSchema, inlinesToJsonSchema } from "./fields-to-schema.js";
 import type { JsonSchema } from "./json-schema.js";
 
 export type ToolKind = "list" | "get" | "create" | "update" | "delete" | "action";
@@ -14,6 +20,8 @@ export interface ToolBinding {
   tool: McpTool;
   kind: ToolKind;
   collection: Collection;
+  /** Inlines of this collection, so a write tool can apply them. */
+  inlines: InlineSpec[];
   actionName?: string;
 }
 
@@ -38,15 +46,36 @@ function toolName(slug: string, suffix: string): string {
   return `${slug}__${suffix}`;
 }
 
-function readTools(collection: Collection): ToolBinding[] {
+/** Attach the generated `inlines` property to a write tool's input schema. */
+function withInlines(
+  schema: JsonSchema,
+  inlineSchema: JsonSchema | null,
+): JsonSchema {
+  if (!inlineSchema) return schema;
+  return {
+    ...schema,
+    properties: { ...schema.properties, inlines: inlineSchema },
+  };
+}
+
+function readTools(
+  collection: Collection,
+  inlines: InlineSpec[],
+): ToolBinding[] {
   const bindings: ToolBinding[] = [];
   const ops = collection.manifest.operations;
   const slug = collection.slug;
+  const inlineSchema = inlinesToJsonSchema(inlines);
+  const inlineNote =
+    inlines.length > 0
+      ? ` Child rows (${inlines.map((i) => inlineSummary(i).collection).join(", ")}) can be written in the same call.`
+      : "";
 
   if (ops.includes("list")) {
     bindings.push({
       kind: "list",
       collection,
+      inlines,
       tool: {
         name: toolName(slug, "list"),
         description: `List ${slug} records (search, filter, sort, paginate).`,
@@ -58,9 +87,12 @@ function readTools(collection: Collection): ToolBinding[] {
     bindings.push({
       kind: "get",
       collection,
+      inlines,
       tool: {
         name: toolName(slug, "get"),
-        description: `Get a single ${slug} record by id.`,
+        description:
+          `Get a single ${slug} record by id.` +
+          (inlines.length > 0 ? " Returns its child rows alongside it." : ""),
         inputSchema: ID_SCHEMA,
       },
     });
@@ -69,10 +101,11 @@ function readTools(collection: Collection): ToolBinding[] {
     bindings.push({
       kind: "create",
       collection,
+      inlines,
       tool: {
         name: toolName(slug, "create"),
-        description: `Create a ${slug} record.`,
-        inputSchema: fieldsToJsonSchema(collection.fields),
+        description: `Create a ${slug} record.${inlineNote}`,
+        inputSchema: withInlines(fieldsToJsonSchema(collection.fields), inlineSchema),
       },
     });
   }
@@ -81,14 +114,18 @@ function readTools(collection: Collection): ToolBinding[] {
     bindings.push({
       kind: "update",
       collection,
+      inlines,
       tool: {
         name: toolName(slug, "update"),
-        description: `Update a ${slug} record by id.`,
-        inputSchema: {
-          type: "object",
-          properties: { id: { type: "string" }, ...fieldSchema.properties },
-          required: ["id"],
-        },
+        description: `Update a ${slug} record by id.${inlineNote}`,
+        inputSchema: withInlines(
+          {
+            type: "object",
+            properties: { id: { type: "string" }, ...fieldSchema.properties },
+            required: ["id"],
+          },
+          inlineSchema,
+        ),
       },
     });
   }
@@ -96,6 +133,7 @@ function readTools(collection: Collection): ToolBinding[] {
     bindings.push({
       kind: "delete",
       collection,
+      inlines,
       tool: {
         name: toolName(slug, "delete"),
         description: `Delete a ${slug} record by id.`,
@@ -116,9 +154,12 @@ export function buildToolRegistry(
   actions: ActionDefinition[] = [],
 ): Map<string, ToolBinding> {
   const registry = new Map<string, ToolBinding>();
+  // Inlines bind to the relation graph over the whole registry, exactly as in
+  // the HTTP API — one resolution, two transports.
+  const inlines = resolveInlines(collections);
 
   for (const collection of collections) {
-    for (const binding of readTools(collection)) {
+    for (const binding of readTools(collection, inlines.get(collection.slug) ?? [])) {
       registry.set(binding.tool.name, binding);
     }
   }
@@ -131,6 +172,7 @@ export function buildToolRegistry(
     registry.set(name, {
       kind: "action",
       collection,
+      inlines: [],
       actionName: action.name,
       tool: {
         name,

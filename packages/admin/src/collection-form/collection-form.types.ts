@@ -20,6 +20,11 @@ export interface CollectionFormProps
   renderField?: (control: FieldControl) => ReactNode;
   /** Per-field render overrides (e.g. a relation select), keyed by field name. */
   fieldWidgets?: Record<string, (control: FieldControl) => ReactNode>;
+  /**
+   * Rendered after the fields, inside the form — where an `InlineEditor` goes,
+   * so a record and its child rows are submitted by the same button.
+   */
+  children?: ReactNode;
   submitLabel?: string;
   /** Disable the form while a submit is in flight. */
   busy?: boolean;

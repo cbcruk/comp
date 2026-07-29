@@ -1,5 +1,9 @@
 import type { Table } from "drizzle-orm";
-import type { FieldMap } from "../introspection/introspect-table.types.js";
+import type { InlineConfig } from "../inline/inline.types.js";
+import type {
+  FieldMap,
+  TableRelation,
+} from "../introspection/introspect-table.types.js";
 
 /** Field names of a Drizzle table, checked at the type level. */
 export type ColumnKey<TTable extends Table> = keyof TTable["$inferSelect"] &
@@ -47,12 +51,24 @@ export interface CollectionConfig<TTable extends Table> {
   filters?: ColumnKey<TTable>[];
   /** Columns matched by the free-text search box. */
   search?: ColumnKey<TTable>[];
+  /**
+   * Field that stands in for a whole record when another collection references
+   * it. Defaults to the first textual `listDisplay` column; set it when that
+   * guess reads badly.
+   */
+  labelField?: ColumnKey<TTable>;
   /** Default ordering applied when the request specifies none. */
   ordering?: OrderingSpec<TTable>[];
   /** Default page size for the list view. */
   pageSize?: number;
   /** Operations this collection exposes; defaults to full CRUD. */
   operations?: CollectionOperation[];
+  /**
+   * Child collections edited alongside a record of this one. The foreign key
+   * tying them together is read from the schema; name it only when the child
+   * points here more than once.
+   */
+  inlines?: InlineConfig[];
 }
 
 /**
@@ -68,10 +84,16 @@ export interface Collection {
   model: Table;
   fields: FieldMap;
   primaryKey: string | null;
+  /** Foreign keys declared on the table, composite ones included. */
+  relations: TableRelation[];
+  /** Field representing a record when referenced from elsewhere. */
+  labelField: string | null;
   listDisplay: string[];
   filters: string[];
   search: string[];
   ordering: FieldOrdering[];
   pageSize: number;
+  /** Declared inlines, as authored; `resolveInlines` binds them to the graph. */
+  inlines: InlineConfig[];
   manifest: CollectionManifest;
 }

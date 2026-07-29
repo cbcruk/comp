@@ -1,0 +1,15 @@
+name = "comp-shop-d1"
+main = "src/worker.ts"
+compatibility_date = "2025-01-01"
+
+[assets]
+# Built by `pnpm build:client` (vite). Requests that match no asset (e.g.
+# /admin, /mcp) fall through to the worker.
+directory = "./dist/client"
+
+# Run `wrangler d1 create shop` and paste the returned database_id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "shop"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"

@@ -1,4 +1,4 @@
-import type { ActionResult } from "@comp/core";
+import type { ActionResult, InlineWritePayload } from "@comp/core";
 import { CompClientError } from "./client-error.js";
 import type {
   ActionRunBody,
@@ -7,6 +7,7 @@ import type {
   CompClient,
   ListQuery,
   ListResult,
+  RecordResult,
   Row,
 } from "./create-client.types.js";
 
@@ -50,6 +51,19 @@ export function createClient(options: ClientOptions): CompClient {
     return body.data;
   }
 
+  function getRecord(slug: string, id: string | number): Promise<RecordResult> {
+    return request<RecordResult>(
+      `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
+    );
+  }
+
+  /** A record and its child rows travel in one request — one user action. */
+  function withInlines(values: Row, inlines?: InlineWritePayload): Row {
+    return inlines && Object.keys(inlines).length > 0
+      ? { ...values, inlines }
+      : values;
+  }
+
   return {
     async collections() {
       return request<CollectionSummary[]>("/collections");
@@ -58,22 +72,20 @@ export function createClient(options: ClientOptions): CompClient {
       return request<ListResult>(buildListPath(slug, query));
     },
     async get(slug, id) {
-      const body = await request<{ data: Row }>(
-        `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
-      );
-      return unwrap(body);
+      return unwrap(await getRecord(slug, id));
     },
-    async create(slug, values) {
+    getRecord,
+    async create(slug, values, inlines) {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}`,
-        { method: "POST", body: JSON.stringify(values) },
+        { method: "POST", body: JSON.stringify(withInlines(values, inlines)) },
       );
       return unwrap(body);
     },
-    async update(slug, id, values) {
+    async update(slug, id, values, inlines) {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
-        { method: "PATCH", body: JSON.stringify(values) },
+        { method: "PATCH", body: JSON.stringify(withInlines(values, inlines)) },
       );
       return unwrap(body);
     },

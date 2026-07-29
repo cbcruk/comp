@@ -17,6 +17,19 @@ const postCollection = defineCollection({
   listDisplay: ["title", "status"],
 });
 
+const comments = sqliteTable("comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  body: text("body").notNull(),
+  postId: integer("post_id")
+    .notNull()
+    .references(() => posts.id),
+});
+
+const commentCollection = defineCollection({
+  model: comments,
+  listDisplay: ["body", "postId"],
+});
+
 const readOnly = defineCollection({
   model: posts,
   slug: "articles",
@@ -39,6 +52,62 @@ describe("fieldsToJsonSchema", () => {
 
   it("makes everything optional for update", () => {
     expect(fieldsToJsonSchema(postCollection.fields, { forUpdate: true }).required).toBeUndefined();
+  });
+
+  it("tells the caller what a foreign key points at", () => {
+    const schema = fieldsToJsonSchema(commentCollection.fields);
+    expect(schema.properties?.postId).toEqual({
+      type: "number",
+      description: "Foreign key → posts.id",
+    });
+    expect(schema.properties?.body?.description).toBeUndefined();
+  });
+});
+
+describe("inline tool schemas", () => {
+  const parent = defineCollection({
+    model: posts,
+    slug: "posts",
+    listDisplay: ["title"],
+    inlines: ["comments"],
+  });
+  const registry = buildToolRegistry([parent, commentCollection]);
+  const create = registry.get("posts__create")?.tool.inputSchema;
+  const inlines = create?.properties?.inlines;
+
+  it("offers the child's write operations on the parent's write tool", () => {
+    expect(Object.keys(inlines?.properties ?? {})).toEqual(["comments"]);
+    expect(Object.keys(inlines?.properties?.comments?.properties ?? {})).toEqual([
+      "create",
+      "update",
+      "delete",
+    ]);
+  });
+
+  it("hides the parent key — it is filled in from the record", () => {
+    const item = inlines?.properties?.comments?.properties?.create?.items;
+    expect(item?.properties?.body).toBeDefined();
+    expect(item?.properties?.postId).toBeUndefined();
+  });
+
+  it("leaves tools for a collection without inlines untouched", () => {
+    const plain = buildToolRegistry([postCollection]).get("posts__create");
+    expect(plain?.tool.inputSchema.properties?.inlines).toBeUndefined();
+  });
+
+  it("drops delete from the schema when the inline forbids it", () => {
+    const guarded = defineCollection({
+      model: posts,
+      slug: "posts",
+      listDisplay: ["title"],
+      inlines: [{ collection: "comments", canDelete: false }],
+    });
+    const schema = buildToolRegistry([guarded, commentCollection]).get(
+      "posts__update",
+    )?.tool.inputSchema;
+    const ops = schema?.properties?.inlines?.properties?.comments?.properties;
+    expect(ops?.delete).toBeUndefined();
+    expect(ops?.create).toBeDefined();
   });
 });
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { extractIssues, fieldMessage, issuesByField } from "./issues.js";
+import {
+  extractIssues,
+  fieldMessage,
+  inlineIssuesByRow,
+  issuesByField,
+  ownIssues,
+} from "./issues.js";
 
 const clientError = {
   status: 400,
@@ -45,5 +51,32 @@ describe("fieldMessage", () => {
     expect(fieldMessage(issues, "title")).toBe("Required");
     expect(fieldMessage(issues, "body")).toBeNull();
     expect(fieldMessage(null, "title")).toBeNull();
+  });
+});
+
+describe("inline issues", () => {
+  const issues = [
+    { path: ["reference"], message: "Required" },
+    { path: ["inlines", "items", 1, "product"], message: "Expected string" },
+    { path: ["inlines", "items", 1, "quantity"], message: "Expected number" },
+    { path: ["inlines", "shipments", 0, "carrier"], message: "Required" },
+  ];
+
+  it("keys an inline's issues by row and field", () => {
+    expect(inlineIssuesByRow(issues, "items")).toEqual({
+      "1.product": ["Expected string"],
+      "1.quantity": ["Expected number"],
+    });
+  });
+
+  it("ignores other inlines and the record's own issues", () => {
+    expect(inlineIssuesByRow(issues, "shipments")).toEqual({
+      "0.carrier": ["Required"],
+    });
+    expect(inlineIssuesByRow([{ path: ["title"], message: "x" }], "items")).toEqual({});
+  });
+
+  it("separates the record's own issues from its inlines'", () => {
+    expect(ownIssues(issues)).toEqual([{ path: ["reference"], message: "Required" }]);
   });
 });
