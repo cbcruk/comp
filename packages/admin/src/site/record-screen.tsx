@@ -96,6 +96,7 @@ export function RecordScreen({
         key={`${collection.slug}-${id ?? "new"}`}
         fields={collection.fields}
         primaryKey={collection.primaryKey}
+        form={collection.form}
         {...(record ? { record } : {})}
         submitLabel={editing ? "Save" : "Create"}
         fieldWidgets={{

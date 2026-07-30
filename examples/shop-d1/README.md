@@ -38,6 +38,26 @@ permission before answering. `useHashRoute` keeps the current screen in the URL
 fragment; an app with its own router passes `route`/`onNavigate` itself, and
 `renderScreen` replaces any single screen.
 
+## The form layout
+
+`orders` declares its change form as a layout rather than a field list:
+
+```ts
+fieldsets: [
+  { title: "Order", fields: [["reference", "customerId"]] },
+  { title: "Status", fields: [["status", "placedAt"]], collapsed: true },
+],
+radioFields: ["status"],
+```
+
+The nested arrays put two fields on one line; the second group starts folded.
+`blog-d1` carries the other half of this — `prepopulated: { slug: ["title"] }`
+writes a post's slug from its title while adding and stops the moment you edit
+the slug yourself, and `readonlyFields: ["createdAt"]` shows the timestamp
+without letting anything write it. That last one is enforced in core: a request
+that names a readonly field has the value dropped before the insert, so it holds
+over HTTP and MCP alike rather than depending on the UI hiding an input.
+
 ## The delete confirmation
 
 Deleting an order is not local: line items go with it. The confirmation says so

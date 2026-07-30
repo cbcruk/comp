@@ -51,6 +51,7 @@ export function App(): JSX.Element {
               key={`author-form-${version}`}
               fields={authors.fields}
               primaryKey={authors.primaryKey}
+              form={authors.form}
               submitLabel="Create"
               onSubmit={async (values) => {
                 await client.create(authors.slug, values);
@@ -79,6 +80,9 @@ export function App(): JSX.Element {
               key={`post-form-${version}`}
               fields={posts.fields}
               primaryKey={posts.primaryKey}
+              // The declared layout: grouped fieldsets, a slug prepopulated
+              // from the title, a readonly timestamp, radios for the status.
+              form={posts.form}
               submitLabel="Create"
               // Relation selects come from the schema's foreign keys; the app
               // never names the target collection.

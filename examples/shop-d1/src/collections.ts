@@ -27,6 +27,11 @@ export const orderCollection = defineCollection({
   filters: ["status", "customerId", "placedAt"],
   search: ["reference"],
   ordering: [{ field: "placedAt", direction: "desc" }],
+  fieldsets: [
+    { title: "Order", fields: [["reference", "customerId"]] },
+    { title: "Status", fields: [["status", "placedAt"]], collapsed: true },
+  ],
+  radioFields: ["status"],
   inlines: ["order_items"],
 });
 

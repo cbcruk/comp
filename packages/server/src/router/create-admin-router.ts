@@ -205,6 +205,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         fields: collection.fields,
         primaryKey: collection.primaryKey,
         labelField: collection.labelField,
+        form: collection.form,
         relations: relations.outbound[collection.slug] ?? [],
         inbound: relations.inbound[collection.slug] ?? [],
         inlines: (inlines.get(collection.slug) ?? []).map(inlineSummary),

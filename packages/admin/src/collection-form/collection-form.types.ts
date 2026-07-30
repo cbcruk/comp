@@ -1,4 +1,4 @@
-import type { FieldMap, FieldMeta } from "@comp/core";
+import type { FieldMap, FieldMeta, ResolvedForm } from "@comp/core";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import type { Row } from "../client/create-client.types.js";
 
@@ -12,6 +12,11 @@ export interface CollectionFormProps
   extends Omit<ComponentPropsWithoutRef<"form">, "onSubmit"> {
   fields: FieldMap;
   primaryKey: string | null;
+  /**
+   * The collection's resolved layout: groups, readonly fields, prepopulation,
+   * radios. Omit it and every editable field renders one per line.
+   */
+  form?: ResolvedForm;
   /** Existing record when editing; omit for create. */
   record?: Row;
   /** Receives the coerced API payload on submit. */
