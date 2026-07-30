@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Collection } from "../collection/define-collection.types.js";
 import type { FieldMeta } from "../introspection/introspect-table.types.js";
+import { stripReadonly } from "../form/resolve-form.js";
 import { ValidationError } from "./validation-error.js";
 
 function baseSchema(field: FieldMeta): z.ZodTypeAny {
@@ -48,14 +49,18 @@ export function deriveUpdateSchema(
   return deriveInsertSchema(collection).partial();
 }
 
-/** Validate insert input, throwing {@link ValidationError} on failure. */
+/**
+ * Validate insert input, throwing {@link ValidationError} on failure. Values
+ * for readonly fields are dropped before validation, so declaring one readonly
+ * is enforced on every transport rather than only hidden in the UI.
+ */
 export function validateInsert(
   collection: Collection,
   input: unknown,
 ): Record<string, unknown> {
   const result = deriveInsertSchema(collection).safeParse(input);
   if (!result.success) throw new ValidationError(result.error.issues);
-  return result.data;
+  return stripReadonly(collection.form, result.data);
 }
 
 /** Validate partial update input, throwing {@link ValidationError} on failure. */
@@ -65,5 +70,5 @@ export function validateUpdate(
 ): Record<string, unknown> {
   const result = deriveUpdateSchema(collection).safeParse(input);
   if (!result.success) throw new ValidationError(result.error.issues);
-  return result.data;
+  return stripReadonly(collection.form, result.data);
 }

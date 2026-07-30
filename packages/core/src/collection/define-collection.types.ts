@@ -3,6 +3,8 @@ import type {
   FilterConfig,
   ResolvedFilter,
 } from "../filters/filter.types.js";
+import type { ResolvedForm } from "../form/form.types.js";
+import type { FormConfig } from "../form/resolve-form.js";
 import type { InlineConfig } from "../inline/inline.types.js";
 import type {
   FieldMap,
@@ -44,7 +46,8 @@ export interface CollectionManifest {
   operations: CollectionOperation[];
 }
 
-export interface CollectionConfig<TTable extends Table> {
+export interface CollectionConfig<TTable extends Table>
+  extends FormConfig<ColumnKey<TTable>> {
   /** Drizzle table this collection manages. */
   model: TTable;
   /** URL-safe identifier; defaults to the table name. */
@@ -110,6 +113,8 @@ export interface Collection {
   search: string[];
   ordering: FieldOrdering[];
   pageSize: number;
+  /** The add/change form as a layout: groups, readonly, prepopulated, radios. */
+  form: ResolvedForm;
   /** Declared inlines, as authored; `resolveInlines` binds them to the graph. */
   inlines: InlineConfig[];
   manifest: CollectionManifest;

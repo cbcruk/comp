@@ -122,12 +122,18 @@ function readTools(
       tool: {
         name: toolName(slug, "create"),
         description: `Create a ${slug} record.${inlineNote}`,
-        inputSchema: withInlines(fieldsToJsonSchema(collection.fields), inlineSchema),
+        inputSchema: withInlines(
+          fieldsToJsonSchema(collection.fields, { skip: collection.form.readonly }),
+          inlineSchema,
+        ),
       },
     });
   }
   if (ops.includes("update")) {
-    const fieldSchema = fieldsToJsonSchema(collection.fields, { forUpdate: true });
+    const fieldSchema = fieldsToJsonSchema(collection.fields, {
+      forUpdate: true,
+      skip: collection.form.readonly,
+    });
     bindings.push({
       kind: "update",
       collection,

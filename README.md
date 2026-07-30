@@ -6,9 +6,9 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter lookups, and a generated admin site; search lookups, form layout,
-history, and per-object permissions are the open work. See the parity backlog in
-`CLAUDE.md`.
+real filter lookups, form layout, and a generated admin site; search lookups,
+`date_hierarchy`, history, and per-object permissions are the open work. See the
+parity backlog in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -75,6 +75,10 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- The add/change form as a layout: `fieldsets` group fields under headings, a
+  nested array puts them on one line, `readonlyFields` shows without writing,
+  `prepopulated` derives a slug from a title while adding, `radioFields` swaps a
+  select for radios. Readonly is enforced on the write path, not just hidden.
 - An admin site from the registry: `AdminSite` renders the index, list, add,
   change, and delete confirmation for whatever collections the server reports.
   The index is narrowed by permission — a collection you cannot list is not on

@@ -51,6 +51,21 @@ export {
   filterConditions,
 } from "./query/build-filter-where.js";
 
+export { resolveForm, stripReadonly } from "./form/resolve-form.js";
+export type { FormConfig } from "./form/resolve-form.js";
+export { formFields, writableFields } from "./form/form.types.js";
+export type {
+  FieldsetConfig,
+  FormFieldEntry,
+  ResolvedFieldset,
+  ResolvedForm,
+} from "./form/form.types.js";
+export {
+  applyPrepopulation,
+  prepopulatedValue,
+  slugify,
+} from "./form/prepopulate.js";
+
 export { inlineSummary, resolveInlines } from "./inline/resolve-inlines.js";
 export {
   InlineError,

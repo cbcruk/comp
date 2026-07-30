@@ -36,8 +36,9 @@ function fieldSchema(field: FieldMeta): JsonSchema {
  * Build a JSON Schema for a collection's writable fields. For inserts, a field
  * is required when it is not-null, has no default, and is not the primary key;
  * for updates every field is optional. `skip` drops fields the caller does not
- * get to set — an inline's parent key is filled in from the record being
- * edited, so offering it would invite a write that is then ignored.
+ * get to set — a readonly field, or an inline's parent key filled in from the
+ * record being edited — since offering one invites a write that is then
+ * silently ignored.
  */
 export function fieldsToJsonSchema(
   fields: FieldMap,

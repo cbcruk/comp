@@ -9,6 +9,7 @@ import type {
   InboundRelation,
   InlineSummary,
   InlineWritePayload,
+  ResolvedForm,
   OutboundRelation,
 } from "@comp/core";
 
@@ -32,6 +33,8 @@ export interface CollectionSummary {
   primaryKey: string | null;
   /** Field standing in for a record when another collection references it. */
   labelField: string | null;
+  /** The add/change form as a layout. */
+  form: ResolvedForm;
   /** Foreign keys on this collection, resolved to their target collection. */
   relations: OutboundRelation[];
   /** Foreign keys on other collections pointing at this one. */

@@ -26,8 +26,9 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
 ```
 
 **That snippet is the starting point, not the target.** Comp today covers the
-single-table slice of Django's admin, plus relations and inlines. The parity
-backlog below is the real scope; treat it as the roadmap, not as a wishlist.
+single-table slice of Django's admin, plus relations, inlines, filter lookups,
+form layout, and a generated site. The parity backlog below is the real scope;
+treat it as the roadmap, not as a wishlist.
 
 ## Django admin parity — the backlog
 
@@ -68,7 +69,17 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   confirmation counts what the delete reaches (`collectDeleteImpact`) from the
   inbound relation graph, saying per key whether the rows cascade, get cleared,
   or refuse the delete outright.
-
+- **Form layout** — the add/change form is a layout, not a field list.
+  `fields`/`exclude` narrow and order it, a nested array puts fields on one
+  line, `fieldsets` groups them with headings and a collapsed flag,
+  `readonlyFields` shows without writing, `prepopulated` derives one field from
+  others (a slug from a title), `radioFields` swaps a select for radios.
+  `resolveForm` throws at declaration time on a name that is not a column, on a
+  prepopulated target that is readonly or not text, and on a readonly column
+  that is required with no default — a layout typo otherwise costs an input
+  silently. The teeth are on the write side: `stripReadonly` runs inside
+  `validateInsert`/`validateUpdate`, so readonly is enforced on every transport
+  rather than only hidden in the UI, and MCP's write tools omit those fields.
 - **`list_filter` with real lookups** — a filter is a *spec*, not a bare
   value. `resolveFilters` reads each declared column's kind off the schema
   (enum → its values, boolean → yes/no, date → named windows, FK → the records
@@ -84,9 +95,6 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 - **Search lookups.** Django's `search_fields` accepts prefixes (exact,
   starts-with, related traversal) and splits the query into terms ANDed
   together. Comp ORs one substring across columns.
-- **Form layout.** `fieldsets`/`fields`/`exclude` (grouping and ordering),
-  `readonly_fields`, `prepopulated_fields` (the example's `slug` from `title`
-  is exactly this), `radio_fields`.
 - **`date_hierarchy`.** Drill-down navigation by a date column. The date filter
   already resolves named windows to a half-open range; this is the same lookup
   driven by a year → month → day trail instead of a select.
@@ -134,6 +142,7 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
                            the relation graph, filters (kind + lookup resolution),
+                           the form layout (+ readonly enforcement, prepopulation),
                            inlines (nested read/validate/write), the site's route
                            vocabulary + delete impact, query+validation+mutation,
                            actions + capability boundary, the AuthAdapter shape
@@ -256,6 +265,10 @@ truth.
   an expiry — takes the instant it resolves against (`ListParams.now`), so the
   same inputs give the same query and a test does not race the clock. Resolve it
   once per request and pass it down.
+- **Hiding is not enforcing.** A declaration that narrows what may be written
+  (`readonlyFields` today) has to be applied on the write path, not only left
+  out of the UI — a request that names the field anyway must not win. Put the
+  rule in core so every transport inherits it.
 - **Errors:** plain throws + typed error objects (`ValidationError` carrying Zod
   issues, `CapabilityError`, `CompClientError`). **No `Result`/`neverthrow`
   channel** until concrete pain accumulates. Surface `ValidationError.issues`
@@ -319,8 +332,9 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, filters, inlines, delete impact, the query layer, validation, or the
-  capability boundary; that's where silent regressions hide.
+  graph, filters, the form layout, inlines, delete impact, the query layer,
+  validation, or the capability boundary; that's where silent regressions
+  hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.
 - Prefer small, vertical slices (core → API/MCP → UI) over disconnected layers.

@@ -23,6 +23,17 @@ export {
   toPayload,
 } from "./collection-form/collection-form.utils.js";
 export type { InputType } from "./collection-form/collection-form.utils.js";
+export {
+  bindLayout,
+  flatLayout,
+  layoutFields,
+  submittableFields,
+} from "./collection-form/form-layout.js";
+export type {
+  LayoutField,
+  LayoutGroup,
+  LayoutRow,
+} from "./collection-form/form-layout.js";
 
 export {
   extractIssues,
