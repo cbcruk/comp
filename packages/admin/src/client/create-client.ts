@@ -1,4 +1,9 @@
-import type { ActionResult, DeleteImpact, InlineWritePayload } from "@comp/core";
+import type {
+  ActionResult,
+  DeleteImpact,
+  HistoryEntry,
+  InlineWritePayload,
+} from "@comp/core";
 import { CompClientError } from "./client-error.js";
 import type {
   ActionRunBody,
@@ -93,6 +98,18 @@ export function createClient(options: ClientOptions): CompClient {
       const body = await request<{ data: DeleteImpact }>(
         `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}/delete-preview`,
       );
+      return unwrap(body);
+    },
+    async history(slug, id, limit) {
+      const query = limit === undefined ? "" : `?limit=${String(limit)}`;
+      const body = await request<{ data: HistoryEntry[] }>(
+        `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}/history${query}`,
+      );
+      return unwrap(body);
+    },
+    async recentHistory(limit) {
+      const query = limit === undefined ? "" : `?limit=${String(limit)}`;
+      const body = await request<{ data: HistoryEntry[] }>(`/history${query}`);
       return unwrap(body);
     },
     async remove(slug, id) {

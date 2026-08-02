@@ -171,6 +171,15 @@ export function RecordScreen({
         })}
       </CollectionForm>
 
+      {editing && (
+        <button
+          type="button"
+          onClick={() => navigate({ view: "history", slug: collection.slug, id })}
+        >
+          History
+        </button>
+      )}
+
       {editing && can(collection, "delete") && (
         <button
           type="button"

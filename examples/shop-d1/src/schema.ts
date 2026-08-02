@@ -1,5 +1,8 @@
 import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+// Re-exported so `drizzle-kit` generates the migration for the history table.
+export { historyEntries } from "@comp/core";
+
 /**
  * A schema that is *hard* for an admin, on purpose: a parent with dependent
  * rows that only make sense edited together, a second relation, an enum, and a

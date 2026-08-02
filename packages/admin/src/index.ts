@@ -134,11 +134,13 @@ export { AdminSite } from "./site/admin-site.js";
 export { AdminIndex } from "./site/admin-index.js";
 export { RecordScreen } from "./site/record-screen.js";
 export { DeleteScreen } from "./site/delete-screen.js";
+export { HistoryScreen } from "./site/history-screen.js";
 export type {
   AdminIndexProps,
   AdminScreenContext,
   AdminSiteProps,
   DeleteScreenProps,
+  HistoryScreenProps,
   RecordScreenProps,
 } from "./site/admin-site.types.js";
 export { useHashRoute } from "./site/use-hash-route.js";

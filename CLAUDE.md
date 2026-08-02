@@ -27,8 +27,8 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
 
 **That snippet is the starting point, not the target.** Comp today covers the
 single-table slice of Django's admin, plus relations, inlines, filter and
-search lookups, form layout, and a generated site. The parity backlog below is the real scope;
-treat it as the roadmap, not as a wishlist.
+search lookups, form layout, history, and a generated site. The parity backlog
+below is the real scope; treat it as the roadmap, not as a wishlist.
 
 ## Django admin parity — the backlog
 
@@ -97,6 +97,18 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   one-per-record: no `DISTINCT`, and the count matches the rows. A name that is
   not a column, or a traversal through something that is not a key, throws at
   declaration time.
+- **History** — who changed what, when, and which fields. The hook is in the
+  mutation layer (`createRecord`/`updateRecord`/`deleteRecord`), not in each
+  transport: an HTTP write and an MCP write are the same change, and a history
+  that sees only one is worse than none. `HistoryStore` is an adapter
+  (Drizzle/D1 and in-memory ship with it) and is entirely opt-in — pass no
+  store and nothing is recorded, including the extra read an update needs to
+  diff. An entry keeps the record's label, so it still says what was deleted
+  after the row is gone; an update records only the fields whose value moved,
+  since a form sends the whole record back. Read per record
+  (`/collections/:slug/:id/history`, `<slug>__history`, the site's history
+  screen) or site-wide (`/history`), the latter narrowed to collections the
+  caller may list so history cannot leak what the index hides.
 
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
@@ -106,9 +118,6 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 - **Distinct-value filters.** Django's `AllValuesFieldListFilter` offers the
   values actually present in a column. Comp leaves a plain column as a text box
   because enumerating them needs a `DISTINCT` query per filter per request.
-- **History.** Who changed which record, when, and what the change was —
-  Django's `LogEntry` and per-object history view. Needs a write-side hook in
-  the mutation layer plus a storage adapter.
 - **Per-object permissions.** `AuthAdapter.authorize` is keyed on
   (identity, collection, operation); Django also decides per _record_ and
   narrows the queryset per user. Extend the adapter shape before call sites
@@ -147,7 +156,7 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
                            the relation graph, filters and search (kind + lookup
-                           resolution),
+                           resolution), history (the write-side hook + store),
                            the form layout (+ readonly enforcement, prepopulation),
                            inlines (nested read/validate/write), the site's route
                            vocabulary + delete impact, query+validation+mutation,
@@ -271,6 +280,11 @@ truth.
   an expiry — takes the instant it resolves against (`ListParams.now`), so the
   same inputs give the same query and a test does not race the clock. Resolve it
   once per request and pass it down.
+- **A cross-cutting write concern belongs in the mutation layer.** History is
+  logged by `createRecord`/`updateRecord`/`deleteRecord`, so no transport can
+  forget it; a rule each route has to remember is a rule that holds until
+  somebody adds a route. Its cost stays where the feature is used — no store,
+  no extra read.
 - **Hiding is not enforcing.** A declaration that narrows what may be written
   (`readonlyFields` today) has to be applied on the write path, not only left
   out of the UI — a request that names the field anyway must not win. Put the
@@ -338,8 +352,8 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, filters, search, the form layout, inlines, delete impact, the query
-  layer, validation, or the capability boundary; that's where silent
+  graph, filters, search, the form layout, inlines, delete impact, history, the
+  query layer, validation, or the capability boundary; that's where silent
   regressions hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.

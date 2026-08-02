@@ -6,9 +6,9 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter and search lookups, form layout, and a generated admin site;
-`date_hierarchy`, history, and per-object permissions are the open work. See the
-parity backlog in `CLAUDE.md`.
+real filter and search lookups, form layout, history, and a generated admin
+site; `date_hierarchy`, per-object permissions, and many-to-many are the open
+work. See the parity backlog in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -75,6 +75,10 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- History: who changed which record, when, and which fields. The hook lives in
+  the mutation layer, so HTTP and MCP writes are both recorded; `HistoryStore`
+  is a pluggable adapter and the whole feature is opt-in. Entries outlive the
+  record, so a deletion still says what was deleted.
 - Search that behaves like a search box: the query splits into terms and every
   term must match at least one field, so a second word narrows the list. `^`
   anchors to the start, `=` demands the whole value, and `authorId__name`

@@ -3,14 +3,21 @@
  * you all of them; naming them here is what lets the server, the UI, and any
  * link one of them writes agree on where a record lives.
  */
-export type AdminView = "index" | "list" | "add" | "change" | "delete";
+export type AdminView =
+  | "index"
+  | "list"
+  | "add"
+  | "change"
+  | "delete"
+  | "history";
 
 export type AdminRoute =
   | { view: "index" }
   | { view: "list"; slug: string }
   | { view: "add"; slug: string }
   | { view: "change"; slug: string; id: string }
-  | { view: "delete"; slug: string; id: string };
+  | { view: "delete"; slug: string; id: string }
+  | { view: "history"; slug: string; id: string };
 
 export const INDEX_ROUTE: AdminRoute = { view: "index" };
 
@@ -27,6 +34,8 @@ export function adminPath(route: AdminRoute): string {
       return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}`;
     case "delete":
       return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/delete`;
+    case "history":
+      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/history`;
   }
 }
 
@@ -51,6 +60,7 @@ export function parseAdminPath(path: string): AdminRoute {
   if (second === undefined) return { view: "list", slug };
   if (second === "add") return { view: "add", slug };
   if (third === "delete") return { view: "delete", slug, id: second };
+  if (third === "history") return { view: "history", slug, id: second };
   if (third === undefined) return { view: "change", slug, id: second };
   return INDEX_ROUTE;
 }

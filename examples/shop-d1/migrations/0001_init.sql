@@ -21,3 +21,17 @@ CREATE TABLE `order_items` (
 );
 
 CREATE INDEX `order_items_order_id_idx` ON `order_items` (`order_id`);
+
+CREATE TABLE `comp_history` (
+  `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  `collection` text NOT NULL,
+  `record_id` text NOT NULL,
+  `action` text NOT NULL,
+  `label` text NOT NULL,
+  `fields` text DEFAULT '[]' NOT NULL,
+  `actor` text,
+  `at` integer NOT NULL
+);
+
+CREATE INDEX `comp_history_record_idx` ON `comp_history` (`collection`,`record_id`);
+CREATE INDEX `comp_history_at_idx` ON `comp_history` (`at`);

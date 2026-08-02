@@ -21,6 +21,7 @@ export type ToolKind =
   | "update"
   | "delete"
   | "delete_preview"
+  | "history"
   | "action";
 
 export interface McpTool {
@@ -118,6 +119,26 @@ function readTools(
     });
   }
   if (ops.includes("read")) {
+    bindings.push({
+      kind: "history",
+      collection,
+      inlines,
+      tool: {
+        name: toolName(slug, "history"),
+        description:
+          `Who changed a ${slug} record, when, and which fields — newest ` +
+          `first. Entries outlive the record, so this still answers after a ` +
+          `delete. Empty when the app keeps no history.`,
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "Primary key value" },
+            limit: { type: "number" },
+          },
+          required: ["id"],
+        },
+      },
+    });
     bindings.push({
       kind: "get",
       collection,
