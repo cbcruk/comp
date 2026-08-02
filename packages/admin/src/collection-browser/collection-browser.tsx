@@ -8,6 +8,7 @@ import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
 import { FilterField } from "./filter-field.js";
+import { searchPlaceholder } from "./search-placeholder.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
 import { referencesFromRelations, resolveLabel } from "./reference-labels.js";
 import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
@@ -140,9 +141,11 @@ export function CollectionBrowser({
         <input
           type="search"
           aria-label={`Search ${collection.slug}`}
-          placeholder={`Search ${collection.slug}`}
+          placeholder={searchPlaceholder(collection)}
+          title="Every word must match; quote a phrase to keep it together"
           value={query.q ?? ""}
-          onChange={(e) => setQuery({ q: e.target.value })}
+          // Changing the query returns to the first page, like a filter does.
+          onChange={(e) => setQuery({ page: 1, q: e.target.value })}
         />
       )}
 

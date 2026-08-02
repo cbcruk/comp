@@ -46,13 +46,30 @@ const ID_SCHEMA: JsonSchema = {
   required: ["id"],
 };
 
+/** Say what the search box matches, so a caller knows why a query missed. */
+function searchHint(collection: Collection): string {
+  if (collection.search.length === 0) return "This collection declares no search fields.";
+  const fields = collection.search.map((spec) => {
+    const name = spec.through
+      ? `${spec.field} → ${spec.through.table}.${spec.through.field}`
+      : spec.field;
+    if (spec.lookup === "startswith") return `${name} (starts with)`;
+    if (spec.lookup === "exact") return `${name} (exact)`;
+    return name;
+  });
+  return (
+    `Free-text search over ${fields.join(", ")}. ` +
+    "Every word must match at least one of them; quote a phrase to keep it whole."
+  );
+}
+
 function listSchema(collection: Collection): JsonSchema {
   return {
     type: "object",
     properties: {
       page: { type: "number" },
       pageSize: { type: "number" },
-      q: { type: "string", description: "Free-text search" },
+      q: { type: "string", description: searchHint(collection) },
       sort: { type: "string", description: "field:asc | field:desc" },
       filters: filtersToJsonSchema(collection),
     },

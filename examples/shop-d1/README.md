@@ -38,6 +38,19 @@ permission before answering. `useHashRoute` keeps the current screen in the URL
 fragment; an app with its own router passes `route`/`onNavigate` itself, and
 `renderScreen` replaces any single screen.
 
+## The search box
+
+```ts
+search: ["^reference", "customerId__name", "customerId__email"],
+```
+
+`^reference` matches from the start of the reference; the other two follow the
+foreign key and search the customer it points at. Typing two words narrows —
+each has to match something — and quoting keeps a phrase whole. The traversal
+compiles to `customer_id in (select id from customers where ...)`, so there is
+no join, no `DISTINCT`, and the total under the table still counts the rows you
+can see.
+
 ## The form layout
 
 `orders` declares its change form as a layout rather than a field list:

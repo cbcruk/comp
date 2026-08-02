@@ -3,6 +3,7 @@ import { introspectTable } from "../introspection/introspect-table.js";
 import { resolveFilters } from "../filters/resolve-filters.js";
 import { resolveForm } from "../form/resolve-form.js";
 import { resolveLabels } from "../site/labels.js";
+import { resolveSearch } from "../search/resolve-search.js";
 import { resolveLabelField } from "./label-field.js";
 import type {
   Collection,
@@ -49,7 +50,7 @@ export function defineCollection<TTable extends Table>(
       ),
     listDisplay: config.listDisplay,
     filters: resolveFilters(introspection.fields, config.filters ?? []),
-    search: config.search ?? [],
+    search: resolveSearch(slug, introspection.fields, config.search ?? []),
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
     form: resolveForm(slug, introspection.fields, introspection.primaryKey, config),

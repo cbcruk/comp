@@ -6,6 +6,7 @@ import type {
 import type { ResolvedForm } from "../form/form.types.js";
 import type { FormConfig } from "../form/resolve-form.js";
 import type { InlineConfig } from "../inline/inline.types.js";
+import type { ResolvedSearch } from "../search/search.types.js";
 import type {
   FieldMap,
   TableRelation,
@@ -64,8 +65,12 @@ export interface CollectionConfig<TTable extends Table>
    * related records — or state the kind with `{ field, kind }`.
    */
   filters?: FilterConfig<ColumnKey<TTable>>[];
-  /** Columns matched by the free-text search box. */
-  search?: ColumnKey<TTable>[];
+  /**
+   * What the search box matches. A bare column searches anywhere inside it;
+   * `^` anchors to the start and `=` demands the whole value; `field__other`
+   * follows the foreign key in `field` and matches `other` across it.
+   */
+  search?: (ColumnKey<TTable> | string)[];
   /**
    * Field that stands in for a whole record when another collection references
    * it. Defaults to the first textual `listDisplay` column; set it when that
@@ -110,7 +115,8 @@ export interface Collection {
   listDisplay: string[];
   /** Filters with their kind, choices, and nullability resolved. */
   filters: ResolvedFilter[];
-  search: string[];
+  /** Search fields with their lookup and any relation traversal resolved. */
+  search: ResolvedSearch[];
   ordering: FieldOrdering[];
   pageSize: number;
   /** The add/change form as a layout: groups, readonly, prepopulated, radios. */

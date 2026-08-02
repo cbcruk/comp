@@ -26,8 +26,8 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
 ```
 
 **That snippet is the starting point, not the target.** Comp today covers the
-single-table slice of Django's admin, plus relations, inlines, filter lookups,
-form layout, and a generated site. The parity backlog below is the real scope;
+single-table slice of Django's admin, plus relations, inlines, filter and
+search lookups, form layout, and a generated site. The parity backlog below is the real scope;
 treat it as the roadmap, not as a wishlist.
 
 ## Django admin parity — the backlog
@@ -36,7 +36,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 
 **Done**
 
-- `list_display` / `search_fields` (substring), ordering, pagination.
+- `list_display`, ordering, pagination.
 - Change/add form derived from the schema, with Zod validation surfaced
   field-by-field.
 - `list_editable`-style inline cell editing in the list.
@@ -89,12 +89,17 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   column's type — without that a numeric column silently matches nothing.
   Relative windows resolve against a `now` passed into `ListParams`, shared by
   the rows and their count, so the query stays pure and reproducible.
+- **`search_fields` with lookups** — the box splits into terms, and every term
+  must match at least one field, so a second word narrows instead of finding
+  nothing. A prefix picks the lookup (`^` start, `=` whole value, bare
+  anywhere-inside) and `field__other` follows the foreign key in `field`. A
+  traversal compiles to a subquery, not a join, so the row set stays
+  one-per-record: no `DISTINCT`, and the count matches the rows. A name that is
+  not a column, or a traversal through something that is not a key, throws at
+  declaration time.
 
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Search lookups.** Django's `search_fields` accepts prefixes (exact,
-  starts-with, related traversal) and splits the query into terms ANDed
-  together. Comp ORs one substring across columns.
 - **`date_hierarchy`.** Drill-down navigation by a date column. The date filter
   already resolves named windows to a half-open range; this is the same lookup
   driven by a year → month → day trail instead of a select.
@@ -141,7 +146,8 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 ```
 packages/
   core/    → @comp/core    introspection (columns + relations), defineCollection,
-                           the relation graph, filters (kind + lookup resolution),
+                           the relation graph, filters and search (kind + lookup
+                           resolution),
                            the form layout (+ readonly enforcement, prepopulation),
                            inlines (nested read/validate/write), the site's route
                            vocabulary + delete impact, query+validation+mutation,
@@ -332,9 +338,9 @@ stay complete.
 - New collection feature → add it to core (query/validation/mutation) **and**
   expose it through server, MCP, and (where relevant) admin — never one only.
 - Add/update a vitest case alongside any change to introspection, the relation
-  graph, filters, the form layout, inlines, delete impact, the query layer,
-  validation, or the capability boundary; that's where silent regressions
-  hide.
+  graph, filters, search, the form layout, inlines, delete impact, the query
+  layer, validation, or the capability boundary; that's where silent
+  regressions hide.
 - When implementing a Django-equivalent feature, note in the commit the
   _behavior_ being reproduced and confirm it was re-derived, not copied.
 - Prefer small, vertical slices (core → API/MCP → UI) over disconnected layers.

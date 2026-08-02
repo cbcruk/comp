@@ -3,8 +3,6 @@ import {
   asc,
   desc,
   getTableColumns,
-  like,
-  or,
   sql,
   type Column,
   type SQL,
@@ -14,6 +12,7 @@ import type { BaseSQLiteDatabase, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Collection } from "../collection/define-collection.types.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
 import { filterConditions } from "./build-filter-where.js";
+import { searchConditions } from "./build-search-where.js";
 import type { ListParams } from "./list-query.types.js";
 
 /** Async SQLite database (Cloudflare D1, sqlite-proxy, etc.). */
@@ -39,6 +38,7 @@ function asFilterValue(value: unknown): FilterValue | null {
 }
 
 function buildWhere(
+  db: SqliteDb,
   collection: Collection,
   params: ListParams,
 ): SQL | undefined {
@@ -57,16 +57,7 @@ function buildWhere(
   }
 
   const term = params.search?.trim();
-  if (term && collection.search.length > 0) {
-    const pattern = `%${term}%`;
-    const matches = collection.search
-      .map((field) => columns[field])
-      .filter((column): column is Column => Boolean(column))
-      .map((column) => like(column, pattern));
-    const searchExpr: SQL | undefined =
-      matches.length > 1 ? or(...matches) : matches[0];
-    if (searchExpr) conditions.push(searchExpr);
-  }
+  if (term) conditions.push(...searchConditions(db, collection, term));
 
   if (conditions.length === 0) return undefined;
   return conditions.length === 1 ? conditions[0] : and(...conditions);
@@ -97,7 +88,7 @@ export function buildListQuery(
   collection: Collection,
   params: ListParams = {},
 ) {
-  const where = buildWhere(collection, params);
+  const where = buildWhere(db, collection, params);
   const orderBy = buildOrderBy(collection, params);
   const pageSize = Math.max(1, params.pageSize ?? collection.pageSize);
   const page = Math.max(1, params.page ?? 1);
@@ -122,7 +113,7 @@ export function buildCountQuery(
   collection: Collection,
   params: Pick<ListParams, "search" | "filters" | "now"> = {},
 ) {
-  const where = buildWhere(collection, params);
+  const where = buildWhere(db, collection, params);
   const query = db
     .select({ count: sql<number>`count(*)` })
     .from(collection.model as unknown as SQLiteTable)
