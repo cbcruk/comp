@@ -6,7 +6,7 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter lookups, form layout, and a generated admin site; search lookups,
+real filter and search lookups, form layout, and a generated admin site;
 `date_hierarchy`, history, and per-object permissions are the open work. See the
 parity backlog in `CLAUDE.md`.
 
@@ -75,6 +75,10 @@ v0.1 in progress. Implemented end-to-end:
 
 - Collection declaration → introspection (columns + foreign keys) →
   list/count/get queries.
+- Search that behaves like a search box: the query splits into terms and every
+  term must match at least one field, so a second word narrows the list. `^`
+  anchors to the start, `=` demands the whole value, and `authorId__name`
+  follows the foreign key — as a subquery, so the count still matches the rows.
 - The add/change form as a layout: `fieldsets` group fields under headings, a
   nested array puts them on one line, `readonlyFields` shows without writing,
   `prepopulated` derives a slug from a title while adding, `radioFields` swaps a

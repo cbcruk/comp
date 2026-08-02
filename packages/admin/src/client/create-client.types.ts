@@ -10,6 +10,7 @@ import type {
   InlineSummary,
   InlineWritePayload,
   ResolvedForm,
+  ResolvedSearch,
   OutboundRelation,
 } from "@comp/core";
 
@@ -28,7 +29,8 @@ export interface CollectionSummary {
   listDisplay: string[];
   /** Filters with their kind, choices, and relation binding resolved. */
   filters: FilterSummary[];
-  search: string[];
+  /** Search fields with their lookup and relation traversal resolved. */
+  search: ResolvedSearch[];
   fields: FieldMap;
   primaryKey: string | null;
   /** Field standing in for a record when another collection references it. */

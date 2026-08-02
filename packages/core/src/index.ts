@@ -66,6 +66,18 @@ export {
   slugify,
 } from "./form/prepopulate.js";
 
+export { resolveSearch, splitSearchTerms } from "./search/resolve-search.js";
+export type {
+  ResolvedSearch,
+  SearchConfig,
+  SearchLookup,
+  SearchTraversal,
+} from "./search/search.types.js";
+export {
+  searchCondition,
+  searchConditions,
+} from "./query/build-search-where.js";
+
 export { inlineSummary, resolveInlines } from "./inline/resolve-inlines.js";
 export {
   InlineError,
