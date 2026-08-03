@@ -7,6 +7,7 @@ import { useCollectionList } from "../hooks/use-collection-list.js";
 import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
+import { DateHierarchyStrip } from "./date-hierarchy.js";
 import { FilterField } from "./filter-field.js";
 import { searchPlaceholder } from "./search-placeholder.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
@@ -45,7 +46,7 @@ export function CollectionBrowser({
     () => references ?? referencesFromRelations(collection.relations),
     [references, collection.relations],
   );
-  const { rows, page, pageSize: size, total, query, loading, error, setQuery, reload, applyLocal } =
+  const { rows, page, pageSize: size, total, hierarchy, query, loading, error, setQuery, reload, applyLocal } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
 
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -146,6 +147,14 @@ export function CollectionBrowser({
           value={query.q ?? ""}
           // Changing the query returns to the first page, like a filter does.
           onChange={(e) => setQuery({ page: 1, q: e.target.value })}
+        />
+      )}
+
+      {hierarchy && (
+        <DateHierarchyStrip
+          hierarchy={hierarchy}
+          value={query.date ?? ""}
+          onNavigate={(date) => setQuery({ date })}
         />
       )}
 

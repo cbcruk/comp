@@ -1,4 +1,5 @@
 import {
+  parseDatePath,
   parseFilterValue,
   type Collection,
   type FieldOrdering,
@@ -46,6 +47,10 @@ export function parseListParams(
     // One instant for the whole request, so the rows and their total resolve a
     // relative filter to the same window.
     now: new Date(),
+    // Where the date drill-down is; unreadable values read as "all dates".
+    ...(collection.dateHierarchy
+      ? { datePath: parseDatePath(query.date) }
+      : {}),
     page: toPositiveInt(query.page),
     pageSize: toPositiveInt(query.pageSize),
     search: query.q?.trim() || undefined,

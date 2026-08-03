@@ -25,6 +25,8 @@ export const orderCollection = defineCollection({
   // status offers its enum values, customerId the customers it points at plus
   // empty/not-empty, placedAt the date windows.
   filters: ["status", "customerId", "placedAt"],
+  // The same column, navigated instead of selected: year → month → day.
+  dateHierarchy: "placedAt",
   // Find an order by its reference, or by who placed it.
   search: ["^reference", "customerId__name", "customerId__email"],
   ordering: [{ field: "placedAt", direction: "desc" }],

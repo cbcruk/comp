@@ -5,6 +5,7 @@ import type {
   CollectionOperation,
   DeleteImpact,
   FieldMap,
+  DateHierarchy,
   FilterSummary,
   HistoryEntry,
   InboundRelation,
@@ -32,6 +33,8 @@ export interface CollectionSummary {
   filters: FilterSummary[];
   /** Search fields with their lookup and relation traversal resolved. */
   search: ResolvedSearch[];
+  /** Column the date drill-down navigates, or null. */
+  dateHierarchy: string | null;
   fields: FieldMap;
   primaryKey: string | null;
   /** Field standing in for a record when another collection references it. */
@@ -64,6 +67,8 @@ export interface ListResult {
   page: number;
   pageSize: number;
   total: number;
+  /** The drill-down strip for this list; null when none is declared. */
+  hierarchy?: DateHierarchy | null;
 }
 
 export interface ListQuery {
@@ -72,6 +77,8 @@ export interface ListQuery {
   q?: string;
   sort?: string;
   filters?: Record<string, string>;
+  /** Where the date drill-down is: `2026`, `2026-07`, `2026-07-16`. */
+  date?: string;
 }
 
 export interface ClientOptions {
