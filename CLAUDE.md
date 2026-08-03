@@ -142,12 +142,31 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   foreign key is refused at declaration time — both already answer better, with
   windows and with labels.
 
+- **Per-object permissions** — Django decides access at three depths, and so
+  does the adapter now. `authorize` keeps answering per collection; `scope`
+  reproduces `get_queryset(request)` (which rows exist for you) and
+  `authorizeRecord` reproduces `has_change_permission(request, obj)` (may you
+  do this to *this* row). Both are **optional methods**, so a transport can ask
+  `checksRecords(auth)` and skip the read a per-record decision needs — the
+  same pay-for-what-you-use rule history follows.
+  A `RecordScope` is column conditions in the filter vocabulary
+  (`{ status: "published" }`, `in:`, `isnull:`), and it is applied *in SQL* on
+  every path: list, count, hierarchy, the distinct-value choices, get-by-id,
+  and inside the UPDATE/DELETE statements themselves (`MutationContext.scope`)
+  — a read that says "yes" and a write that trusts it are two moments a row can
+  change between. Two rules keep it honest: an out-of-scope row is **404, not
+  403** (a refusal would confirm it exists), and a scope naming a column the
+  table lacks **throws** — dropping it, which is what an unknown *filter* does,
+  would silently return every row. Bulk actions get their ids narrowed before
+  the handler runs, because an id is not a permission. Create is deliberately
+  untouched: there is no row yet to narrow to, which is why Django's
+  `has_add_permission` is the one that takes no object. Inlines inherit the
+  parent's decision, as Django's do. MCP now takes the same adapter — its tool
+  list is narrowed by permission the way `/collections` is, and every tool
+  re-checks when called by name.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Per-object permissions.** `AuthAdapter.authorize` is keyed on
-  (identity, collection, operation); Django also decides per _record_ and
-  narrows the queryset per user. Extend the adapter shape before call sites
-  assume collection-level only.
 - **Many-to-many.** No support at all today, in the schema introspection or the
   query layer.
 
@@ -266,9 +285,19 @@ truth.
   an API change** — keep handlers pure and capability-declaring.
 - **Auth is an adapter from day one.** `AuthAdapter` = `authenticate(request)` +
   `authorize({ identity, collection, operation })`, keyed on the same
-  `CollectionOperation` vocabulary as the manifest. `allowAll` is the default;
+  `CollectionOperation` vocabulary as the manifest, plus two optional methods
+  for the depths below it: `scope` (which rows exist for this identity) and
+  `authorizeRecord` (may they do this to this row). `allowAll` is the default;
   `@comp/auth` is the real (passkey) implementation. Don't bake a specific auth
   scheme into core or server call sites.
+- **A narrowing belongs in the statement, not before it.** A scope is applied
+  in SQL — inside the UPDATE and DELETE, not as a check the write then trusts —
+  so there is no moment between deciding and doing. The same reason inline
+  child writes are scoped to their parent in SQL.
+- **Optional capability, visible at runtime.** When a feature costs something
+  (a per-record decision costs reading the record), express it as an optional
+  *method* rather than an extra argument, so a call site can ask whether anyone
+  is listening (`checksRecords`) and skip the cost otherwise.
 - **Edge-first, scale-to-zero.** No long-lived process, local FS, or warm cache
   assumed. No Node-only APIs in `core`/`server`/`mcp` hot paths unless guarded.
   `@comp/auth` uses Web Crypto, not Node `crypto`/`Buffer`.

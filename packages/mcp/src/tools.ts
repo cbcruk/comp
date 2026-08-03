@@ -4,6 +4,7 @@ import {
   resolveInlines,
   type ActionDefinition,
   type Collection,
+  type CollectionOperation,
   type DeleteRelation,
   type InlineSpec,
 } from "@comp/core";
@@ -39,6 +40,8 @@ export interface ToolBinding {
   /** Inbound keys, so a delete can be described before it runs. */
   deleteRelations?: DeleteRelation[];
   actionName?: string;
+  /** For an action: what it declared it touches, so it can be authorized. */
+  operations?: CollectionOperation[];
 }
 
 const ID_SCHEMA: JsonSchema = {
@@ -263,6 +266,7 @@ export function buildToolRegistry(
       inlines: [],
       deleteRelations: [],
       actionName: action.name,
+      operations: action.operations,
       tool: {
         name,
         description: `Run the "${action.name}" action on ${collection.slug}.`,

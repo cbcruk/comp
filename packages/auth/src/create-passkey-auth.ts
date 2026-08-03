@@ -1,4 +1,11 @@
-import type { AuthAdapter, AuthorizeArgs, Identity } from "@comp/core";
+import type {
+  AuthAdapter,
+  AuthorizeArgs,
+  Identity,
+  RecordAuthorizeArgs,
+  RecordScope,
+  ScopeArgs,
+} from "@comp/core";
 import { readCookie, serializeCookie, type CookieOptions } from "./cookie.js";
 import { signSession, verifySession, type SessionPayload } from "./session.js";
 
@@ -11,6 +18,14 @@ export interface PasskeyAuthOptions {
   authorize: (args: AuthorizeArgs) => boolean | Promise<boolean>;
   /** Cookie attributes (e.g. `secure: false` for local http). */
   cookie?: CookieOptions;
+  /**
+   * Which rows this identity may see, as column conditions. Optional, and
+   * passed straight through: whether access depends on the row is the app's
+   * question, and an adapter that does not answer it costs nothing.
+   */
+  scope?: (args: ScopeArgs) => RecordScope | null | Promise<RecordScope | null>;
+  /** Decide an operation again with the row in hand. */
+  authorizeRecord?: (args: RecordAuthorizeArgs) => boolean | Promise<boolean>;
 }
 
 export interface PasskeyAuth extends AuthAdapter {
@@ -40,6 +55,12 @@ export function createPasskeyAuth(options: PasskeyAuthOptions): PasskeyAuth {
     authorize(args) {
       return options.authorize(args);
     },
+    // Spread rather than defined unconditionally: a transport checks whether
+    // these exist to decide whether to read a row it would not otherwise need.
+    ...(options.scope ? { scope: options.scope } : {}),
+    ...(options.authorizeRecord
+      ? { authorizeRecord: options.authorizeRecord }
+      : {}),
     async issueSession(payload, maxAgeSeconds) {
       const exp = Date.now() + maxAgeSeconds * 1000;
       const token = await signSession({ ...payload, exp }, options.secret);

@@ -15,6 +15,7 @@ import type { Collection } from "../collection/define-collection.types.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
 import { datePathRange } from "../hierarchy/date-path.js";
 import { filterConditions } from "./build-filter-where.js";
+import { scopeConditions } from "./build-scope-where.js";
 import { searchConditions } from "./build-search-where.js";
 import type { ListParams } from "./list-query.types.js";
 
@@ -53,6 +54,14 @@ export function buildListWhere(
 ): SQL | undefined {
   const columns = columnsOf(collection.model);
   const conditions: SQL[] = [];
+
+  // First, because it is not the request's to negotiate: the rows the caller
+  // cannot see are not in the result set the filters then narrow.
+  if (params.scope) {
+    conditions.push(
+      ...scopeConditions(collection, params.scope, params.now ?? new Date()),
+    );
+  }
 
   if (params.filters) {
     const values: FilterMap = {};
@@ -130,7 +139,10 @@ export function buildListQuery(
 export function buildCountQuery(
   db: SqliteDb,
   collection: Collection,
-  params: Pick<ListParams, "search" | "filters" | "now" | "datePath"> = {},
+  params: Pick<
+    ListParams,
+    "search" | "filters" | "now" | "datePath" | "scope"
+  > = {},
 ) {
   const where = buildListWhere(db, collection, params);
   const query = db

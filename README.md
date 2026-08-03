@@ -6,8 +6,8 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter and search lookups, date drill-down, form layout, history, and a
-generated admin site; per-object permissions and many-to-many are the open
+real filter and search lookups, date drill-down, form layout, history,
+per-object permissions, and a generated admin site; many-to-many is the open
 work. See the parity backlog in `CLAUDE.md`.
 
 ```ts
@@ -66,7 +66,10 @@ Open `http://localhost:8787` for the admin UI: register/sign in with a passkey,
 then create and browse posts. The React app (`client/`) is served same-origin
 by the Worker (Cloudflare assets) so passkeys work; it talks to the admin API
 under `/admin` (anonymous can read, writes need a role) and the passkey
-ceremonies under `/auth`. `migrations/` is hand-written here; `pnpm db:generate`
+ceremonies under `/auth`. The example's policy also shows the two depths below
+the role check: signed out, only *published* posts exist — a draft answers "not
+found", including by id — and a published post is locked against deletion until
+it is unpublished. MCP sits behind the same adapter. `migrations/` is hand-written here; `pnpm db:generate`
 regenerates it from `schema.ts` (which includes the passkey tables).
 
 ## Status
@@ -109,6 +112,13 @@ v0.1 in progress. Implemented end-to-end:
 - Auth: an allow-all default plus `@comp/auth` — real WebAuthn passkey
   ceremonies, signed-session cookies, and a role policy, all keyed on the same
   `CollectionOperation` vocabulary as the manifest.
+- Permissions at three depths, like Django's: per collection (`authorize`), per
+  identity's rows (`scope`, the equivalent of `get_queryset`), and per record
+  (`authorizeRecord`, the equivalent of `has_change_permission(request, obj)`).
+  A scope is applied in SQL everywhere a row is touched — including inside the
+  UPDATE and DELETE — so an invisible record answers 404 rather than 403, and a
+  bulk action only ever receives the ids the caller can actually reach. The
+  same adapter now gates MCP, whose tool list is narrowed by permission.
 
 `comp scaffold --from ./schema.js#posts` introspects a Drizzle table to derive
 `listDisplay`/`filters`/`search`; `comp scaffold <Name> --table --fields …` is

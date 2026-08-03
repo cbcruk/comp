@@ -1,5 +1,6 @@
 import type {
   ActionDefinition,
+  AuthAdapter,
   Collection,
   HistoryStore,
   SqliteDb,
@@ -21,6 +22,12 @@ export interface McpHandlerConfig {
   history?: HistoryStore;
   /** Who these tool calls act as, for history entries. */
   actor?: string | null;
+  /**
+   * Who is calling and what they may do. Pass the same adapter the HTTP router
+   * takes: the tools are the same operations on the same collections, so a
+   * permission honored by only one of them is not a permission.
+   */
+  auth?: AuthAdapter;
 }
 
 /**
@@ -45,12 +52,19 @@ export function createMcpHandler(config: McpHandlerConfig): Hono {
       );
     }
 
+    // Once per request, not once per tool call: a batch is one caller.
+    const identity = config.auth
+      ? await config.auth.authenticate(c.req.raw)
+      : null;
+
     const ctx = {
       registry,
       actions,
       db: config.getDb(c),
       history: config.history,
-      actor: config.actor ?? null,
+      actor: config.actor ?? identity?.subject ?? null,
+      auth: config.auth,
+      identity,
     };
 
     if (Array.isArray(body)) {

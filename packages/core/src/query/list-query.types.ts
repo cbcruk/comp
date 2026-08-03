@@ -1,3 +1,4 @@
+import type { RecordScope } from "../auth/auth-adapter.types.js";
 import type { FieldOrdering } from "../collection/define-collection.types.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
 import type { DatePath } from "../hierarchy/date-path.js";
@@ -21,6 +22,12 @@ export interface ListParams {
    * `dateHierarchy` column to that year, month or day.
    */
   datePath?: DatePath;
+  /**
+   * Which rows exist for the caller, from the auth adapter. Applied like a
+   * filter but never declared by the collection: it is the server's rule, not
+   * the request's, and it narrows every read of this list including its total.
+   */
+  scope?: RecordScope;
   /**
    * The instant a relative filter (`preset: "today"`) resolves against.
    * Passed in rather than read from the clock so a query is reproducible.
