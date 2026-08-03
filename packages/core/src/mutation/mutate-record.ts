@@ -1,3 +1,4 @@
+import type { RecordScope } from "../auth/auth-adapter.types.js";
 import type { Collection } from "../collection/define-collection.types.js";
 import { changedFields, historyLabel } from "../history/changed-fields.js";
 import type {
@@ -21,6 +22,21 @@ export interface MutationContext {
   actor?: string | null;
   /** The instant recorded on the entry; defaults to now. */
   now?: Date | undefined;
+  /**
+   * Which rows the caller may write. Enforced inside the UPDATE and DELETE
+   * statements themselves, so a write that reaches past it matches no row and
+   * returns nothing — the same answer as an id that was never there.
+   *
+   * It lives here, not in each route, for the reason history does: a rule a
+   * transport has to remember is a rule that holds until somebody adds a
+   * transport.
+   */
+  scope?: RecordScope | undefined;
+  /**
+   * The row as it was, when the caller already read it (to check per-record
+   * permission, say). Passing it spares the extra read history would make.
+   */
+  before?: Row | undefined;
 }
 
 type Row = Record<string, unknown>;
@@ -90,13 +106,26 @@ export async function updateRecord(
   id: unknown,
   values: Row,
 ): Promise<Row | undefined> {
-  const before = context.history
-    ? ((await buildGetByIdQuery(context.db, context.collection, id).all())[0] as
-        | Row
-        | undefined)
-    : undefined;
+  const before =
+    context.before ??
+    (context.history
+      ? ((
+          await buildGetByIdQuery(
+            context.db,
+            context.collection,
+            id,
+            context.scope,
+          ).all()
+        )[0] as Row | undefined)
+      : undefined);
 
-  const rows = await buildUpdateQuery(context.db, context.collection, id, values);
+  const rows = await buildUpdateQuery(
+    context.db,
+    context.collection,
+    id,
+    values,
+    context.scope,
+  );
   const row = rows[0] as Row | undefined;
   if (!row) return undefined;
 
@@ -116,7 +145,12 @@ export async function deleteRecord(
   context: MutationContext,
   id: unknown,
 ): Promise<Row | undefined> {
-  const rows = await buildDeleteQuery(context.db, context.collection, id);
+  const rows = await buildDeleteQuery(
+    context.db,
+    context.collection,
+    id,
+    context.scope,
+  );
   const row = rows[0] as Row | undefined;
   if (!row) return undefined;
 

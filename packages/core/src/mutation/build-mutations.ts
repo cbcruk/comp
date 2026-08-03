@@ -1,13 +1,32 @@
-import { eq } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+import type { RecordScope } from "../auth/auth-adapter.types.js";
 import type { Collection } from "../collection/define-collection.types.js";
 import type { SqliteDb } from "../query/build-list-query.js";
 import { primaryKeyColumn } from "../query/primary-key.js";
+import { scopeWhere } from "../query/build-scope-where.js";
 
 type InsertValues = SQLiteTable["$inferInsert"];
 
 function asTable(collection: Collection): SQLiteTable {
   return collection.model as unknown as SQLiteTable;
+}
+
+/**
+ * The row this write is allowed to reach: its id, and the caller's scope.
+ *
+ * The scope goes into the statement rather than being checked before it. A
+ * read that says "yes, you may" and a write that trusts it are two moments a
+ * row can change between; one statement has no gap.
+ */
+function target(
+  collection: Collection,
+  id: unknown,
+  scope: RecordScope | undefined,
+): SQL {
+  const pk = primaryKeyColumn(collection);
+  const visible = scopeWhere(collection, scope);
+  return visible ? and(eq(pk, id), visible)! : eq(pk, id);
 }
 
 /**
@@ -31,12 +50,12 @@ export function buildUpdateQuery(
   collection: Collection,
   id: unknown,
   values: Record<string, unknown>,
+  scope?: RecordScope,
 ) {
-  const pk = primaryKeyColumn(collection);
   return db
     .update(asTable(collection))
     .set(values)
-    .where(eq(pk, id))
+    .where(target(collection, id, scope))
     .returning();
 }
 
@@ -45,7 +64,10 @@ export function buildDeleteQuery(
   db: SqliteDb,
   collection: Collection,
   id: unknown,
+  scope?: RecordScope,
 ) {
-  const pk = primaryKeyColumn(collection);
-  return db.delete(asTable(collection)).where(eq(pk, id)).returning();
+  return db
+    .delete(asTable(collection))
+    .where(target(collection, id, scope))
+    .returning();
 }

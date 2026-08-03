@@ -1,5 +1,10 @@
-import { bulkDeleteAction, defineCollection } from "@comp/core";
+import {
+  bulkDeleteAction,
+  defineCollection,
+  type AuthAdapter,
+} from "@comp/core";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { describe, expect, it } from "vitest";
 import { handleRpc, type McpContext } from "./dispatch.js";
 import { fieldsToJsonSchema } from "./fields-to-schema.js";
@@ -171,5 +176,70 @@ describe("handleRpc", () => {
       ctx,
     );
     expect(res?.result).toMatchObject({ isError: true });
+  });
+});
+
+describe("the auth adapter over MCP", () => {
+  const registry = buildToolRegistry([postCollection], actions);
+  // Columns in declaration order — Drizzle maps a proxy driver's rows by
+  // position. The stub ignores conditions, which is what lets a test show the
+  // record rule refusing a row the SQL happened to return.
+  const ROW: unknown[] = [2, "Draft", null, "draft"];
+  const db = drizzle(async () => ({ rows: [ROW] })) as unknown as McpContext["db"];
+
+  function contextFor(auth: AuthAdapter): McpContext {
+    return { registry, actions, db, auth, identity: null };
+  }
+
+  async function call(ctx: McpContext, name: string, args = {}): Promise<unknown> {
+    const res = await handleRpc(
+      { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name, arguments: args } },
+      ctx,
+    );
+    return res?.result;
+  }
+
+  it("advertises only the tools this caller may run", async () => {
+    // The same rule the site index follows: a tool that would answer
+    // "Forbidden" is worse than one that is not listed.
+    const ctx = contextFor({
+      authenticate: () => null,
+      authorize: ({ operation }) => operation === "list" || operation === "read",
+    });
+    const res = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, ctx);
+    const names = (res?.result as { tools: { name: string }[] }).tools.map(
+      (tool) => tool.name,
+    );
+    expect(names).toContain("posts__list");
+    expect(names).not.toContain("posts__create");
+    expect(names).not.toContain("posts__action__delete");
+  });
+
+  it("refuses a tool called by name anyway", async () => {
+    // Narrowing the list is presentation; this is the enforcement.
+    const ctx = contextFor({
+      authenticate: () => null,
+      authorize: ({ operation }) => operation === "list",
+    });
+    expect(await call(ctx, "posts__delete", { id: 1 })).toMatchObject({
+      isError: true,
+    });
+  });
+
+  it("reports a row outside the scope as not found", async () => {
+    const ctx = contextFor({
+      authenticate: () => null,
+      authorize: () => true,
+      // The stub db ignores conditions, so the row still comes back — what is
+      // asserted here is that the record rule, not the SQL, has the last word.
+      scope: () => ({ status: "published" }),
+      authorizeRecord: ({ record }) => record.status === "published",
+    });
+    const forbidden = (await call(ctx, "posts__get", { id: 2 })) as {
+      isError?: boolean;
+      content: { text: string }[];
+    };
+    expect(forbidden.isError).toBe(true);
+    expect(forbidden.content[0]?.text).toContain("Forbidden");
   });
 });

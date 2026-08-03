@@ -189,7 +189,10 @@ export {
   buildListQuery,
 } from "./query/build-list-query.js";
 export type { SqliteDb } from "./query/build-list-query.js";
-export { buildGetByIdQuery } from "./query/build-get-query.js";
+export {
+  buildGetByIdQuery,
+  buildRecordsByIdsQuery,
+} from "./query/build-get-query.js";
 export { primaryKeyColumn } from "./query/primary-key.js";
 
 export { allowAll } from "./auth/allow-all.js";
@@ -197,7 +200,18 @@ export type {
   AuthAdapter,
   AuthorizeArgs,
   Identity,
+  RecordAuthorizeArgs,
+  RecordScope,
+  ScopeArgs,
 } from "./auth/auth-adapter.types.js";
+export {
+  authorizeOperation,
+  authorizeRecordAccess,
+  checksRecords,
+  resolveScope,
+} from "./auth/authorize.js";
+export type { AccessArgs } from "./auth/authorize.js";
+export { scopeConditions, scopeWhere } from "./query/build-scope-where.js";
 
 export { bulkDeleteAction, defineAction } from "./action/define-action.js";
 export type {

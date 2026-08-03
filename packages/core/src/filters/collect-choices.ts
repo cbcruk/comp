@@ -1,3 +1,4 @@
+import type { RecordScope } from "../auth/auth-adapter.types.js";
 import type { Collection } from "../collection/define-collection.types.js";
 import { buildDistinctValuesQuery } from "../query/build-choices-query.js";
 import type { SqliteDb } from "../query/build-list-query.js";
@@ -39,6 +40,7 @@ function optionFor(value: unknown): FilterOption | null {
 export async function collectFilterChoices(
   db: SqliteDb,
   collection: Collection,
+  scope?: RecordScope,
 ): Promise<FilterChoices[]> {
   const filters = collection.filters.filter((filter) => filter.kind === "values");
   if (filters.length === 0) return [];
@@ -51,6 +53,7 @@ export async function collectFilterChoices(
         collection,
         filter.field,
         limit,
+        scope,
       ).all()) as { value: unknown }[];
 
       const present = rows.filter((row) => row.value !== null);

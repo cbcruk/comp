@@ -2,7 +2,10 @@ import {
   buildCountQuery,
   buildGetByIdQuery,
   buildListQuery,
+  buildRecordsByIdsQuery,
   allowAll,
+  authorizeRecordAccess,
+  checksRecords,
   collectDateHierarchy,
   collectFilterChoices,
   createRecord,
@@ -17,6 +20,7 @@ import {
   resolveDeleteRelations,
   resolveInlines,
   resolveRelations,
+  resolveScope,
   runAction,
   validateInsert,
   validateUpdate,
@@ -31,6 +35,7 @@ import {
   type Identity,
   type InlineSpec,
   type InlineWritePayload,
+  type RecordScope,
   type SqliteDb,
 } from "@comp/core";
 import { Hono, type Context } from "hono";
@@ -122,6 +127,98 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   ): Promise<boolean> {
     const identity = await auth.authenticate(c.req.raw);
     return Boolean(await auth.authorize({ identity, collection, operation }));
+  }
+
+  /**
+   * Which rows of this collection exist for this caller. Resolved once per
+   * request and handed to every query the request makes, so the list, its
+   * total, its filter choices, and the row a write reaches all agree about
+   * what is there.
+   */
+  async function scopeFor(
+    c: Context,
+    collection: Collection,
+  ): Promise<RecordScope | undefined> {
+    const identity = await auth.authenticate(c.req.raw);
+    return resolveScope(auth, identity, collection);
+  }
+
+  /**
+   * Read the row a request names and decide whether this caller may do that to
+   * it — Django's `has_change_permission(request, obj)`, one layer down from
+   * the model-wide grant that has already been checked.
+   *
+   * The two refusals mean different things on purpose. A row outside the
+   * caller's scope is *not found*: it does not exist as far as they are
+   * concerned, and saying "forbidden" would confirm that it does. A row they
+   * can see but may not touch is forbidden.
+   */
+  async function loadRecord(
+    c: Context,
+    collection: Collection,
+    db: SqliteDb,
+    id: unknown,
+    operation: CollectionOperation,
+    scope: RecordScope | undefined,
+  ): Promise<
+    { row: Record<string, unknown> } | { refusal: Response }
+  > {
+    const rows = await buildGetByIdQuery(db, collection, id, scope).all();
+    const row = rows[0] as Record<string, unknown> | undefined;
+    if (!row) return { refusal: c.json({ error: "Not found" }, 404) };
+
+    const identity = await auth.authenticate(c.req.raw);
+    const allowed = await authorizeRecordAccess(auth, {
+      identity,
+      collection,
+      operation,
+      record: row,
+    });
+    return allowed ? { row } : { refusal: c.json({ error: "Forbidden" }, 403) };
+  }
+
+  /**
+   * The ids an action may actually act on: those that exist for this caller
+   * and survive the per-record rule for every operation the action declares.
+   *
+   * The ids come back off the rows rather than being echoed from the request,
+   * so what the handler receives is what the database confirmed.
+   */
+  async function visibleIds(
+    c: Context,
+    collection: Collection,
+    db: SqliteDb,
+    operations: readonly CollectionOperation[],
+    requested: unknown[],
+  ): Promise<unknown[]> {
+    if (requested.length === 0 || !checksRecords(auth)) return requested;
+
+    const rows = (await buildRecordsByIdsQuery(
+      db,
+      collection,
+      requested,
+      await scopeFor(c, collection),
+    ).all()) as Record<string, unknown>[];
+
+    const identity = await auth.authenticate(c.req.raw);
+    const key = collection.primaryKey;
+    if (!key) return [];
+
+    const allowed: unknown[] = [];
+    for (const row of rows) {
+      const permitted = await Promise.all(
+        operations.map((operation) =>
+          authorizeRecordAccess(auth, {
+            identity,
+            collection,
+            operation,
+            record: row,
+          }),
+        ),
+      );
+      if (permitted.every(Boolean)) allowed.push(row[key]);
+    }
+    return allowed;
   }
 
   function specsFor(collection: Collection): InlineSpec[] {
@@ -264,13 +361,19 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const db = config.getDb(c);
-    const rows = await buildGetByIdQuery(db, collection, c.req.param("id")).all();
-    const row = rows[0] as Record<string, unknown> | undefined;
-    if (!row) return c.json({ error: "Not found" }, 404);
+    const found = await loadRecord(
+      c,
+      collection,
+      db,
+      c.req.param("id"),
+      "delete",
+      await scopeFor(c, collection),
+    );
+    if ("refusal" in found) return found.refusal;
 
     const relations: DeleteRelation[] = deleteRelations.get(collection.slug) ?? [];
     return c.json({
-      data: await collectDeleteImpact(db, collection, row, relations),
+      data: await collectDeleteImpact(db, collection, found.row, relations),
     });
   });
 
@@ -304,7 +407,14 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const db = config.getDb(c);
-    const params = parseListParams(collection, c.req.query());
+    // The scope is part of the query, not a check after it: the rows, the
+    // total, the drill-down counts and the filter choices are all the same
+    // narrowed set.
+    const scope = await scopeFor(c, collection);
+    const params = {
+      ...parseListParams(collection, c.req.query()),
+      ...(scope ? { scope } : {}),
+    };
     const rows = await buildListQuery(db, collection, params).all();
     const totals = await buildCountQuery(db, collection, params).all();
     const total = totals[0]?.count ?? 0;
@@ -320,7 +430,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       // What a distinct-value filter may be set to. Data-dependent, so it
       // cannot travel with the static collection summary; costs nothing unless
       // one is declared.
-      choices: await collectFilterChoices(db, collection),
+      choices: await collectFilterChoices(db, collection, scope),
     });
   });
 
@@ -332,15 +442,20 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const db = config.getDb(c);
-    const rows = await buildGetByIdQuery(
-      db,
+    const found = await loadRecord(
+      c,
       collection,
+      db,
       c.req.param("id"),
-    ).all();
-    const row = rows[0] as Record<string, unknown> | undefined;
-    if (!row) return c.json({ error: "Not found" }, 404);
+      "read",
+      await scopeFor(c, collection),
+    );
+    if ("refusal" in found) return found.refusal;
 
-    return c.json({ data: row, inlines: await inlineRows(c, collection, row, db) });
+    return c.json({
+      data: found.row,
+      inlines: await inlineRows(c, collection, found.row, db),
+    });
   });
 
   app.post("/collections/:slug", async (c) => {
@@ -359,6 +474,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
 
     const db = config.getDb(c);
     try {
+      // No scope here, and no per-record check: there is no record yet to
+      // narrow to or to decide about. What may be created is the collection's
+      // `create` grant plus validation — the same split Django makes, where
+      // `has_add_permission` is the one that takes no object.
       const values = validateInsert(collection, body.values);
       const row = await createRecord(
         await mutationContext(c, collection, db),
@@ -391,6 +510,24 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (refusal) return refusal;
 
     const db = config.getDb(c);
+    const scope = await scopeFor(c, collection);
+    // Deciding per record means reading the record, so only an adapter that
+    // decides per record pays for it. The row read here is also the "before"
+    // state history would otherwise read again.
+    let before: Record<string, unknown> | undefined;
+    if (checksRecords(auth)) {
+      const found = await loadRecord(
+        c,
+        collection,
+        db,
+        c.req.param("id"),
+        "update",
+        scope,
+      );
+      if ("refusal" in found) return found.refusal;
+      before = found.row;
+    }
+
     try {
       const values = validateUpdate(collection, body.values);
       // Editing only the child rows is a real edit; don't force an empty
@@ -398,13 +535,23 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       const row =
         Object.keys(values).length > 0
           ? await updateRecord(
-              await mutationContext(c, collection, db),
+              {
+                ...(await mutationContext(c, collection, db)),
+                ...(scope ? { scope } : {}),
+                ...(before ? { before } : {}),
+              },
               c.req.param("id"),
               values,
             )
-          : ((await buildGetByIdQuery(db, collection, c.req.param("id")).all())[0] as
-              | Record<string, unknown>
-              | undefined);
+          : (before ??
+            ((
+              await buildGetByIdQuery(
+                db,
+                collection,
+                c.req.param("id"),
+                scope,
+              ).all()
+            )[0] as Record<string, unknown> | undefined));
       if (!row) return c.json({ error: "Not found" }, 404);
 
       await writeInlines(db, specsFor(collection), row, body.inlines);
@@ -427,8 +574,25 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       return c.json({ error: "Forbidden" }, 403);
     }
 
+    const db = config.getDb(c);
+    const scope = await scopeFor(c, collection);
+    if (checksRecords(auth)) {
+      const found = await loadRecord(
+        c,
+        collection,
+        db,
+        c.req.param("id"),
+        "delete",
+        scope,
+      );
+      if ("refusal" in found) return found.refusal;
+    }
+
     const row = await deleteRecord(
-      await mutationContext(c, collection, config.getDb(c)),
+      {
+        ...(await mutationContext(c, collection, db)),
+        ...(scope ? { scope } : {}),
+      },
       c.req.param("id"),
     );
     if (!row) return c.json({ error: "Not found" }, 404);
@@ -446,6 +610,22 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (!config.history) return c.json({ error: "History is not enabled" }, 404);
     if (!(await authorized(c, collection, "read"))) {
       return c.json({ error: "Forbidden" }, 403);
+    }
+
+    // Entries say what a record was, so a caller who may not see the record
+    // may not read them either. Only checked when the adapter decides per
+    // record; otherwise this keeps answering after the row is deleted, which
+    // is the point of keeping the label on the entry.
+    if (checksRecords(auth)) {
+      const found = await loadRecord(
+        c,
+        collection,
+        config.getDb(c),
+        c.req.param("id"),
+        "read",
+        await scopeFor(c, collection),
+      );
+      if ("refusal" in found) return found.refusal;
     }
 
     const limit = Number.parseInt(c.req.query("limit") ?? "", 10);
@@ -481,10 +661,22 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const body = (await parseJsonBody(c)) as
       | { ids?: unknown[]; input?: unknown }
       | undefined;
-    const ids = Array.isArray(body?.ids) ? body.ids : [];
+    const requested = Array.isArray(body?.ids) ? body.ids : [];
+
+    const db = config.getDb(c);
+    // An action reaches rows by id, so the scope has to narrow the ids before
+    // the handler sees them — otherwise "delete the selected" is a way to
+    // delete what the list would never have shown.
+    const ids = await visibleIds(
+      c,
+      collection,
+      db,
+      action.operations,
+      requested,
+    );
 
     const result = await runAction(action, {
-      db: config.getDb(c),
+      db,
       collection,
       ids,
       input: body?.input,

@@ -25,9 +25,13 @@ export default {
       createAdminRouter({ collections, actions, getDb: () => db, auth }),
     );
 
-    // Same operations over MCP (JSON-RPC). Protect this in production —
-    // it mirrors the write surface and is unguarded here for the demo.
-    app.route("/mcp", createMcpHandler({ collections, actions, getDb: () => db }));
+    // Same operations over MCP (JSON-RPC), behind the same adapter: a tool
+    // call and an HTTP request are the same operation on the same collection,
+    // so they answer to one policy — scope and per-record rules included.
+    app.route(
+      "/mcp",
+      createMcpHandler({ collections, actions, getDb: () => db, auth }),
+    );
 
     app.route(
       "/auth",
