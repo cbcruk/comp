@@ -1,14 +1,14 @@
 import {
   buildCountQuery,
-  buildDeleteQuery,
   buildGetByIdQuery,
-  buildInsertQuery,
   buildListQuery,
-  buildUpdateQuery,
   collectDeleteImpact,
+  createRecord,
+  deleteRecord,
   parseFilterValue,
   readInlines,
   runAction,
+  updateRecord,
   validateInsert,
   validateUpdate,
   ValidationError,
@@ -16,6 +16,7 @@ import {
   type ActionDefinition,
   type Collection,
   type FilterMap,
+  type HistoryStore,
   type InlineSpec,
   type InlineWritePayload,
   type ListParams,
@@ -44,6 +45,10 @@ export interface McpContext {
   registry: Map<string, ToolBinding>;
   actions: ActionDefinition[];
   db: SqliteDb;
+  /** Where writes are logged; omit and nothing is recorded. */
+  history?: HistoryStore | undefined;
+  /** Who these calls act as, on the history entry. */
+  actor?: string | null;
 }
 
 interface ToolResult {
@@ -53,6 +58,19 @@ interface ToolResult {
 
 function text(value: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+}
+
+/** The write context: the same db, store and actor for every tool call. */
+function mutationContext(
+  ctx: McpContext,
+  collection: Collection,
+): { db: SqliteDb; collection: Collection; history?: HistoryStore | undefined; actor: string | null } {
+  return {
+    db: ctx.db,
+    collection,
+    history: ctx.history,
+    actor: ctx.actor ?? null,
+  };
 }
 
 /** Read a record back with its child rows, the shape the HTTP API returns. */
@@ -138,8 +156,7 @@ async function runTool(
     case "create": {
       const { inlines, ...rest } = args;
       const values = validateInsert(collection, rest);
-      const rows = await buildInsertQuery(db, collection, values);
-      const row = rows[0] as Record<string, unknown> | undefined;
+      const row = await createRecord(mutationContext(ctx, collection), values);
       if (!row) return { ...text({ error: "Insert returned no row" }), isError: true };
       await applyInlines(db, binding.inlines, row, inlines);
       return text(await withInlines(db, binding.inlines, row));
@@ -149,11 +166,12 @@ async function runTool(
       const values = validateUpdate(collection, rest);
       // Editing only the child rows is a real edit; don't force an empty
       // UPDATE on the parent just to reach them.
-      const rows =
+      const row =
         Object.keys(values).length > 0
-          ? await buildUpdateQuery(db, collection, id, values)
-          : await buildGetByIdQuery(db, collection, id).all();
-      const row = rows[0] as Record<string, unknown> | undefined;
+          ? await updateRecord(mutationContext(ctx, collection), id, values)
+          : ((await buildGetByIdQuery(db, collection, id).all())[0] as
+              | Record<string, unknown>
+              | undefined);
       if (!row) return { ...text({ error: "Not found" }), isError: true };
       await applyInlines(db, binding.inlines, row, inlines);
       return text(await withInlines(db, binding.inlines, row));
@@ -167,9 +185,21 @@ async function runTool(
       );
     }
     case "delete": {
-      const rows = await buildDeleteQuery(db, collection, args.id);
-      if (!rows[0]) return { ...text({ error: "Not found" }), isError: true };
-      return text(rows[0]);
+      const row = await deleteRecord(mutationContext(ctx, collection), args.id);
+      if (!row) return { ...text({ error: "Not found" }), isError: true };
+      return text(row);
+    }
+    case "history": {
+      if (!ctx.history) {
+        return { ...text({ error: "History is not enabled" }), isError: true };
+      }
+      return text(
+        await ctx.history.list({
+          collection: collection.slug,
+          recordId: String(args.id),
+          ...(typeof args.limit === "number" ? { limit: args.limit } : {}),
+        }),
+      );
     }
     case "action": {
       const action = ctx.actions.find(

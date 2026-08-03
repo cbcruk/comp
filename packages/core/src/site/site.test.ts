@@ -92,6 +92,7 @@ describe("routes", () => {
     [{ view: "add", slug: "orders" }, "/orders/add"],
     [{ view: "change", slug: "orders", id: "3" }, "/orders/3"],
     [{ view: "delete", slug: "orders", id: "3" }, "/orders/3/delete"],
+    [{ view: "history", slug: "orders", id: "3" }, "/orders/3/history"],
   ];
 
   it("names every screen a registered collection gets", () => {

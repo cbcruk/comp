@@ -38,6 +38,27 @@ permission before answering. `useHashRoute` keeps the current screen in the URL
 fragment; an app with its own router passes `route`/`onNavigate` itself, and
 `renderScreen` replaces any single screen.
 
+## History
+
+The worker passes one `createDrizzleHistoryStore(db)` to both routers, and that
+is the whole setup — writes start being recorded because the logging lives in
+the mutation layer rather than in each route. Open any record and click
+*History*:
+
+```
+2026-07-16 10:04   ada    ada changed status, placedAt on A-1
+2026-07-16 09:58   ada    ada added A-1
+```
+
+An update lists only the fields whose value actually moved, so sending the whole
+form back does not produce "edited everything". Entries keep the record's label,
+so a deletion still says what was deleted after the row is gone. `/history`
+shows recent activity across the site, narrowed to collections the caller may
+list.
+
+The history table ships with `@comp/core`; `schema.ts` re-exports it so
+`drizzle-kit` generates its migration.
+
 ## The search box
 
 ```ts

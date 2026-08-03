@@ -52,6 +52,13 @@ export interface RecordScreenProps {
   fieldWidgets?: Record<string, (control: FieldControl) => ReactNode>;
 }
 
+export interface HistoryScreenProps {
+  client: CompClient;
+  collection: CollectionSummary;
+  id: string;
+  navigate: (route: AdminRoute) => void;
+}
+
 export interface DeleteScreenProps {
   client: CompClient;
   collection: CollectionSummary;

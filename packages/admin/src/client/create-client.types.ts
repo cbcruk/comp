@@ -6,6 +6,7 @@ import type {
   DeleteImpact,
   FieldMap,
   FilterSummary,
+  HistoryEntry,
   InboundRelation,
   InlineSummary,
   InlineWritePayload,
@@ -95,6 +96,10 @@ export interface CompClient {
   ): Promise<Row>;
   /** What deleting this record would reach, before doing it. */
   deletePreview(slug: string, id: Id): Promise<DeleteImpact>;
+  /** Who changed this record, newest first; empty when history is off. */
+  history(slug: string, id: Id, limit?: number): Promise<HistoryEntry[]>;
+  /** Recent activity across every collection the caller may list. */
+  recentHistory(limit?: number): Promise<HistoryEntry[]>;
   remove(slug: string, id: Id): Promise<Row>;
   action(slug: string, name: string, body: ActionRunBody): Promise<ActionResult>;
 }

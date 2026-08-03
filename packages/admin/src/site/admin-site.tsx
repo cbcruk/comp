@@ -4,6 +4,7 @@ import { mergeProps } from "../merge-props/merge-props.js";
 import { AdminIndex } from "./admin-index.js";
 import type { AdminSiteProps } from "./admin-site.types.js";
 import { DeleteScreen } from "./delete-screen.js";
+import { HistoryScreen } from "./history-screen.js";
 import { RecordScreen } from "./record-screen.js";
 import { can } from "./site.utils.js";
 
@@ -96,6 +97,15 @@ export function AdminSite({
             {...(fieldWidgets?.[collection.slug]
               ? { fieldWidgets: fieldWidgets[collection.slug] }
               : {})}
+          />
+        );
+      case "history":
+        return (
+          <HistoryScreen
+            client={client}
+            collection={collection}
+            id={route.id}
+            navigate={onNavigate}
           />
         );
       case "delete":

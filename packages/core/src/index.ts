@@ -66,6 +66,33 @@ export {
   slugify,
 } from "./form/prepopulate.js";
 
+export {
+  changedFields,
+  describeHistory,
+  historyLabel,
+} from "./history/changed-fields.js";
+export type {
+  HistoryAction,
+  HistoryEntry,
+  HistoryQuery,
+  HistoryStore,
+} from "./history/history.types.js";
+export {
+  createDrizzleHistoryStore,
+  createMemoryHistoryStore,
+} from "./history/history-store.js";
+export {
+  historyEntries,
+  parseFields,
+  serializeFields,
+} from "./history/history-schema.js";
+export {
+  createRecord,
+  deleteRecord,
+  updateRecord,
+} from "./mutation/mutate-record.js";
+export type { MutationContext } from "./mutation/mutate-record.js";
+
 export { resolveSearch, splitSearchTerms } from "./search/resolve-search.js";
 export type {
   ResolvedSearch,

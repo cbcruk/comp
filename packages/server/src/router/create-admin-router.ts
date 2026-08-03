@@ -1,11 +1,11 @@
 import {
   buildCountQuery,
-  buildDeleteQuery,
   buildGetByIdQuery,
-  buildInsertQuery,
   buildListQuery,
-  buildUpdateQuery,
   allowAll,
+  createRecord,
+  deleteRecord,
+  updateRecord,
   collectDeleteImpact,
   filterSummaries,
   InlineError,
@@ -25,6 +25,8 @@ import {
   type Collection,
   type CollectionOperation,
   type DeleteRelation,
+  type HistoryStore,
+  type Identity,
   type InlineSpec,
   type InlineWritePayload,
   type SqliteDb,
@@ -39,6 +41,11 @@ export interface AdminRouterConfig {
   actions?: ActionDefinition[];
   /** Auth adapter; defaults to allow-all. */
   auth?: AuthAdapter;
+  /**
+   * Where to record who changed what. Omit it and no history is kept — the
+   * feature is opt-in, and its cost (an extra read per update) comes with it.
+   */
+  history?: HistoryStore;
   /**
    * Resolve the database for a request. On Workers the D1 binding lives on
    * `c.env`, so the db must be built per request rather than at module load.
@@ -168,6 +175,31 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     return null;
   }
 
+  /** Who is making this request, for the history entry. */
+  async function actorOf(c: Context): Promise<string | null> {
+    if (!config.history) return null;
+    const identity: Identity | null = await auth.authenticate(c.req.raw);
+    return identity?.subject ?? null;
+  }
+
+  async function mutationContext(
+    c: Context,
+    collection: Collection,
+    db: SqliteDb,
+  ): Promise<{
+    db: SqliteDb;
+    collection: Collection;
+    history: HistoryStore | undefined;
+    actor: string | null;
+  }> {
+    return {
+      db,
+      collection,
+      history: config.history,
+      actor: await actorOf(c),
+    };
+  }
+
   /** The operations this caller may actually perform on a collection. */
   async function permittedOperations(
     c: Context,
@@ -239,6 +271,28 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     });
   });
 
+  /**
+   * Recent activity across the site — the panel Django puts on its index.
+   * Narrowed to collections this caller may list, so history cannot become a
+   * way to learn about records they are not allowed to see.
+   */
+  app.get("/history", async (c) => {
+    if (!config.history) return c.json({ error: "History is not enabled" }, 404);
+
+    const visible: string[] = [];
+    for (const collection of config.collections) {
+      if (await authorized(c, collection, "list")) visible.push(collection.slug);
+    }
+
+    const limit = Number.parseInt(c.req.query("limit") ?? "", 10);
+    return c.json({
+      data: await config.history.list({
+        collections: visible,
+        ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
+      }),
+    });
+  });
+
   app.get("/collections/:slug", async (c) => {
     const collection = bySlug.get(c.req.param("slug"));
     if (!collection) return c.json({ error: "Unknown collection" }, 404);
@@ -296,8 +350,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const db = config.getDb(c);
     try {
       const values = validateInsert(collection, body.values);
-      const rows = await buildInsertQuery(db, collection, values);
-      const row = rows[0] as Record<string, unknown> | undefined;
+      const row = await createRecord(
+        await mutationContext(c, collection, db),
+        values,
+      );
       if (!row) return c.json({ error: "Insert returned no row" }, 500);
 
       await writeInlines(db, specsFor(collection), row, body.inlines);
@@ -329,11 +385,16 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       const values = validateUpdate(collection, body.values);
       // Editing only the child rows is a real edit; don't force an empty
       // UPDATE on the parent just to get at its inlines.
-      const rows =
+      const row =
         Object.keys(values).length > 0
-          ? await buildUpdateQuery(db, collection, c.req.param("id"), values)
-          : await buildGetByIdQuery(db, collection, c.req.param("id")).all();
-      const row = rows[0] as Record<string, unknown> | undefined;
+          ? await updateRecord(
+              await mutationContext(c, collection, db),
+              c.req.param("id"),
+              values,
+            )
+          : ((await buildGetByIdQuery(db, collection, c.req.param("id")).all())[0] as
+              | Record<string, unknown>
+              | undefined);
       if (!row) return c.json({ error: "Not found" }, 404);
 
       await writeInlines(db, specsFor(collection), row, body.inlines);
@@ -356,13 +417,35 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    const rows = await buildDeleteQuery(
-      config.getDb(c),
-      collection,
+    const row = await deleteRecord(
+      await mutationContext(c, collection, config.getDb(c)),
       c.req.param("id"),
     );
-    if (!rows[0]) return c.json({ error: "Not found" }, 404);
-    return c.json({ data: rows[0] });
+    if (!row) return c.json({ error: "Not found" }, 404);
+    return c.json({ data: row });
+  });
+
+  /**
+   * A record's history — Django's per-object history view. Gated on reading
+   * the record, since that is what the entries are about; the entries survive
+   * the record, so this keeps answering after a delete.
+   */
+  app.get("/collections/:slug/:id/history", async (c) => {
+    const collection = bySlug.get(c.req.param("slug"));
+    if (!collection) return c.json({ error: "Unknown collection" }, 404);
+    if (!config.history) return c.json({ error: "History is not enabled" }, 404);
+    if (!(await authorized(c, collection, "read"))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    const limit = Number.parseInt(c.req.query("limit") ?? "", 10);
+    return c.json({
+      data: await config.history.list({
+        collection: collection.slug,
+        recordId: c.req.param("id"),
+        ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
+      }),
+    });
   });
 
   app.post("/collections/:slug/actions/:name", async (c) => {

@@ -1,4 +1,9 @@
-import type { ActionDefinition, Collection, SqliteDb } from "@comp/core";
+import type {
+  ActionDefinition,
+  Collection,
+  HistoryStore,
+  SqliteDb,
+} from "@comp/core";
 import { Hono, type Context } from "hono";
 import { handleRpc, type JsonRpcRequest } from "./dispatch.js";
 import { buildToolRegistry } from "./tools.js";
@@ -8,6 +13,14 @@ export interface McpHandlerConfig {
   actions?: ActionDefinition[];
   /** Resolve the database per request (D1 binding lives on `c.env`). */
   getDb: (c: Context) => SqliteDb;
+  /**
+   * Where to record who changed what. Pass the same store the HTTP router
+   * uses: a write is a write, and a history that only sees one transport is
+   * worse than none.
+   */
+  history?: HistoryStore;
+  /** Who these tool calls act as, for history entries. */
+  actor?: string | null;
 }
 
 /**
@@ -32,7 +45,13 @@ export function createMcpHandler(config: McpHandlerConfig): Hono {
       );
     }
 
-    const ctx = { registry, actions, db: config.getDb(c) };
+    const ctx = {
+      registry,
+      actions,
+      db: config.getDb(c),
+      history: config.history,
+      actor: config.actor ?? null,
+    };
 
     if (Array.isArray(body)) {
       const responses = await Promise.all(body.map((req) => handleRpc(req, ctx)));
