@@ -188,12 +188,14 @@ carries the trail, so an agent can drill the way the UI does.
 
 ## The filters
 
-`orders` declares `filters: ["status", "customerId", "placedAt"]` and nothing
-else. What each one *is* comes from the column:
+`orders` declares `filters: ["status", { field: "channel", kind: "values" },
+"customerId", "placedAt"]` and nothing else. What each one *is* comes from the
+column:
 
 | Column | Kind | What it offers |
 | --- | --- | --- |
 | `status` | `choices` | its own enum values, singly or `in:draft,paid` |
+| `channel` | `values` | the values the orders actually hold, plus Empty |
 | `customerId` | `relation` | the customers it points at, plus Empty / Not empty |
 | `placedAt` | `date` | Today, Past 7 days, This month, This year, or `range:FROM..TO` |
 
@@ -206,6 +208,30 @@ integer to an integer, not to the text `"1"`.
 
 The same encoding works on the MCP `orders__list` tool, whose generated
 `filters` schema names each column's allowed values.
+
+### The one that reads the data
+
+`status` and `channel` sit next to each other on purpose. `status` is an enum,
+so its choices are a fact about the schema and travel with the collection.
+`channel` is plain text: nothing declares what it may hold, so the filter reads
+the column — `select distinct channel` — and offers what the orders themselves
+say, with Empty for the ones that never said.
+
+That is the one filter kind you have to ask for. It is a query per filter per
+request, so it is never inferred from a column being text:
+
+```ts
+filters: ["status", { field: "channel", kind: "values" }, ...]
+```
+
+The choices come from the whole table rather than from the list you are looking
+at. Picking `web` leaves `phone` on offer — a filter whose options shrink as you
+use it can only be cleared, never changed. And the list is capped (`limit`,
+default 100): the query asks for one row past the cap, so when there are more
+the control says it is showing a prefix instead of quietly ending.
+
+`order_items` does the same for `product`, and it is the clearer case — the
+products that exist are exactly the ones somebody ordered.
 
 ## Running it
 

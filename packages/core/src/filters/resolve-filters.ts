@@ -38,12 +38,43 @@ function optionsFor(field: FieldMeta, kind: FilterKind): FilterOption[] {
     ];
   }
   // `date` presets are named by the consumer; `relation` fetches its own
-  // options from the target collection; `exact` has no fixed set.
+  // options from the target collection; `values` reads them off the data per
+  // request; `exact` has no fixed set.
   return [];
 }
 
-function normalize(config: FilterConfig): { field: string; kind?: FilterKind } {
+function normalize(config: FilterConfig): {
+  field: string;
+  kind?: FilterKind;
+  limit?: number;
+} {
   return typeof config === "string" ? { field: config } : config;
+}
+
+/** How many distinct values a `values` filter offers before saying "more". */
+export const DEFAULT_VALUES_LIMIT = 100;
+
+/**
+ * A `values` filter reads its choices from the data on every request, so it is
+ * only ever declared, never inferred — the cost belongs to whoever asked for
+ * it. The two columns that already know their own answers are refused here,
+ * at declaration time, rather than issuing a query whose result is worse than
+ * what they offer: a date's values are one per row, and a foreign key's are
+ * opaque ids the relation filter already resolves to labels.
+ */
+function checkValuesKind(name: string, field: FieldMeta): void {
+  if (field.dataType === "date") {
+    throw new Error(
+      `Filter "${name}": a date column cannot list its values — use the date ` +
+        `filter (its named windows) or dateHierarchy`,
+    );
+  }
+  if (field.relation) {
+    throw new Error(
+      `Filter "${name}": a foreign key cannot list its values — the relation ` +
+        `filter offers the records it points at, with their labels`,
+    );
+  }
 }
 
 /**
@@ -63,11 +94,12 @@ export function resolveFilters(
   const resolved: ResolvedFilter[] = [];
 
   for (const config of configs) {
-    const { field: name, kind: override } = normalize(config);
+    const { field: name, kind: override, limit } = normalize(config);
     const field = fields[name];
     if (!field) continue;
 
     const kind = override ?? inferFilterKind(field);
+    if (kind === "values") checkValuesKind(name, field);
     resolved.push({
       field: name,
       kind,
@@ -75,6 +107,9 @@ export function resolveFilters(
       nullable: !field.notNull,
       ...(kind === "relation" && field.relation
         ? { table: field.relation.table }
+        : {}),
+      ...(kind === "values"
+        ? { limit: Math.max(1, limit ?? DEFAULT_VALUES_LIMIT) }
         : {}),
     });
   }

@@ -4,6 +4,7 @@ import {
   buildListQuery,
   allowAll,
   collectDateHierarchy,
+  collectFilterChoices,
   createRecord,
   deleteRecord,
   updateRecord,
@@ -316,6 +317,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       // The strip belongs to the list it navigates, so it is resolved in the
       // same request rather than left for a second round trip.
       hierarchy: await collectDateHierarchy(db, collection, params),
+      // What a distinct-value filter may be set to. Data-dependent, so it
+      // cannot travel with the static collection summary; costs nothing unless
+      // one is declared.
+      choices: await collectFilterChoices(db, collection),
     });
   });
 

@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { describe, expect, it } from "vitest";
 import { defineCollection } from "../collection/define-collection.js";
 import { introspectTable } from "../introspection/introspect-table.js";
+import { buildDistinctValuesQuery } from "../query/build-choices-query.js";
 import { buildListQuery } from "../query/build-list-query.js";
 import {
   coerceFilterOperand,
@@ -10,7 +11,11 @@ import {
   formatFilterValue,
   parseFilterValue,
 } from "./filter-value.js";
-import { inferFilterKind, resolveFilters } from "./resolve-filters.js";
+import {
+  DEFAULT_VALUES_LIMIT,
+  inferFilterKind,
+  resolveFilters,
+} from "./resolve-filters.js";
 
 const customers = sqliteTable("customers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -265,5 +270,70 @@ describe("filters in the query", () => {
     expect(sql).toContain("and");
     expect(sql).toContain('"status" = ?');
     expect(sql).toContain('"archived" = ?');
+  });
+});
+
+describe("distinct-value filters", () => {
+  const valuesCollection = defineCollection({
+    model: orders,
+    listDisplay: ["reference"],
+    filters: [{ field: "reference", kind: "values" }],
+  });
+
+  it("is only ever declared, never inferred", () => {
+    // Nothing about a plain column implies the query this kind costs.
+    expect(inferFilterKind(fields.reference!)).toBe("exact");
+    expect(valuesCollection.filters[0]!.kind).toBe("values");
+  });
+
+  it("carries a ceiling on how many values it will offer", () => {
+    expect(valuesCollection.filters[0]!.limit).toBe(DEFAULT_VALUES_LIMIT);
+    const capped = defineCollection({
+      model: orders,
+      listDisplay: ["reference"],
+      filters: [{ field: "reference", kind: "values", limit: 5 }],
+    });
+    expect(capped.filters[0]!.limit).toBe(5);
+  });
+
+  it("refuses the two columns that already answer this better", () => {
+    // A date's values are one per row; the date filter's windows are the point.
+    expect(() =>
+      defineCollection({
+        model: orders,
+        listDisplay: ["reference"],
+        filters: [{ field: "placedAt", kind: "values" }],
+      }),
+    ).toThrow(/date column/);
+    // A key's values are opaque ids; the relation filter resolves them.
+    expect(() =>
+      defineCollection({
+        model: orders,
+        listDisplay: ["reference"],
+        filters: [{ field: "customerId", kind: "values" }],
+      }),
+    ).toThrow(/foreign key/);
+  });
+
+  it("asks for the column's distinct values, one over the limit", () => {
+    const { sql, params } = buildDistinctValuesQuery(
+      db,
+      valuesCollection,
+      "reference",
+      5,
+    ).toSQL();
+    expect(sql).toContain("select distinct");
+    // Empty rows sort last, so they never take a slot a value needs.
+    expect(sql).toContain("asc nulls last");
+    // One extra row is what tells the answer it is a prefix.
+    expect(params).toContain(6);
+  });
+
+  it("reads the whole table, not the narrowed list", () => {
+    // Django takes these choices off the base queryset. A filter whose options
+    // shrink as you use it can only be cleared, never changed.
+    const { sql } = buildDistinctValuesQuery(db, valuesCollection, "reference", 5)
+      .toSQL();
+    expect(sql).not.toContain("where");
   });
 });

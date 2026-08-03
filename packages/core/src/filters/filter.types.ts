@@ -8,7 +8,8 @@ export type FilterKind =
   | "choices"
   | "boolean"
   | "date"
-  | "relation";
+  | "relation"
+  | "values";
 
 /** One ready-made choice, for kinds that enumerate their values. */
 export interface FilterOption {
@@ -28,6 +29,25 @@ export interface ResolvedFilter {
   nullable: boolean;
   /** For `relation`: the referenced table, bound to a collection downstream. */
   table?: string;
+  /** For `values`: how many distinct values to offer before saying "more". */
+  limit?: number;
+}
+
+/**
+ * The values a `values` filter found in its column, resolved per request
+ * because only the data knows them. Kept out of {@link ResolvedFilter}, which
+ * is static and serializable at declaration time.
+ */
+export interface FilterChoices {
+  field: string;
+  /** Values present in the column, each encoded as the query value it stands for. */
+  options: FilterOption[];
+  /**
+   * The column holds more distinct values than the filter's limit, so the list
+   * is a prefix. Said out loud rather than silently cut — a filter that quietly
+   * omits values is one that quietly hides records.
+   */
+  truncated: boolean;
 }
 
 /**
@@ -49,6 +69,12 @@ export type FilterConfig<TField extends string = string> =
       field: TField;
       /** Override the kind inferred from the column's type. */
       kind?: FilterKind;
+      /**
+       * For `kind: "values"`: how many distinct values to offer. The list is
+       * read from the data on every request, so this is the ceiling on what
+       * that costs and on how long the control gets.
+       */
+      limit?: number;
     };
 
 /**

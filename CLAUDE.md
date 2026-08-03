@@ -125,11 +125,25 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   the branches are identical expression text, and a driver that keys rows by
   column name (D1) would collapse them into one.
 
+- **Distinct-value filters** — Django's `AllValuesFieldListFilter`: a plain
+  column offers the values it actually holds, which is the only way to filter
+  free text from a list. `{ field: "channel", kind: "values" }` — never
+  inferred, because unlike every other kind this one costs a `DISTINCT` query
+  per filter per request, and the cost should belong to whoever asked for it.
+  Two properties carry the behavior: the choices come from the **whole table**,
+  not from the narrowed list (options that shrink as you use them make a filter
+  a one-way door — you could clear it but not change it), and a column with
+  empty rows offers an entry for them. Each filter carries a `limit`
+  (`DEFAULT_VALUES_LIMIT`); the query asks for one row over it, so a capped
+  list *says* it is a prefix instead of silently ending. Values sort `nulls
+  last` so an empty never takes a slot a value needed, and the column itself is
+  selected (not cast) so its mapper decides the option's text and it
+  round-trips through the same coercion an exact filter uses. A date or a
+  foreign key is refused at declaration time — both already answer better, with
+  windows and with labels.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Distinct-value filters.** Django's `AllValuesFieldListFilter` offers the
-  values actually present in a column. Comp leaves a plain column as a text box
-  because enumerating them needs a `DISTINCT` query per filter per request.
 - **Per-object permissions.** `AuthAdapter.authorize` is keyed on
   (identity, collection, operation); Django also decides per _record_ and
   narrows the queryset per user. Extend the adapter shape before call sites

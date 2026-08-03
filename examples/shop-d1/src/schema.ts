@@ -18,6 +18,11 @@ export const orders = sqliteTable("orders", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   reference: text("reference").notNull(),
   customerId: integer("customer_id").references(() => customers.id),
+  /**
+   * Free text with no enum behind it: where the order came from. What it can
+   * hold is a question only the rows can answer — the distinct-value filter.
+   */
+  channel: text("channel"),
   status: text("status", { enum: ["draft", "paid", "shipped", "cancelled"] })
     .notNull()
     .default("draft"),

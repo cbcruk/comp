@@ -3,6 +3,7 @@ import {
   buildGetByIdQuery,
   buildListQuery,
   collectDateHierarchy,
+  collectFilterChoices,
   collectDeleteImpact,
   createRecord,
   deleteRecord,
@@ -154,6 +155,9 @@ async function runTool(
         data: rows,
         total: totals[0]?.count ?? 0,
         hierarchy: await collectDateHierarchy(db, collection, params),
+        // The vocabulary of any distinct-value filter, so a model narrows the
+        // list with a value that exists instead of guessing one.
+        choices: await collectFilterChoices(db, collection),
       });
     }
     case "get": {
