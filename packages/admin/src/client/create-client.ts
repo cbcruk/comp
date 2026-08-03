@@ -22,6 +22,7 @@ function buildListPath(slug: string, query: ListQuery = {}): string {
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
   if (query.q) params.set("q", query.q);
   if (query.sort) params.set("sort", query.sort);
+  if (query.date) params.set("date", query.date);
   for (const [key, value] of Object.entries(query.filters ?? {})) {
     if (value !== "") params.set(key, value);
   }

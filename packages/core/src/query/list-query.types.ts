@@ -1,5 +1,6 @@
 import type { FieldOrdering } from "../collection/define-collection.types.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
+import type { DatePath } from "../hierarchy/date-path.js";
 
 export interface ListParams {
   /** 1-based page number. */
@@ -15,6 +16,11 @@ export interface ListParams {
   filters?: Record<string, FilterValue | unknown>;
   /** Overrides the collection's default ordering. */
   ordering?: FieldOrdering[];
+  /**
+   * Where the date drill-down currently is. Narrows the collection's
+   * `dateHierarchy` column to that year, month or day.
+   */
+  datePath?: DatePath;
   /**
    * The instant a relative filter (`preset: "today"`) resolves against.
    * Passed in rather than read from the clock so a query is reproducible.

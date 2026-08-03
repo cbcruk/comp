@@ -34,6 +34,22 @@ export function defineCollection<TTable extends Table>(
   const operations = config.operations ?? DEFAULT_OPERATIONS;
   const labels = resolveLabels(slug, config.label, config.labelPlural);
 
+  // A hierarchy over something that is not a date would silently navigate
+  // nowhere; say so here rather than rendering an empty strip.
+  if (config.dateHierarchy) {
+    const field = introspection.fields[config.dateHierarchy];
+    if (!field) {
+      throw new Error(
+        `dateHierarchy on "${slug}" names "${config.dateHierarchy}", which is not a column`,
+      );
+    }
+    if (field.dataType !== "date") {
+      throw new Error(
+        `dateHierarchy on "${slug}" names "${config.dateHierarchy}", which is not a date column`,
+      );
+    }
+  }
+
   return {
     slug,
     ...labels,
@@ -51,6 +67,7 @@ export function defineCollection<TTable extends Table>(
     listDisplay: config.listDisplay,
     filters: resolveFilters(introspection.fields, config.filters ?? []),
     search: resolveSearch(slug, introspection.fields, config.search ?? []),
+    dateHierarchy: config.dateHierarchy ?? null,
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
     form: resolveForm(slug, introspection.fields, introspection.primaryKey, config),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { DateHierarchy } from "@comp/core";
 import type {
   CompClient,
   ListQuery,
@@ -11,6 +12,8 @@ export interface UseCollectionListResult {
   page: number;
   pageSize: number;
   total: number;
+  /** The date drill-down strip the server resolved for this list. */
+  hierarchy: DateHierarchy | null;
   query: ListQuery;
   loading: boolean;
   error: Error | null;
@@ -22,7 +25,9 @@ export interface UseCollectionListResult {
 }
 
 function resetsToFirstPage(next: Partial<ListQuery>): boolean {
-  return "q" in next || "filters" in next || "sort" in next;
+  // Anything that changes *which* records are shown starts over: page 4 of the
+  // old result set says nothing about the new one.
+  return "q" in next || "filters" in next || "sort" in next || "date" in next;
 }
 
 /**
@@ -39,6 +44,7 @@ export function useCollectionList(
   const [page, setPage] = useState(initialQuery.page ?? 1);
   const [pageSize, setPageSize] = useState(initialQuery.pageSize ?? 0);
   const [total, setTotal] = useState(0);
+  const [hierarchy, setHierarchy] = useState<DateHierarchy | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -72,6 +78,7 @@ export function useCollectionList(
         setPage(result.page);
         setPageSize(result.pageSize);
         setTotal(result.total);
+        setHierarchy(result.hierarchy ?? null);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -91,6 +98,7 @@ export function useCollectionList(
     page,
     pageSize,
     total,
+    hierarchy,
     query,
     loading,
     error,

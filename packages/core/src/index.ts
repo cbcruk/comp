@@ -93,6 +93,33 @@ export {
 } from "./mutation/mutate-record.js";
 export type { MutationContext } from "./mutation/mutate-record.js";
 
+export {
+  breadcrumbFor,
+  bucketsFor,
+  datePathRange,
+  daysInMonth,
+  formatDatePath,
+  levelOf,
+  parseDatePath,
+} from "./hierarchy/date-path.js";
+export type {
+  DatePath,
+  HierarchyBucket,
+  HierarchyCrumb,
+  HierarchyLevel,
+} from "./hierarchy/date-path.js";
+export { collectDateHierarchy } from "./hierarchy/resolve-hierarchy.js";
+export type {
+  DateHierarchy,
+  HierarchyChoice,
+} from "./hierarchy/resolve-hierarchy.js";
+export {
+  buildBucketCountQuery,
+  buildDateBoundQuery,
+  hierarchyColumn,
+} from "./query/build-hierarchy-query.js";
+export { buildListWhere } from "./query/build-list-query.js";
+
 export { resolveSearch, splitSearchTerms } from "./search/resolve-search.js";
 export type {
   ResolvedSearch,

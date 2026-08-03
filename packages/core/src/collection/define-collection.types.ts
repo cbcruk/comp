@@ -77,6 +77,11 @@ export interface CollectionConfig<TTable extends Table>
    * guess reads badly.
    */
   labelField?: ColumnKey<TTable>;
+  /**
+   * Date column to drill down by — a year → month → day trail above the list.
+   * Must be a date column; anything else throws at declaration time.
+   */
+  dateHierarchy?: ColumnKey<TTable>;
   /** Default ordering applied when the request specifies none. */
   ordering?: OrderingSpec<TTable>[];
   /** Default page size for the list view. */
@@ -117,6 +122,8 @@ export interface Collection {
   filters: ResolvedFilter[];
   /** Search fields with their lookup and any relation traversal resolved. */
   search: ResolvedSearch[];
+  /** Column the drill-down navigates, or null. */
+  dateHierarchy: string | null;
   ordering: FieldOrdering[];
   pageSize: number;
   /** The add/change form as a layout: groups, readonly, prepopulated, radios. */

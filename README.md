@@ -6,8 +6,8 @@ generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
 Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter and search lookups, form layout, history, and a generated admin
-site; `date_hierarchy`, per-object permissions, and many-to-many are the open
+real filter and search lookups, date drill-down, form layout, history, and a
+generated admin site; per-object permissions and many-to-many are the open
 work. See the parity backlog in `CLAUDE.md`.
 
 ```ts

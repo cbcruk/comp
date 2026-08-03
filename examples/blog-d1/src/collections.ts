@@ -15,6 +15,7 @@ export const postCollection = defineCollection({
   // `authorId__name` follows the foreign key to search by the author's name.
   search: ["title", "body", "^slug", "authorId__name"],
   ordering: [{ field: "createdAt", direction: "desc" }],
+  dateHierarchy: "createdAt",
   // The layout, not just the fields: the slug writes itself from the title
   // while adding, the timestamp is shown but never written, and publishing
   // settings sit in their own group.

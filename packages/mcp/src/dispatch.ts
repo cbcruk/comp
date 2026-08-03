@@ -2,9 +2,11 @@ import {
   buildCountQuery,
   buildGetByIdQuery,
   buildListQuery,
+  collectDateHierarchy,
   collectDeleteImpact,
   createRecord,
   deleteRecord,
+  parseDatePath,
   parseFilterValue,
   readInlines,
   runAction,
@@ -124,6 +126,9 @@ function listParams(args: Record<string, unknown>): ListParams {
   return {
     // One instant per call, shared by the rows and their total.
     now: new Date(),
+    ...(typeof args.date === "string"
+      ? { datePath: parseDatePath(args.date) }
+      : {}),
     page: typeof args.page === "number" ? args.page : undefined,
     pageSize: typeof args.pageSize === "number" ? args.pageSize : undefined,
     search: typeof args.q === "string" ? args.q : undefined,
@@ -145,7 +150,11 @@ async function runTool(
       const params = listParams(args);
       const rows = await buildListQuery(db, collection, params).all();
       const totals = await buildCountQuery(db, collection, params).all();
-      return text({ data: rows, total: totals[0]?.count ?? 0 });
+      return text({
+        data: rows,
+        total: totals[0]?.count ?? 0,
+        hierarchy: await collectDateHierarchy(db, collection, params),
+      });
     }
     case "get": {
       const rows = await buildGetByIdQuery(db, collection, args.id).all();

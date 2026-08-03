@@ -109,12 +109,24 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   (`/collections/:slug/:id/history`, `<slug>__history`, the site's history
   screen) or site-wide (`/history`), the latter narrowed to collections the
   caller may list so history cannot leak what the index hides.
+- **`date_hierarchy`** — a date column becomes a year → month → day trail above
+  the list. `dateHierarchy: "placedAt"` narrows the list to the same half-open
+  `[from, to)` window the date filter already uses, so a drilled-in list is a
+  shareable `?date=2026-07-16` link and the total keeps meaning what it says.
+  The strip offers only periods that *have* records, counted **within whatever
+  else is narrowing the list** — a month a filter emptied is not a link worth
+  having. That count comes from the database, so it is bounded: one query with
+  a summed `CASE` per bucket rather than one per bucket, plus two `order by …
+  limit 1` reads at the top level, where which *years* to offer depends on the
+  data rather than the calendar. Boundaries are computed in JS and compared
+  with `gte`/`lt` so they pass through the column's mapper — a Drizzle
+  timestamp reports the same type whether it stores seconds or milliseconds,
+  and SQL-side truncation would have to guess. Every `CASE` branch is aliased:
+  the branches are identical expression text, and a driver that keys rows by
+  column name (D1) would collapse them into one.
 
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **`date_hierarchy`.** Drill-down navigation by a date column. The date filter
-  already resolves named windows to a half-open range; this is the same lookup
-  driven by a year → month → day trail instead of a select.
 - **Distinct-value filters.** Django's `AllValuesFieldListFilter` offers the
   values actually present in a column. Comp leaves a plain column as a text box
   because enumerating them needs a `DISTINCT` query per filter per request.
@@ -285,6 +297,12 @@ truth.
   forget it; a rule each route has to remember is a rule that holds until
   somebody adds a route. Its cost stays where the feature is used — no store,
   no extra read.
+- **A generated column list needs generated names.** When a query builds N
+  expressions in a loop (the hierarchy's bucket counts), alias each one — some
+  drivers hand rows back as objects keyed by column name (D1's `results`, and
+  `node:sqlite`), and identical expression text collapses to a single key.
+  Drizzle's positional mapping then reads every column but one as `undefined`,
+  which looks exactly like "no records" rather than like a bug.
 - **Hiding is not enforcing.** A declaration that narrows what may be written
   (`readonlyFields` today) has to be applied on the write path, not only left
   out of the UI — a request that names the field anyway must not win. Put the

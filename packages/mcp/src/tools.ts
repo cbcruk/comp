@@ -72,6 +72,16 @@ function listSchema(collection: Collection): JsonSchema {
       pageSize: { type: "number" },
       q: { type: "string", description: searchHint(collection) },
       sort: { type: "string", description: "field:asc | field:desc" },
+      ...(collection.dateHierarchy
+        ? {
+            date: {
+              type: "string" as const,
+              description:
+                `Narrow by ${collection.dateHierarchy}: a year (2026), a month ` +
+                `(2026-07) or a day (2026-07-16).`,
+            },
+          }
+        : {}),
       filters: filtersToJsonSchema(collection),
     },
   };

@@ -71,6 +71,8 @@ export {
   toIds,
 } from "./collection-browser/selection.js";
 export { nextSort, parseSort } from "./collection-browser/sorting.js";
+export { DateHierarchyStrip } from "./collection-browser/date-hierarchy.js";
+export type { DateHierarchyStripProps } from "./collection-browser/date-hierarchy.js";
 export { FilterField } from "./collection-browser/filter-field.js";
 export type { FilterFieldProps } from "./collection-browser/filter-field.js";
 export {

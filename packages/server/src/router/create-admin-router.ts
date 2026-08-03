@@ -3,6 +3,7 @@ import {
   buildGetByIdQuery,
   buildListQuery,
   allowAll,
+  collectDateHierarchy,
   createRecord,
   deleteRecord,
   updateRecord,
@@ -234,6 +235,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
           relations.outbound[collection.slug] ?? [],
         ),
         search: collection.search,
+        dateHierarchy: collection.dateHierarchy,
         fields: collection.fields,
         primaryKey: collection.primaryKey,
         labelField: collection.labelField,
@@ -311,6 +313,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? collection.pageSize,
       total,
+      // The strip belongs to the list it navigates, so it is resolved in the
+      // same request rather than left for a second round trip.
+      hierarchy: await collectDateHierarchy(db, collection, params),
     });
   });
 

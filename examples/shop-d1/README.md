@@ -8,7 +8,7 @@ a schema that is *hard* for an admin:
   their parent. This is the inline.
 - **orders → customers**: a second relation, resolved to a label.
 - an enum (`status`) and a date (`placedAt`) — three columns that each filter
-  a different way.
+  a different way, and a date worth drilling into.
 
 It is deliberately unauthenticated so the code stays about the admin surface;
 `blog-d1` is where auth lives. Put a real `AuthAdapter` in front of both routers
@@ -161,6 +161,30 @@ carry an `inlines` property generated from the child's schema) and in the client
 Writes are applied in order on one handle. D1 has no interactive transactions,
 so this is not atomic there yet; `writeInlines` is the single seam where a
 driver-level batch drops in.
+
+## The date drill-down
+
+`orders` adds one more line — `dateHierarchy: "placedAt"` — and the list grows a
+trail above it:
+
+```
+All dates › 2026 › July
+  16 (2)   20 (1)
+```
+
+Clicking a period narrows the list to that half-open window and puts it in the
+URL (`?date=2026-07-16`), so a drilled-in list is a link you can send, and the
+total under the table counts what the window actually holds.
+
+Only periods that *have* records are offered, and the counts are taken **within
+whatever else is narrowing the list** — with `?status=paid` a month emptied by
+that filter disappears from the trail rather than leading to an empty page.
+Those counts come from the database, in one query with a summed `case` per
+period, not one query per period; the year level costs two more reads, because
+which years exist is a fact about the data rather than about the calendar.
+
+The same `date` argument is on the MCP `orders__list` tool, and the response
+carries the trail, so an agent can drill the way the UI does.
 
 ## The filters
 

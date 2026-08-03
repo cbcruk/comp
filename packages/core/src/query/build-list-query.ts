@@ -3,6 +3,8 @@ import {
   asc,
   desc,
   getTableColumns,
+  gte,
+  lt,
   sql,
   type Column,
   type SQL,
@@ -11,6 +13,7 @@ import {
 import type { BaseSQLiteDatabase, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Collection } from "../collection/define-collection.types.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
+import { datePathRange } from "../hierarchy/date-path.js";
 import { filterConditions } from "./build-filter-where.js";
 import { searchConditions } from "./build-search-where.js";
 import type { ListParams } from "./list-query.types.js";
@@ -37,7 +40,13 @@ function asFilterValue(value: unknown): FilterValue | null {
   return { op: "exact", value };
 }
 
-function buildWhere(
+/**
+ * The conditions a list request resolves to: its filters, its search, and the
+ * window a date drill-down has narrowed to. Exported so the hierarchy strip
+ * counts within the same result set the list shows — offering a month that the
+ * current filters have emptied would be a link to nothing.
+ */
+export function buildListWhere(
   db: SqliteDb,
   collection: Collection,
   params: ListParams,
@@ -58,6 +67,16 @@ function buildWhere(
 
   const term = params.search?.trim();
   if (term) conditions.push(...searchConditions(db, collection, term));
+
+  // The drill-down narrows the same column the date filter would, through the
+  // same half-open range — it is navigation, not a second kind of filter.
+  const window = params.datePath ? datePathRange(params.datePath) : null;
+  if (window && collection.dateHierarchy) {
+    const column = columns[collection.dateHierarchy];
+    if (column) {
+      conditions.push(and(gte(column, window.from), lt(column, window.to))!);
+    }
+  }
 
   if (conditions.length === 0) return undefined;
   return conditions.length === 1 ? conditions[0] : and(...conditions);
@@ -88,7 +107,7 @@ export function buildListQuery(
   collection: Collection,
   params: ListParams = {},
 ) {
-  const where = buildWhere(db, collection, params);
+  const where = buildListWhere(db, collection, params);
   const orderBy = buildOrderBy(collection, params);
   const pageSize = Math.max(1, params.pageSize ?? collection.pageSize);
   const page = Math.max(1, params.page ?? 1);
@@ -111,9 +130,9 @@ export function buildListQuery(
 export function buildCountQuery(
   db: SqliteDb,
   collection: Collection,
-  params: Pick<ListParams, "search" | "filters" | "now"> = {},
+  params: Pick<ListParams, "search" | "filters" | "now" | "datePath"> = {},
 ) {
-  const where = buildWhere(db, collection, params);
+  const where = buildListWhere(db, collection, params);
   const query = db
     .select({ count: sql<number>`count(*)` })
     .from(collection.model as unknown as SQLiteTable)
