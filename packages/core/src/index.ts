@@ -31,13 +31,16 @@ export {
   parseFilterValue,
 } from "./filters/filter-value.js";
 export {
+  DEFAULT_VALUES_LIMIT,
   filterFields,
   filterSummaries,
   inferFilterKind,
   resolveFilters,
 } from "./filters/resolve-filters.js";
+export { collectFilterChoices } from "./filters/collect-choices.js";
 export type {
   DatePreset,
+  FilterChoices,
   FilterConfig,
   FilterKind,
   FilterMap,
@@ -50,6 +53,7 @@ export {
   filterCondition,
   filterConditions,
 } from "./query/build-filter-where.js";
+export { buildDistinctValuesQuery } from "./query/build-choices-query.js";
 
 export { resolveForm, stripReadonly } from "./form/resolve-form.js";
 export type { FormConfig } from "./form/resolve-form.js";

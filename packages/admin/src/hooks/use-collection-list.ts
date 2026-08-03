@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DateHierarchy } from "@comp/core";
+import type { DateHierarchy, FilterChoices } from "@comp/core";
 import type {
   CompClient,
   ListQuery,
@@ -14,6 +14,8 @@ export interface UseCollectionListResult {
   total: number;
   /** The date drill-down strip the server resolved for this list. */
   hierarchy: DateHierarchy | null;
+  /** Per-field values a distinct-value filter offers, read from the data. */
+  choices: FilterChoices[];
   query: ListQuery;
   loading: boolean;
   error: Error | null;
@@ -45,6 +47,7 @@ export function useCollectionList(
   const [pageSize, setPageSize] = useState(initialQuery.pageSize ?? 0);
   const [total, setTotal] = useState(0);
   const [hierarchy, setHierarchy] = useState<DateHierarchy | null>(null);
+  const [choices, setChoices] = useState<FilterChoices[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -79,6 +82,7 @@ export function useCollectionList(
         setPageSize(result.pageSize);
         setTotal(result.total);
         setHierarchy(result.hierarchy ?? null);
+        setChoices(result.choices ?? []);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -99,6 +103,7 @@ export function useCollectionList(
     pageSize,
     total,
     hierarchy,
+    choices,
     query,
     loading,
     error,

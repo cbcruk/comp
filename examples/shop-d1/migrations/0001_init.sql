@@ -8,6 +8,7 @@ CREATE TABLE `orders` (
   `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
   `reference` text NOT NULL,
   `customer_id` integer REFERENCES `customers`(`id`),
+  `channel` text,
   `status` text DEFAULT 'draft' NOT NULL,
   `placed_at` integer NOT NULL
 );

@@ -79,6 +79,7 @@ export {
   DATE_PRESETS,
   NULL_OPTIONS,
   activeLabel,
+  choicesFor,
   controlFor,
   optionsFor as filterOptionsFor,
 } from "./collection-browser/filter-controls.js";

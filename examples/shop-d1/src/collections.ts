@@ -15,6 +15,9 @@ export const customerCollection = defineCollection({
 export const orderItemCollection = defineCollection({
   model: orderItems,
   listDisplay: ["product", "quantity", "unitPrice"],
+  // Nothing declares what a product may be, so the filter reads the column:
+  // the products actually ordered, and nothing else.
+  filters: [{ field: "product", kind: "values" }],
   ordering: [{ field: "id", direction: "asc" }],
 });
 
@@ -23,15 +26,17 @@ export const orderCollection = defineCollection({
   listDisplay: ["reference", "customerId", "status", "placedAt"],
   // Each of these filters a different way, and none of it is configured here:
   // status offers its enum values, customerId the customers it points at plus
-  // empty/not-empty, placedAt the date windows.
-  filters: ["status", "customerId", "placedAt"],
+  // empty/not-empty, placedAt the date windows, and channel — a plain text
+  // column — the values the orders themselves hold, plus Empty for the ones
+  // that never said.
+  filters: ["status", { field: "channel", kind: "values" }, "customerId", "placedAt"],
   // The same column, navigated instead of selected: year → month → day.
   dateHierarchy: "placedAt",
   // Find an order by its reference, or by who placed it.
   search: ["^reference", "customerId__name", "customerId__email"],
   ordering: [{ field: "placedAt", direction: "desc" }],
   fieldsets: [
-    { title: "Order", fields: [["reference", "customerId"]] },
+    { title: "Order", fields: [["reference", "customerId"], "channel"] },
     { title: "Status", fields: [["status", "placedAt"]], collapsed: true },
   ],
   radioFields: ["status"],

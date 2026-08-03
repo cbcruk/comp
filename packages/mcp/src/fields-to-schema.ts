@@ -140,6 +140,14 @@ function filterHint(filter: ResolvedFilter): string {
     case "relation":
       parts.push(`an id from ${filter.table ?? "the referenced table"}`, "or in:1,2");
       break;
+    case "values":
+      // The set is whatever the column holds right now, so it cannot be in a
+      // schema generated at startup — the list result carries it instead.
+      parts.push(
+        "a value this column holds; the list result's `choices` names them",
+        "or in:a,b",
+      );
+      break;
     default:
       parts.push("an exact value");
   }

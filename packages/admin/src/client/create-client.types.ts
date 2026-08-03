@@ -6,6 +6,7 @@ import type {
   DeleteImpact,
   FieldMap,
   DateHierarchy,
+  FilterChoices,
   FilterSummary,
   HistoryEntry,
   InboundRelation,
@@ -69,6 +70,11 @@ export interface ListResult {
   total: number;
   /** The drill-down strip for this list; null when none is declared. */
   hierarchy?: DateHierarchy | null;
+  /**
+   * What each distinct-value filter may be set to, read from the data. Absent
+   * unless the collection declares one.
+   */
+  choices?: FilterChoices[];
 }
 
 export interface ListQuery {

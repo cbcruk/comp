@@ -2,6 +2,7 @@ import {
   formatFilterValue,
   parseFilterValue,
   type DatePreset,
+  type FilterChoices,
   type FilterOption,
   type FilterSummary,
 } from "@comp/core";
@@ -21,11 +22,12 @@ export const DATE_PRESETS: { value: DatePreset; label: string }[] = [
 
 /**
  * How a filter should be rendered. `select` covers everything with a known set
- * of answers; `reference` fetches its answers from the collection the key
- * points at; `text` is the fallback for a column whose values nothing can
- * enumerate.
+ * of answers; `values` is a select whose answers the current list reports,
+ * because only the data knows them; `reference` fetches its answers from the
+ * collection the key points at; `text` is the fallback for a column whose
+ * values nothing can enumerate.
  */
-export type FilterControl = "select" | "reference" | "text";
+export type FilterControl = "select" | "values" | "reference" | "text";
 
 export function controlFor(filter: FilterSummary): FilterControl {
   switch (filter.kind) {
@@ -33,11 +35,28 @@ export function controlFor(filter: FilterSummary): FilterControl {
     case "boolean":
     case "date":
       return "select";
+    case "values":
+      // Its answers come with the list rather than with the collection, so it
+      // is a select whose options arrive per request.
+      return "values";
     case "relation":
       return filter.collection ? "reference" : "text";
     default:
       return "text";
   }
+}
+
+/**
+ * What a distinct-value filter offers this time round: the values the column
+ * holds, with the empty entry already in place when there are rows without one.
+ * The list already encodes each option as its query value, so this is only the
+ * lookup by field.
+ */
+export function choicesFor(
+  choices: readonly FilterChoices[] | undefined,
+  field: string,
+): FilterChoices | undefined {
+  return choices?.find((entry) => entry.field === field);
 }
 
 /**

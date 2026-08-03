@@ -8,6 +8,7 @@ import type { CollectionBrowserProps } from "./collection-browser.types.js";
 import { InlineInput } from "./inline-cell.js";
 import { canEditColumn, isEditing } from "./inline-edit.js";
 import { DateHierarchyStrip } from "./date-hierarchy.js";
+import { choicesFor } from "./filter-controls.js";
 import { FilterField } from "./filter-field.js";
 import { searchPlaceholder } from "./search-placeholder.js";
 import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
@@ -46,7 +47,7 @@ export function CollectionBrowser({
     () => references ?? referencesFromRelations(collection.relations),
     [references, collection.relations],
   );
-  const { rows, page, pageSize: size, total, hierarchy, query, loading, error, setQuery, reload, applyLocal } =
+  const { rows, page, pageSize: size, total, hierarchy, choices, query, loading, error, setQuery, reload, applyLocal } =
     useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
 
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -163,6 +164,9 @@ export function CollectionBrowser({
           key={filter.field}
           client={client}
           filter={filter}
+          // A distinct-value filter's options travel with the list, not with
+          // the collection — only the data knows them.
+          choices={choicesFor(choices, filter.field)}
           value={filters[filter.field] ?? ""}
           onChange={(value) =>
             // Changing a filter returns to the first page: page 4 of the old
