@@ -1,5 +1,5 @@
 import { bulkDeleteAction, defineCollection } from "@comp/core";
-import { customers, orderItems, orders } from "./schema.js";
+import { customers, orderItems, orderTags, orders, tags } from "./schema.js";
 
 export const customerCollection = defineCollection({
   model: customers,
@@ -21,6 +21,12 @@ export const orderItemCollection = defineCollection({
   ordering: [{ field: "id", direction: "asc" }],
 });
 
+export const tagCollection = defineCollection({
+  model: tags,
+  listDisplay: ["name"],
+  search: ["name"],
+});
+
 export const orderCollection = defineCollection({
   model: orders,
   listDisplay: ["reference", "customerId", "status", "placedAt"],
@@ -29,7 +35,12 @@ export const orderCollection = defineCollection({
   // empty/not-empty, placedAt the date windows, and channel — a plain text
   // column — the values the orders themselves hold, plus Empty for the ones
   // that never said.
-  filters: ["status", { field: "channel", kind: "values" }, "customerId", "placedAt"],
+  filters: [
+    "status",
+    { field: "channel", kind: "values" },
+    "customerId",
+    "placedAt",
+  ],
   // The same column, navigated instead of selected: year → month → day.
   dateHierarchy: "placedAt",
   // Find an order by its reference, or by who placed it.
@@ -41,12 +52,17 @@ export const orderCollection = defineCollection({
   ],
   radioFields: ["status"],
   inlines: ["order_items"],
+  // Which key is the order's and which is the tag's is read off `order_tags`;
+  // all that is declared here is the table and the other side.
+  // Filterable too: "orders tagged rush", matched through the join table.
+  manyToMany: [{ collection: "tags", through: orderTags, filter: true }],
 });
 
 export const collections = [
   orderCollection,
   orderItemCollection,
   customerCollection,
+  tagCollection,
 ];
 
 export const actions = [bulkDeleteAction(orderCollection.slug)];

@@ -1,4 +1,5 @@
 import type { FieldMap, FieldMeta } from "../introspection/introspect-table.types.js";
+import type { ManyToManyMeta } from "../m2m/m2m.types.js";
 import type {
   FilterConfig,
   FilterKind,
@@ -90,11 +91,30 @@ function checkValuesKind(name: string, field: FieldMeta): void {
 export function resolveFilters(
   fields: FieldMap,
   configs: FilterConfig[],
+  manyToMany: ManyToManyMeta[] = [],
 ): ResolvedFilter[] {
   const resolved: ResolvedFilter[] = [];
+  const byName = new Map(manyToMany.map((meta) => [meta.name, meta]));
 
   for (const config of configs) {
     const { field: name, kind: override, limit } = normalize(config);
+
+    // A many-to-many is filterable by name, not by column — there is no column
+    // to read, which is the whole reason it needed the join table.
+    const link = byName.get(name);
+    if (link) {
+      resolved.push({
+        field: name,
+        kind: "m2m",
+        options: [],
+        // "Empty" reads as "linked to nothing", which is a question worth
+        // being able to ask of any relationship.
+        nullable: true,
+        table: link.table,
+      });
+      continue;
+    }
+
     const field = fields[name];
     if (!field) continue;
 
@@ -136,8 +156,26 @@ export function filterSummaries(
     targetField: string;
     labelField: string | null;
   }[],
+  manyToMany: readonly {
+    name: string;
+    collection: string;
+    targetKey: string;
+    labelField: string | null;
+  }[] = [],
 ): FilterSummary[] {
   return filters.map((filter) => {
+    if (filter.kind === "m2m") {
+      // Its choices are the far collection's records, fetched the way a
+      // relation filter's are — the UI is told which collection, never the app.
+      const link = manyToMany.find((entry) => entry.name === filter.field);
+      if (!link) return { ...filter, kind: "exact", options: [] };
+      return {
+        ...filter,
+        collection: link.collection,
+        targetField: link.targetKey,
+        labelField: link.labelField,
+      };
+    }
     if (filter.kind !== "relation") return filter;
     const relation = outbound.find((entry) => entry.field === filter.field);
     if (!relation) return { ...filter, kind: "exact", options: [] };

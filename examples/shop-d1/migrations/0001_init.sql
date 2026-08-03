@@ -13,6 +13,17 @@ CREATE TABLE `orders` (
   `placed_at` integer NOT NULL
 );
 
+CREATE TABLE `tags` (
+  `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  `name` text NOT NULL
+);
+
+CREATE TABLE `order_tags` (
+  `order_id` integer NOT NULL REFERENCES `orders`(`id`) ON DELETE cascade,
+  `tag_id` integer NOT NULL REFERENCES `tags`(`id`) ON DELETE cascade,
+  PRIMARY KEY (`order_id`, `tag_id`)
+);
+
 CREATE TABLE `order_items` (
   `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
   `order_id` integer NOT NULL REFERENCES `orders`(`id`) ON DELETE cascade,

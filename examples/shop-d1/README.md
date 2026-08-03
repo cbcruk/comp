@@ -7,6 +7,8 @@ a schema that is *hard* for an admin:
 - **orders → order_items**: dependent rows that only make sense edited with
   their parent. This is the inline.
 - **orders → customers**: a second relation, resolved to a label.
+- **orders ↔ tags**: a many-to-many through a join table — the one relationship
+  shape that has no column to hang off.
 - an enum (`status`) and a date (`placedAt`) — three columns that each filter
   a different way, and a date worth drilling into.
 
@@ -91,6 +93,54 @@ the slug yourself, and `readonlyFields: ["createdAt"]` shows the timestamp
 without letting anything write it. That last one is enforced in core: a request
 that names a readonly field has the value dropped before the insert, so it holds
 over HTTP and MCP alike rather than depending on the UI hiding an input.
+
+## The many-to-many
+
+An order can carry any number of tags, and a tag any number of orders. There is
+no column for that on either table — the join table is the relationship:
+
+```ts
+manyToMany: [{ collection: "tags", through: orderTags, filter: true }],
+```
+
+That names the join table and the far side. Which key is the order's and which
+is the tag's is read off `order_tags`'s own foreign keys, so nothing is
+declared twice. `through` has to be passed because nothing points *at* a join
+table — the registry has no way to find it — and a table that misses a side, or
+reaches one twice without saying which key to use, throws at startup.
+
+The form gets a checkbox per tag, with the linked ones ticked. Saving sends the
+whole set:
+
+```
+PATCH /admin/collections/orders/1
+{ "manyToMany": { "tags": [2, 5] } }
+```
+
+That is Django's `.set()`, and it is the shape because it is what a form can
+honestly produce: a widget knows what is selected now, not what changed since
+it was drawn. The server reads the current links and works out the difference,
+so a tag that was already there is not deleted and re-added. Three rules keep it
+safe: an id that does not exist is refused rather than dropped (half a selection
+saved silently is the kind of save that looks like it worked), a relationship
+the request never mentions is left alone (a form that does not render one must
+not clear it), and the unlink is scoped to the order in SQL, so an id from
+someone else's set takes nothing with it.
+
+`filter: true` also puts it in the filter bar — "orders tagged rush". It
+compiles to a subquery, not a join:
+
+```sql
+where "orders"."id" in (select "order_id" from "order_tags" where "tag_id" = ?)
+```
+
+A join would list an order once per matching tag, and the total under the table
+would stop matching the rows. `isnull:true` asks for the orders with no tags at
+all — for a relationship, that is what empty means.
+
+The filter is declared on the relationship rather than in `filters`, because
+`filters` is checked against the table's columns while you type, and a
+relationship does not have one.
 
 ## The delete confirmation
 
@@ -195,6 +245,7 @@ column:
 | Column | Kind | What it offers |
 | --- | --- | --- |
 | `status` | `choices` | its own enum values, singly or `in:draft,paid` |
+| `tags` | `m2m` | the tags themselves, matched through the join table |
 | `channel` | `values` | the values the orders actually hold, plus Empty |
 | `customerId` | `relation` | the customers it points at, plus Empty / Not empty |
 | `placedAt` | `date` | Today, Past 7 days, This month, This year, or `range:FROM..TO` |

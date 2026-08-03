@@ -9,7 +9,8 @@ export type FilterKind =
   | "boolean"
   | "date"
   | "relation"
-  | "values";
+  | "values"
+  | "m2m";
 
 /** One ready-made choice, for kinds that enumerate their values. */
 export interface FilterOption {
@@ -27,7 +28,7 @@ export interface ResolvedFilter {
   options: FilterOption[];
   /** Whether the column can be null — an empty/not-empty choice is offered. */
   nullable: boolean;
-  /** For `relation`: the referenced table, bound to a collection downstream. */
+  /** For `relation`/`m2m`: the referenced table, bound to a collection downstream. */
   table?: string;
   /** For `values`: how many distinct values to offer before saying "more". */
   limit?: number;

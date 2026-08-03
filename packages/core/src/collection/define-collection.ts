@@ -4,6 +4,7 @@ import { resolveFilters } from "../filters/resolve-filters.js";
 import { resolveForm } from "../form/resolve-form.js";
 import { resolveLabels } from "../site/labels.js";
 import { resolveSearch } from "../search/resolve-search.js";
+import { resolveManyToMany } from "../m2m/resolve-m2m.js";
 import { resolveLabelField } from "./label-field.js";
 import type {
   Collection,
@@ -50,6 +51,10 @@ export function defineCollection<TTable extends Table>(
     }
   }
 
+  const manyToMany = (config.manyToMany ?? []).map((entry) =>
+    resolveManyToMany(slug, config.model, entry),
+  );
+
   return {
     slug,
     ...labels,
@@ -65,13 +70,23 @@ export function defineCollection<TTable extends Table>(
         introspection.primaryKey,
       ),
     listDisplay: config.listDisplay,
-    filters: resolveFilters(introspection.fields, config.filters ?? []),
+    filters: resolveFilters(
+      introspection.fields,
+      [
+        ...(config.filters ?? []),
+        // A relationship declares its own filter, since its name is not a
+        // column and `filters` is checked against the columns.
+        ...manyToMany.filter((link) => link.filter).map((link) => link.name),
+      ],
+      manyToMany,
+    ),
     search: resolveSearch(slug, introspection.fields, config.search ?? []),
     dateHierarchy: config.dateHierarchy ?? null,
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
     form: resolveForm(slug, introspection.fields, introspection.primaryKey, config),
     inlines: config.inlines ?? [],
+    manyToMany,
     manifest: {
       collection: slug,
       operations,

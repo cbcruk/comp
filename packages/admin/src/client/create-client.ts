@@ -3,6 +3,7 @@ import type {
   DeleteImpact,
   HistoryEntry,
   InlineWritePayload,
+  ManyToManyWrite,
 } from "@comp/core";
 import { CompClientError } from "./client-error.js";
 import type {
@@ -63,11 +64,19 @@ export function createClient(options: ClientOptions): CompClient {
     );
   }
 
-  /** A record and its child rows travel in one request — one user action. */
-  function withInlines(values: Row, inlines?: InlineWritePayload): Row {
-    return inlines && Object.keys(inlines).length > 0
-      ? { ...values, inlines }
-      : values;
+  /** A record, its child rows and its links travel in one request. */
+  function nested(
+    values: Row,
+    inlines?: InlineWritePayload,
+    manyToMany?: ManyToManyWrite,
+  ): Row {
+    return {
+      ...values,
+      ...(inlines && Object.keys(inlines).length > 0 ? { inlines } : {}),
+      ...(manyToMany && Object.keys(manyToMany).length > 0
+        ? { manyToMany }
+        : {}),
+    };
   }
 
   return {
@@ -81,17 +90,23 @@ export function createClient(options: ClientOptions): CompClient {
       return unwrap(await getRecord(slug, id));
     },
     getRecord,
-    async create(slug, values, inlines) {
+    async create(slug, values, inlines, manyToMany) {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}`,
-        { method: "POST", body: JSON.stringify(withInlines(values, inlines)) },
+        {
+          method: "POST",
+          body: JSON.stringify(nested(values, inlines, manyToMany)),
+        },
       );
       return unwrap(body);
     },
-    async update(slug, id, values, inlines) {
+    async update(slug, id, values, inlines, manyToMany) {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
-        { method: "PATCH", body: JSON.stringify(withInlines(values, inlines)) },
+        {
+          method: "PATCH",
+          body: JSON.stringify(nested(values, inlines, manyToMany)),
+        },
       );
       return unwrap(body);
     },

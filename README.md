@@ -5,10 +5,10 @@ rebuilt for the edge. Declare a collection over a Drizzle schema and Comp
 generates the list view, filters, search, detail/edit forms, relation widgets,
 and bulk actions, running on Cloudflare Workers.
 
-Comp covers the single-table slice of Django's admin plus relations, inlines,
-real filter and search lookups, date drill-down, form layout, history,
-per-object permissions, and a generated admin site; many-to-many is the open
-work. See the parity backlog in `CLAUDE.md`.
+Comp covers Django's admin end to end for a single table plus its relations:
+inlines, many-to-many, real filter and search lookups, date drill-down, form
+layout, history, per-object permissions, and a generated admin site. See what
+each one reproduces — and what is still open — in `CLAUDE.md`.
 
 ```ts
 defineCollection({
@@ -103,6 +103,11 @@ v0.1 in progress. Implemented end-to-end:
   request (`inlines: ["order_items"]`), resolved against the relation graph and
   scoped to the parent in SQL. Exposed over HTTP, MCP, and the React
   `InlineEditor`.
+- Many-to-many: `manyToMany: [{ collection: "tags", through: orderTags }]`
+  names the join table and the far side; which key is whose comes from the
+  schema. The widget checks off the related records, a save sets the whole
+  membership (Django's `.set()`), and the filter matches through a subquery so
+  a record with two matching tags is still listed once.
 - Zod schema derivation and validated create/update/delete mutations.
 - Read + write API over Hono, gated on the collection manifest.
 - Declarative bulk/custom actions carrying their own capability manifest.

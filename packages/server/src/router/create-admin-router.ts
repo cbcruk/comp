@@ -5,6 +5,7 @@ import {
   buildRecordsByIdsQuery,
   allowAll,
   authorizeRecordAccess,
+  bindManyToMany,
   checksRecords,
   collectDateHierarchy,
   collectFilterChoices,
@@ -16,7 +17,9 @@ import {
   InlineError,
   inlineOperations,
   inlineSummary,
+  manyToManySummary,
   readInlines,
+  readManyToMany,
   resolveDeleteRelations,
   resolveInlines,
   resolveRelations,
@@ -26,6 +29,7 @@ import {
   validateUpdate,
   ValidationError,
   writeInlines,
+  writeManyToMany,
   type ActionDefinition,
   type AuthAdapter,
   type Collection,
@@ -35,6 +39,8 @@ import {
   type Identity,
   type InlineSpec,
   type InlineWritePayload,
+  type ManyToManySpec,
+  type ManyToManyWrite,
   type RecordScope,
   type SqliteDb,
 } from "@comp/core";
@@ -112,6 +118,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   // graph, and a bad declaration throws here, at startup, not on a request.
   const relations = resolveRelations(config.collections);
   const inlines = resolveInlines(config.collections);
+  // A join table is not a collection, so the far side of every many-to-many is
+  // bound here, where the registry is known — the same startup step inlines
+  // and the relation graph take.
+  const links = bindManyToMany(config.collections);
   const deleteRelations = resolveDeleteRelations(config.collections);
   const actionsBySlug = new Map<string, ActionDefinition[]>();
   for (const action of config.actions ?? []) {
@@ -225,6 +235,50 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     return inlines.get(collection.slug) ?? [];
   }
 
+  function linksFor(collection: Collection): ManyToManySpec[] {
+    return links.get(collection.slug) ?? [];
+  }
+
+  /**
+   * A record's links, gated per relationship on listing the far collection —
+   * reaching its records sideways must not grant more than reaching them
+   * directly would.
+   */
+  async function linkedIds(
+    c: Context,
+    collection: Collection,
+    row: Record<string, unknown>,
+    db: SqliteDb,
+  ): Promise<Record<string, unknown[]> | undefined> {
+    return readManyToMany(db, linksFor(collection), row, async (spec) => {
+      if (!allows(spec.target, "list")) return false;
+      return authorized(c, spec.target, "list");
+    });
+  }
+
+  /**
+   * Refuse a link write the caller could not make directly: choosing among a
+   * collection's records is a way of reading them, so it answers to that
+   * collection's own permission, exactly as an inline does.
+   */
+  async function refuseLinkWrite(
+    c: Context,
+    collection: Collection,
+    payload: ManyToManyWrite,
+  ): Promise<Response | null> {
+    const byName = new Map(linksFor(collection).map((spec) => [spec.name, spec]));
+    for (const name of Object.keys(payload)) {
+      const spec = byName.get(name);
+      if (!spec) {
+        return c.json({ error: `"${name}" is not a relationship here` }, 400);
+      }
+      if (!(await authorized(c, spec.target, "list"))) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    }
+    return null;
+  }
+
   /**
    * A parent's child rows, with each inline gated on the child's own manifest
    * and permissions — an inline is a view onto another collection, so it never
@@ -331,6 +385,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         filters: filterSummaries(
           collection.filters,
           relations.outbound[collection.slug] ?? [],
+          (links.get(collection.slug) ?? []).map(manyToManySummary),
         ),
         search: collection.search,
         dateHierarchy: collection.dateHierarchy,
@@ -341,6 +396,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         relations: relations.outbound[collection.slug] ?? [],
         inbound: relations.inbound[collection.slug] ?? [],
         inlines: (inlines.get(collection.slug) ?? []).map(inlineSummary),
+        manyToMany: (links.get(collection.slug) ?? []).map(manyToManySummary),
         manifest: collection.manifest,
         actions: (actionsBySlug.get(collection.slug) ?? []).map(
           (action) => action.manifest,
@@ -455,6 +511,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     return c.json({
       data: found.row,
       inlines: await inlineRows(c, collection, found.row, db),
+      manyToMany: await linkedIds(c, collection, found.row, db),
     });
   });
 
@@ -469,7 +526,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const body = splitInlineBody(await parseJsonBody(c));
-    const refusal = await refuseInlineWrite(c, collection, body.inlines);
+    const refusal =
+      (await refuseInlineWrite(c, collection, body.inlines)) ??
+      (await refuseLinkWrite(c, collection, body.manyToMany));
     if (refusal) return refusal;
 
     const db = config.getDb(c);
@@ -486,8 +545,13 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       if (!row) return c.json({ error: "Insert returned no row" }, 500);
 
       await writeInlines(db, specsFor(collection), row, body.inlines);
+      await writeManyToMany(db, linksFor(collection), row, body.manyToMany);
       return c.json(
-        { data: row, inlines: await inlineRows(c, collection, row, db) },
+        {
+          data: row,
+          inlines: await inlineRows(c, collection, row, db),
+          manyToMany: await linkedIds(c, collection, row, db),
+        },
         201,
       );
     } catch (error) {
@@ -506,7 +570,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const body = splitInlineBody(await parseJsonBody(c));
-    const refusal = await refuseInlineWrite(c, collection, body.inlines);
+    const refusal =
+      (await refuseInlineWrite(c, collection, body.inlines)) ??
+      (await refuseLinkWrite(c, collection, body.manyToMany));
     if (refusal) return refusal;
 
     const db = config.getDb(c);
@@ -555,9 +621,11 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       if (!row) return c.json({ error: "Not found" }, 404);
 
       await writeInlines(db, specsFor(collection), row, body.inlines);
+      await writeManyToMany(db, linksFor(collection), row, body.manyToMany);
       return c.json({
         data: row,
         inlines: await inlineRows(c, collection, row, db),
+        manyToMany: await linkedIds(c, collection, row, db),
       });
     } catch (error) {
       return inlineAwareError(c, error);

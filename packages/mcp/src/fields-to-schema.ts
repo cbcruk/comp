@@ -3,6 +3,7 @@ import type {
   FieldMap,
   FieldMeta,
   InlineSpec,
+  ManyToManySpec,
   ResolvedFilter,
 } from "@comp/core";
 import type { JsonSchema } from "./json-schema.js";
@@ -59,6 +60,36 @@ export function fieldsToJsonSchema(
   const schema: JsonSchema = { type: "object", properties };
   if (required.length > 0) schema.required = required;
   return schema;
+}
+
+/**
+ * Describe a record's many-to-many relationships as tool input.
+ *
+ * The value is the whole set of links, not a change to it — Django's `.set()`
+ * — so the property says that outright: a model that sends one id replaces the
+ * membership with that one id, which is the behavior, not a bug to guess at.
+ */
+export function manyToManyToJsonSchema(
+  specs: ManyToManySpec[],
+): JsonSchema | null {
+  if (specs.length === 0) return null;
+
+  const properties: Record<string, JsonSchema> = {};
+  for (const spec of specs) {
+    properties[spec.name] = {
+      type: "array",
+      description:
+        `The complete set of ${spec.target.slug} this record links to, as ` +
+        `${spec.targetKey} values. Sending it replaces the current set; ` +
+        `send [] to unlink everything, and omit it to leave it alone.`,
+      items: { type: "string" },
+    };
+  }
+  return {
+    type: "object",
+    description: "Related records linked through a join table.",
+    properties,
+  };
 }
 
 /**
@@ -140,6 +171,14 @@ function filterHint(filter: ResolvedFilter): string {
     case "relation":
       parts.push(`an id from ${filter.table ?? "the referenced table"}`, "or in:1,2");
       break;
+    case "m2m":
+      // The choices are the far collection's records; there is no column here
+      // to read them off, which is what the join table is for.
+      parts.push(
+        `an id from ${filter.table ?? "the related table"}`,
+        "or in:1,2 for any of them",
+      );
+      break;
     case "values":
       // The set is whatever the column holds right now, so it cannot be in a
       // schema generated at startup — the list result carries it instead.
@@ -151,7 +190,12 @@ function filterHint(filter: ResolvedFilter): string {
     default:
       parts.push("an exact value");
   }
-  if (filter.nullable) parts.push("or isnull:true / isnull:false");
+  if (filter.kind === "m2m") {
+    // Empty means "linked to nothing" here — there is no column to be null.
+    parts.push("or isnull:true for the records with no links / isnull:false");
+  } else if (filter.nullable) {
+    parts.push("or isnull:true / isnull:false");
+  }
   return parts.join("; ");
 }
 

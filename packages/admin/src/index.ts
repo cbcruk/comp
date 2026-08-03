@@ -127,6 +127,15 @@ export {
 } from "./inline-editor/inline-rows.js";
 export type { InlineRow } from "./inline-editor/inline-rows.js";
 
+export { ManyToManySelect } from "./many-to-many/many-to-many-select.js";
+export type { ManyToManySelectProps } from "./many-to-many/many-to-many-select.js";
+export {
+  changedLinks,
+  isLinked,
+  linksChanged,
+  toggleLink,
+} from "./many-to-many/links.js";
+
 export { ReferenceSelect } from "./reference-select/reference-select.js";
 export type { ReferenceSelectProps } from "./reference-select/reference-select.types.js";
 export { toOptions } from "./reference-select/reference-select.utils.js";

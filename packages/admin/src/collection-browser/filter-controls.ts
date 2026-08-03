@@ -40,6 +40,9 @@ export function controlFor(filter: FilterSummary): FilterControl {
       // is a select whose options arrive per request.
       return "values";
     case "relation":
+    case "m2m":
+      // Both offer records from another collection; an m2m's come through the
+      // join table, which is the query layer's business, not the widget's.
       return filter.collection ? "reference" : "text";
     default:
       return "text";

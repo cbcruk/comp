@@ -243,3 +243,46 @@ describe("the auth adapter over MCP", () => {
     expect(forbidden.content[0]?.text).toContain("Forbidden");
   });
 });
+
+describe("many-to-many over MCP", () => {
+  const tags = sqliteTable("tags", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+  });
+  const postTags = sqliteTable("post_tags", {
+    postId: integer("post_id")
+      .notNull()
+      .references(() => posts.id),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id),
+  });
+
+  const tagged = defineCollection({
+    model: posts,
+    slug: "posts",
+    listDisplay: ["title"],
+    manyToMany: [{ collection: "tags", through: postTags, filter: true }],
+  });
+  const tagCollection = defineCollection({
+    model: tags,
+    listDisplay: ["name"],
+    labelField: "name",
+  });
+  const registry = buildToolRegistry([tagged, tagCollection], []);
+
+  it("offers the whole set as a write property, and says so", () => {
+    const create = registry.get("posts__create")?.tool.inputSchema;
+    const links = create?.properties?.manyToMany;
+    expect(links?.properties?.tags?.type).toBe("array");
+    // The behavior a model has to know: this replaces, it does not append.
+    expect(links?.properties?.tags?.description).toContain("replaces");
+  });
+
+  it("says how to filter by it, including the records with no links", () => {
+    const list = registry.get("posts__list")?.tool.inputSchema;
+    const hint = list?.properties?.filters?.properties?.tags?.description ?? "";
+    expect(hint).toContain("an id from tags");
+    expect(hint).toContain("no links");
+  });
+});

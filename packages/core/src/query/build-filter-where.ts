@@ -10,6 +10,8 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { Collection } from "../collection/define-collection.types.js";
+import { manyToManyCondition } from "./build-m2m-query.js";
+import type { SqliteDb } from "./build-list-query.js";
 import { coerceFilterOperand, dateRangeFor } from "../filters/filter-value.js";
 import type { FilterMap, FilterValue } from "../filters/filter.types.js";
 import type { FieldMeta } from "../introspection/introspect-table.types.js";
@@ -68,12 +70,25 @@ export function filterConditions(
   columns: Record<string, Column>,
   filters: FilterMap,
   now: Date,
+  db?: SqliteDb,
 ): SQL[] {
   const declared = new Set(collection.filters.map((filter) => filter.field));
+  const links = new Map(collection.manyToMany.map((meta) => [meta.name, meta]));
   const conditions: SQL[] = [];
 
   for (const [name, value] of Object.entries(filters)) {
     if (!declared.has(name)) continue;
+
+    // A relationship is filtered through its join table, not through a column
+    // of this one — it has none, which is why it needed the join table.
+    const link = links.get(name);
+    if (link) {
+      if (!db) continue;
+      const condition = manyToManyCondition(collection, link, value, db);
+      if (condition) conditions.push(condition);
+      continue;
+    }
+
     const column = columns[name];
     const field = collection.fields[name];
     if (!column || !field) continue;
