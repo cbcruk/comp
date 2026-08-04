@@ -1,4 +1,5 @@
 import {
+  bindManyToMany,
   inlineSummary,
   resolveDeleteRelations,
   resolveInlines,
@@ -7,11 +8,13 @@ import {
   type CollectionOperation,
   type DeleteRelation,
   type InlineSpec,
+  type ManyToManySpec,
 } from "@comp/core";
 import {
   fieldsToJsonSchema,
   filtersToJsonSchema,
   inlinesToJsonSchema,
+  manyToManyToJsonSchema,
 } from "./fields-to-schema.js";
 import type { JsonSchema } from "./json-schema.js";
 
@@ -37,6 +40,8 @@ export interface ToolBinding {
   collection: Collection;
   /** Inlines of this collection, so a write tool can apply them. */
   inlines: InlineSpec[];
+  /** Many-to-many relationships, so a write tool can set their links. */
+  links?: ManyToManySpec[];
   /** Inbound keys, so a delete can be described before it runs. */
   deleteRelations?: DeleteRelation[];
   actionName?: string;
@@ -94,26 +99,33 @@ function toolName(slug: string, suffix: string): string {
   return `${slug}__${suffix}`;
 }
 
-/** Attach the generated `inlines` property to a write tool's input schema. */
-function withInlines(
+/** Attach the generated nested-write properties to a write tool's schema. */
+function withNested(
   schema: JsonSchema,
   inlineSchema: JsonSchema | null,
+  linkSchema: JsonSchema | null,
 ): JsonSchema {
-  if (!inlineSchema) return schema;
+  if (!inlineSchema && !linkSchema) return schema;
   return {
     ...schema,
-    properties: { ...schema.properties, inlines: inlineSchema },
+    properties: {
+      ...schema.properties,
+      ...(inlineSchema ? { inlines: inlineSchema } : {}),
+      ...(linkSchema ? { manyToMany: linkSchema } : {}),
+    },
   };
 }
 
 function readTools(
   collection: Collection,
   inlines: InlineSpec[],
+  links: ManyToManySpec[] = [],
 ): ToolBinding[] {
   const bindings: ToolBinding[] = [];
   const ops = collection.manifest.operations;
   const slug = collection.slug;
   const inlineSchema = inlinesToJsonSchema(inlines);
+  const linkSchema = manyToManyToJsonSchema(links);
   const inlineNote =
     inlines.length > 0
       ? ` Child rows (${inlines.map((i) => inlineSummary(i).collection).join(", ")}) can be written in the same call.`
@@ -173,9 +185,10 @@ function readTools(
       tool: {
         name: toolName(slug, "create"),
         description: `Create a ${slug} record.${inlineNote}`,
-        inputSchema: withInlines(
+        inputSchema: withNested(
           fieldsToJsonSchema(collection.fields, { skip: collection.form.readonly }),
           inlineSchema,
+          linkSchema,
         ),
       },
     });
@@ -192,13 +205,14 @@ function readTools(
       tool: {
         name: toolName(slug, "update"),
         description: `Update a ${slug} record by id.${inlineNote}`,
-        inputSchema: withInlines(
+        inputSchema: withNested(
           {
             type: "object",
             properties: { id: { type: "string" }, ...fieldSchema.properties },
             required: ["id"],
           },
           inlineSchema,
+          linkSchema,
         ),
       },
     });
@@ -244,12 +258,18 @@ export function buildToolRegistry(
   // Inlines bind to the relation graph over the whole registry, exactly as in
   // the HTTP API — one resolution, two transports.
   const inlines = resolveInlines(collections);
+  const links = bindManyToMany(collections);
   const deleteRelations = resolveDeleteRelations(collections);
 
   for (const collection of collections) {
-    for (const binding of readTools(collection, inlines.get(collection.slug) ?? [])) {
+    for (const binding of readTools(
+      collection,
+      inlines.get(collection.slug) ?? [],
+      links.get(collection.slug) ?? [],
+    )) {
       registry.set(binding.tool.name, {
         ...binding,
+        links: links.get(collection.slug) ?? [],
         deleteRelations: deleteRelations.get(collection.slug) ?? [],
       });
     }
@@ -264,6 +284,7 @@ export function buildToolRegistry(
       kind: "action",
       collection,
       inlines: [],
+      links: [],
       deleteRelations: [],
       actionName: action.name,
       operations: action.operations,

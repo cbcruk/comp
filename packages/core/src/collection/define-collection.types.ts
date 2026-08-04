@@ -6,6 +6,10 @@ import type {
 import type { ResolvedForm } from "../form/form.types.js";
 import type { FormConfig } from "../form/resolve-form.js";
 import type { InlineConfig } from "../inline/inline.types.js";
+import type {
+  ManyToManyConfig,
+  ManyToManyMeta,
+} from "../m2m/m2m.types.js";
 import type { ResolvedSearch } from "../search/search.types.js";
 import type {
   FieldMap,
@@ -94,6 +98,12 @@ export interface CollectionConfig<TTable extends Table>
    * points here more than once.
    */
   inlines?: InlineConfig[];
+  /**
+   * Many-to-many relationships this collection edits. Each names the join
+   * table and the collection on the far side; which key is which is read off
+   * the join table's own foreign keys.
+   */
+  manyToMany?: ManyToManyConfig[];
 }
 
 /**
@@ -130,5 +140,11 @@ export interface Collection {
   form: ResolvedForm;
   /** Declared inlines, as authored; `resolveInlines` binds them to the graph. */
   inlines: InlineConfig[];
+  /**
+   * Many-to-many relationships, resolved against their join tables. The far
+   * side is still a table name here; `bindManyToMany` turns it into a
+   * collection over the registry.
+   */
+  manyToMany: ManyToManyMeta[];
   manifest: CollectionManifest;
 }

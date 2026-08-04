@@ -15,6 +15,7 @@ import {
   parseDatePath,
   parseFilterValue,
   readInlines,
+  readManyToMany,
   resolveScope,
   runAction,
   updateRecord,
@@ -22,6 +23,7 @@ import {
   validateUpdate,
   ValidationError,
   writeInlines,
+  writeManyToMany,
   type ActionDefinition,
   type AuthAdapter,
   type Collection,
@@ -30,6 +32,8 @@ import {
   type HistoryStore,
   type InlineSpec,
   type InlineWritePayload,
+  type ManyToManySpec,
+  type ManyToManyWrite,
   type Identity,
   type ListParams,
   type RecordScope,
@@ -179,14 +183,32 @@ function mutationContext(
   };
 }
 
-/** Read a record back with its child rows, the shape the HTTP API returns. */
-async function withInlines(
+/** Read a record back with its child rows and links — the HTTP shape. */
+async function withNested(
   db: SqliteDb,
   specs: InlineSpec[],
+  links: ManyToManySpec[],
   row: Record<string, unknown>,
 ): Promise<unknown> {
-  if (specs.length === 0) return row;
-  return { ...row, inlines: await readInlines(db, specs, row) };
+  if (specs.length === 0 && links.length === 0) return row;
+  return {
+    ...row,
+    ...(specs.length > 0 ? { inlines: await readInlines(db, specs, row) } : {}),
+    ...(links.length > 0
+      ? { manyToMany: await readManyToMany(db, links, row) }
+      : {}),
+  };
+}
+
+/** Apply the tool call's link sets, if it sent any. */
+async function applyLinks(
+  db: SqliteDb,
+  links: ManyToManySpec[],
+  row: Record<string, unknown>,
+  payload: unknown,
+): Promise<void> {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+  await writeManyToMany(db, links, row, payload as ManyToManyWrite);
 }
 
 /** Apply the tool call's inline changes, if it made any. */
@@ -311,20 +333,23 @@ async function runTool(
     case "get": {
       const found = await recordFor(ctx, collection, args.id, "read", scope);
       if ("error" in found) return found.error;
-      return text(await withInlines(db, binding.inlines, found.row));
+      return text(
+        await withNested(db, binding.inlines, binding.links ?? [], found.row),
+      );
     }
     case "create": {
-      const { inlines, ...rest } = args;
+      const { inlines, manyToMany, ...rest } = args;
       // Nothing to narrow to and nothing to decide about: a row that does not
       // exist yet is governed by the collection's `create` grant alone.
       const values = validateInsert(collection, rest);
       const row = await createRecord(mutationContext(ctx, collection), values);
       if (!row) return { ...text({ error: "Insert returned no row" }), isError: true };
       await applyInlines(db, binding.inlines, row, inlines);
-      return text(await withInlines(db, binding.inlines, row));
+      await applyLinks(db, binding.links ?? [], row, manyToMany);
+      return text(await withNested(db, binding.inlines, binding.links ?? [], row));
     }
     case "update": {
-      const { id, inlines, ...rest } = args;
+      const { id, inlines, manyToMany, ...rest } = args;
       let before: Record<string, unknown> | undefined;
       if (checksRecords(adapterOf(ctx))) {
         const found = await recordFor(ctx, collection, id, "update", scope);
@@ -351,7 +376,8 @@ async function runTool(
               | undefined));
       if (!row) return { ...text({ error: "Not found" }), isError: true };
       await applyInlines(db, binding.inlines, row, inlines);
-      return text(await withInlines(db, binding.inlines, row));
+      await applyLinks(db, binding.links ?? [], row, manyToMany);
+      return text(await withNested(db, binding.inlines, binding.links ?? [], row));
     }
     case "delete_preview": {
       const found = await recordFor(ctx, collection, args.id, "delete", scope);

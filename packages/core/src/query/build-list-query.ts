@@ -70,7 +70,13 @@ export function buildListWhere(
       if (value) values[field] = value;
     }
     conditions.push(
-      ...filterConditions(collection, columns, values, params.now ?? new Date()),
+      ...filterConditions(
+        collection,
+        columns,
+        values,
+        params.now ?? new Date(),
+        db,
+      ),
     );
   }
 

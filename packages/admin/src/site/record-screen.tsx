@@ -9,6 +9,8 @@ import {
   toInlineWrite,
   type InlineRow,
 } from "../inline-editor/inline-rows.js";
+import { changedLinks } from "../many-to-many/links.js";
+import { ManyToManySelect } from "../many-to-many/many-to-many-select.js";
 import { referenceWidgets } from "../reference-select/reference-widgets.js";
 import {
   extractIssues,
@@ -32,12 +34,13 @@ export function RecordScreen({
   onNotify,
   fieldWidgets,
 }: RecordScreenProps): JSX.Element {
-  const { record, inlines, loading, error } = useRecord(
+  const { record, inlines, manyToMany, loading, error } = useRecord(
     client,
     collection.slug,
     id,
   );
   const [rows, setRows] = useState<Record<string, InlineRow[]>>({});
+  const [links, setLinks] = useState<Record<string, unknown[]>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, Record<string, string[]>>>(
     {},
   );
@@ -59,6 +62,14 @@ export function RecordScreen({
     setRows(seeded);
     // `inlines` is replaced whenever the record is refetched.
   }, [inlines, collection]);
+
+  useEffect(() => {
+    const seeded: Record<string, unknown[]> = {};
+    for (const relation of collection.manyToMany) {
+      seeded[relation.name] = manyToMany[relation.name] ?? [];
+    }
+    setLinks(seeded);
+  }, [manyToMany, collection]);
 
   if (id !== null && loading) return <p>Loading…</p>;
   if (error) return <p role="alert">{error.message}</p>;
@@ -108,9 +119,24 @@ export function RecordScreen({
           const payload = collectInlineWrites();
           const inlineArg =
             Object.keys(payload).length > 0 ? payload : undefined;
+          // Only the relationships whose membership moved: a set the server is
+          // not told about is one it leaves alone.
+          const linkPayload = changedLinks(
+            collection.manyToMany,
+            manyToMany,
+            links,
+          );
+          const linkArg =
+            Object.keys(linkPayload).length > 0 ? linkPayload : undefined;
           try {
             if (editing) {
-              await client.update(collection.slug, id, values, inlineArg);
+              await client.update(
+                collection.slug,
+                id,
+                values,
+                inlineArg,
+                linkArg,
+              );
               onNotify?.("success", `${title} saved`);
               navigate({ view: "list", slug: collection.slug });
             } else {
@@ -118,6 +144,7 @@ export function RecordScreen({
                 collection.slug,
                 values,
                 inlineArg,
+                linkArg,
               );
               onNotify?.("success", `${collection.label} created`);
               // Django lands you on the record it just made; so does this,
@@ -150,6 +177,18 @@ export function RecordScreen({
           }
         }}
       >
+        {collection.manyToMany.map((relation) => (
+          <ManyToManySelect
+            key={relation.name}
+            client={client}
+            relation={relation}
+            value={links[relation.name] ?? []}
+            onChange={(next) =>
+              setLinks((prev) => ({ ...prev, [relation.name]: next }))
+            }
+          />
+        ))}
+
         {collection.inlines.map((inline) => {
           const child = childBySlug.get(inline.collection);
           if (!child || !rows[inline.collection]) return null;

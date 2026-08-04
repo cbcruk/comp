@@ -25,10 +25,12 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
                                    })
 ```
 
-**That snippet is the starting point, not the target.** Comp today covers the
-single-table slice of Django's admin, plus relations, inlines, filter and
-search lookups, form layout, history, and a generated site. The parity backlog
-below is the real scope; treat it as the roadmap, not as a wishlist.
+**That snippet is the starting point, not the target.** Comp now covers the
+parity backlog below end to end — relations, inlines, many-to-many, filter and
+search lookups, the date drill-down, form layout, history, per-object
+permissions, and a generated site. Read it as the record of what each feature
+*means* here, and take new work from what the admin still cannot do rather than
+from polishing what it can.
 
 ## Django admin parity — the backlog
 
@@ -165,10 +167,33 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   list is narrowed by permission the way `/collections` is, and every tool
   re-checks when called by name.
 
+- **Many-to-many** — Django puts a `ManyToManyField` on the model and generates
+  the join table. Drizzle has no such field: the join table *is* the
+  declaration, so `manyToMany: [{ collection: "tags", through: orderTags }]`
+  names the table and the far side, and which key is whose is read off the
+  join table's own foreign keys. `through` is the one structural thing that has
+  to be passed — nothing points at a join table, so the registry cannot find
+  it. Resolution splits the way relations do: `resolveManyToMany` decides the
+  keys at declaration time (a join table that misses a side, or reaches one
+  twice without being told which key, throws), and `bindManyToMany` binds the
+  far *collection* over the registry. The write is Django's `.set()` — the
+  payload is the whole membership, because a multi-select can only report what
+  is selected now, and the diff happens server-side; an unknown id is refused
+  rather than dropped, an omitted relationship is left alone (a form that does
+  not render one must not clear it), and the unlink is scoped to the parent in
+  SQL. The filter matches through a subquery, never a join: a join multiplies a
+  record by its links, and then the total stops matching the rows. It is
+  declared on the relationship (`filter: true`) rather than in `filters`,
+  because `filters` is checked against the columns at authoring time and a
+  relationship has none. Still open: search traversal through a join table
+  (`tags__name`), which follows a column today.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
-- **Many-to-many.** No support at all today, in the schema introspection or the
-  query layer.
+- The Django parity backlog above is complete. Take the next slice from what
+  the admin still cannot do (a two-pane `filter_horizontal` widget, search
+  through a join table, `list_display` over a relationship) rather than
+  polishing what is built.
 
 When you implement one, say in the commit which Django _behavior_ you
 reproduced and confirm it was re-derived, not copied.

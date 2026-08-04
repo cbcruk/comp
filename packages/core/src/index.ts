@@ -195,6 +195,33 @@ export {
 } from "./query/build-get-query.js";
 export { primaryKeyColumn } from "./query/primary-key.js";
 
+export {
+  bindManyToMany,
+  manyToManySummary,
+  resolveManyToMany,
+} from "./m2m/resolve-m2m.js";
+export {
+  manyToManyNames,
+  readLinks,
+  readManyToMany,
+  writeLinks,
+  writeManyToMany,
+} from "./m2m/m2m-write.js";
+export type {
+  ManyToManyConfig,
+  ManyToManyMeta,
+  ManyToManyResult,
+  ManyToManySpec,
+  ManyToManySummary,
+  ManyToManyWrite,
+} from "./m2m/m2m.types.js";
+export {
+  buildLinkDelete,
+  buildLinkInsert,
+  buildLinkedIdsQuery,
+  manyToManyCondition,
+} from "./query/build-m2m-query.js";
+
 export { allowAll } from "./auth/allow-all.js";
 export type {
   AuthAdapter,

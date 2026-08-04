@@ -12,6 +12,8 @@ import type {
   InboundRelation,
   InlineSummary,
   InlineWritePayload,
+  ManyToManySummary,
+  ManyToManyWrite,
   ResolvedForm,
   ResolvedSearch,
   OutboundRelation,
@@ -48,6 +50,8 @@ export interface CollectionSummary {
   inbound: InboundRelation[];
   /** Child collections edited alongside a record of this one. */
   inlines: InlineSummary[];
+  /** Many-to-many relationships this collection edits. */
+  manyToMany: ManyToManySummary[];
   manifest: CollectionManifest;
   actions: ActionManifest[];
 }
@@ -57,10 +61,12 @@ export interface ActionRunBody {
   input?: unknown;
 }
 
-/** A record together with the child rows of its inlines. */
+/** A record together with the child rows of its inlines and its links. */
 export interface RecordResult {
   data: Row;
   inlines?: Record<string, Row[]>;
+  /** Ids linked through each many-to-many, keyed by relationship name. */
+  manyToMany?: Record<string, unknown[]>;
 }
 
 export interface ListResult {
@@ -100,12 +106,18 @@ export interface CompClient {
   get(slug: string, id: Id): Promise<Row>;
   /** Like `get`, but keeps the inline rows the server sent with the record. */
   getRecord(slug: string, id: Id): Promise<RecordResult>;
-  create(slug: string, values: Row, inlines?: InlineWritePayload): Promise<Row>;
+  create(
+    slug: string,
+    values: Row,
+    inlines?: InlineWritePayload,
+    manyToMany?: ManyToManyWrite,
+  ): Promise<Row>;
   update(
     slug: string,
     id: Id,
     values: Row,
     inlines?: InlineWritePayload,
+    manyToMany?: ManyToManyWrite,
   ): Promise<Row>;
   /** What deleting this record would reach, before doing it. */
   deletePreview(slug: string, id: Id): Promise<DeleteImpact>;
