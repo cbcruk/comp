@@ -1,5 +1,10 @@
-import type { ZodIssue } from 'zod'
 import type { CollectionOperation } from '../collection/define-collection.types.js'
+import {
+  NotGranted,
+  unknownInline,
+  ValidationError,
+  type FieldIssue,
+} from '../errors/comp-error.js'
 import {
   buildInlineDeleteQuery,
   buildInlineListQuery,
@@ -8,7 +13,6 @@ import {
 import { buildInsertQuery } from '../mutation/build-mutations.js'
 import type { SqliteDb } from '../query/build-list-query.js'
 import { validateInsert, validateUpdate } from '../validation/derive-schema.js'
-import { ValidationError } from '../validation/validation-error.js'
 import type {
   InlineSpec,
   InlineWrite,
@@ -16,23 +20,6 @@ import type {
   InlineWriteResult,
   PreparedInlineWrite,
 } from './inline.types.js'
-
-/** Thrown when an inline write asks for something the inline never granted. */
-export class InlineError extends Error {
-  readonly collection: string
-  readonly operation: CollectionOperation
-
-  constructor(
-    collection: string,
-    operation: CollectionOperation,
-    reason: string,
-  ) {
-    super(`Inline "${collection}" cannot "${operation}": ${reason}`)
-    this.name = 'InlineError'
-    this.collection = collection
-    this.operation = operation
-  }
-}
 
 /**
  * Which operations a write needs on the child collection. The caller checks
@@ -47,7 +34,11 @@ export function inlineOperations(write: InlineWrite): CollectionOperation[] {
   return operations
 }
 
-function prefixed(slug: string, index: number, issues: ZodIssue[]): ZodIssue[] {
+function prefixed(
+  slug: string,
+  index: number,
+  issues: readonly FieldIssue[],
+): FieldIssue[] {
   return issues.map((issue) => ({
     ...issue,
     path: ['inlines', slug, index, ...issue.path],
@@ -59,14 +50,18 @@ function assertGranted(spec: InlineSpec, write: InlineWrite): void {
   const granted = spec.collection.manifest.operations
   for (const operation of inlineOperations(write)) {
     if (!granted.includes(operation)) {
-      throw new InlineError(slug, operation, 'the collection does not allow it')
+      throw new NotGranted({
+        collection: slug,
+        operation,
+        reason: 'the collection does not allow it',
+      })
     }
     if (operation === 'delete' && !spec.canDelete) {
-      throw new InlineError(
-        slug,
+      throw new NotGranted({
+        collection: slug,
         operation,
-        'the inline declares canDelete: false',
-      )
+        reason: 'the inline declares canDelete: false',
+      })
     }
   }
 }
@@ -89,7 +84,7 @@ export function prepareInlineWrite(
   assertGranted(spec, write)
   const child = spec.collection
   const slug = child.slug
-  const issues: ZodIssue[] = []
+  const issues: FieldIssue[] = []
 
   const create: Record<string, unknown>[] = []
   ;(write.create ?? []).forEach((values, index) => {
@@ -117,7 +112,7 @@ export function prepareInlineWrite(
     }
   })
 
-  if (issues.length > 0) throw new ValidationError(issues)
+  if (issues.length > 0) throw new ValidationError({ issues })
 
   return { create, update, delete: write.delete ?? [] }
 }
@@ -148,7 +143,7 @@ export async function writeInlines(
   for (const [slug, write] of Object.entries(payload)) {
     const spec = bySlug.get(slug)
     if (!spec) {
-      throw new Error(`Unknown inline "${slug}" for this collection`)
+      throw unknownInline(slug)
     }
 
     const parentId = parentRow[spec.targetField]

@@ -14,20 +14,21 @@ import {
   updateRecord,
   collectDeleteImpact,
   filterSummaries,
-  InlineError,
+  Forbidden,
   inlineOperations,
   inlineSummary,
   manyToManySummary,
   readInlines,
   readManyToMany,
   resolveDeleteRelations,
+  NotGranted,
   resolveInlines,
   resolveRelations,
   resolveScope,
   runAction,
+  unknownInline,
   validateInsert,
   validateUpdate,
-  ValidationError,
   writeInlines,
   writeManyToMany,
   type ActionDefinition,
@@ -45,6 +46,7 @@ import {
   type SqliteDb,
 } from '@comp/core'
 import { Hono, type Context } from 'hono'
+import { handleRouterError } from './error-response.js'
 import { splitInlineBody } from './inline-body.js'
 import { parseListParams } from './list-params.js'
 
@@ -78,22 +80,6 @@ function withinCapabilities(
   return action.operations.every((op) => allows(collection, op))
 }
 
-/**
- * Map a write failure to a response. Validation issues carry the row and field
- * they came from (`inlines.<slug>.<index>.<field>`), so they reach the form
- * unchanged; an inline asking for an ungranted operation is a 405 like any
- * other disallowed write.
- */
-function inlineAwareError(c: Context, error: unknown): Response {
-  if (error instanceof ValidationError) {
-    return c.json({ error: error.message, issues: error.issues }, 400)
-  }
-  if (error instanceof InlineError) {
-    return c.json({ error: error.message }, 405)
-  }
-  throw error
-}
-
 async function parseJsonBody(c: Context): Promise<unknown> {
   try {
     return await c.req.json()
@@ -110,6 +96,10 @@ async function parseJsonBody(c: Context): Promise<unknown> {
  */
 export function createAdminRouter(config: AdminRouterConfig): Hono {
   const app = new Hono()
+  // Registered once, so a route can throw a core failure instead of each one
+  // remembering to catch. A rule every route has to remember is a rule that
+  // holds until somebody adds a route.
+  app.onError(handleRouterError)
   const auth = config.auth ?? allowAll
   const bySlug = new Map(config.collections.map((c) => [c.slug, c]))
   // The relation graph is a property of the whole registry, so it is resolved
@@ -313,18 +303,20 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     for (const [slug, write] of Object.entries(payload)) {
       const spec = bySlug.get(slug)
-      if (!spec) {
-        return c.json(
-          { error: `"${slug}" is not an inline of this collection` },
-          400,
-        )
-      }
+      // Refused in the shared vocabulary, not in prose invented here: the
+      // write refuses the same conditions itself, and a pre-check that words
+      // them differently makes one transport disagree with another.
+      if (!spec) throw unknownInline(slug)
       for (const operation of inlineOperations(write)) {
         if (!allows(spec.collection, operation)) {
-          return c.json({ error: `${operation} not allowed on "${slug}"` }, 405)
+          throw new NotGranted({
+            collection: slug,
+            operation,
+            reason: 'the collection does not allow it',
+          })
         }
         if (!(await authorized(c, spec.collection, operation))) {
-          return c.json({ error: 'Forbidden' }, 403)
+          throw new Forbidden({ collection: slug, operation })
         }
       }
     }
@@ -536,31 +528,27 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (refusal) return refusal
 
     const db = config.getDb(c)
-    try {
-      // No scope here, and no per-record check: there is no record yet to
-      // narrow to or to decide about. What may be created is the collection's
-      // `create` grant plus validation — the same split Django makes, where
-      // `has_add_permission` is the one that takes no object.
-      const values = validateInsert(collection, body.values)
-      const row = await createRecord(
-        await mutationContext(c, collection, db),
-        values,
-      )
-      if (!row) return c.json({ error: 'Insert returned no row' }, 500)
+    // No scope here, and no per-record check: there is no record yet to
+    // narrow to or to decide about. What may be created is the collection's
+    // `create` grant plus validation — the same split Django makes, where
+    // `has_add_permission` is the one that takes no object.
+    const values = validateInsert(collection, body.values)
+    const row = await createRecord(
+      await mutationContext(c, collection, db),
+      values,
+    )
+    if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines)
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
-      return c.json(
-        {
-          data: row,
-          inlines: await inlineRows(c, collection, row, db),
-          manyToMany: await linkedIds(c, collection, row, db),
-        },
-        201,
-      )
-    } catch (error) {
-      return inlineAwareError(c, error)
-    }
+    await writeInlines(db, specsFor(collection), row, body.inlines)
+    await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
+    return c.json(
+      {
+        data: row,
+        inlines: await inlineRows(c, collection, row, db),
+        manyToMany: await linkedIds(c, collection, row, db),
+      },
+      201,
+    )
   })
 
   app.patch('/collections/:slug/:id', async (c) => {
@@ -598,42 +586,38 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       before = found.row
     }
 
-    try {
-      const values = validateUpdate(collection, body.values)
-      // Editing only the child rows is a real edit; don't force an empty
-      // UPDATE on the parent just to get at its inlines.
-      const row =
-        Object.keys(values).length > 0
-          ? await updateRecord(
-              {
-                ...(await mutationContext(c, collection, db)),
-                ...(scope ? { scope } : {}),
-                ...(before ? { before } : {}),
-              },
+    const values = validateUpdate(collection, body.values)
+    // Editing only the child rows is a real edit; don't force an empty
+    // UPDATE on the parent just to get at its inlines.
+    const row =
+      Object.keys(values).length > 0
+        ? await updateRecord(
+            {
+              ...(await mutationContext(c, collection, db)),
+              ...(scope ? { scope } : {}),
+              ...(before ? { before } : {}),
+            },
+            c.req.param('id'),
+            values,
+          )
+        : (before ??
+          ((
+            await buildGetByIdQuery(
+              db,
+              collection,
               c.req.param('id'),
-              values,
-            )
-          : (before ??
-            ((
-              await buildGetByIdQuery(
-                db,
-                collection,
-                c.req.param('id'),
-                scope,
-              ).all()
-            )[0] as Record<string, unknown> | undefined))
-      if (!row) return c.json({ error: 'Not found' }, 404)
+              scope,
+            ).all()
+          )[0] as Record<string, unknown> | undefined))
+    if (!row) return c.json({ error: 'Not found' }, 404)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines)
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
-      return c.json({
-        data: row,
-        inlines: await inlineRows(c, collection, row, db),
-        manyToMany: await linkedIds(c, collection, row, db),
-      })
-    } catch (error) {
-      return inlineAwareError(c, error)
-    }
+    await writeInlines(db, specsFor(collection), row, body.inlines)
+    await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
+    return c.json({
+      data: row,
+      inlines: await inlineRows(c, collection, row, db),
+      manyToMany: await linkedIds(c, collection, row, db),
+    })
   })
 
   app.delete('/collections/:slug/:id', async (c) => {

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { FieldMeta } from '../introspection/introspect-table.types.js'
 import { stripReadonly } from '../form/resolve-form.js'
-import { ValidationError } from './validation-error.js'
+import { ValidationError } from '../errors/comp-error.js'
 
 function baseSchema(field: FieldMeta): z.ZodTypeAny {
   switch (field.dataType) {
@@ -59,7 +59,8 @@ export function validateInsert(
   input: unknown,
 ): Record<string, unknown> {
   const result = deriveInsertSchema(collection).safeParse(input)
-  if (!result.success) throw new ValidationError(result.error.issues)
+  if (!result.success)
+    throw new ValidationError({ issues: result.error.issues })
   return stripReadonly(collection.form, result.data)
 }
 
@@ -69,6 +70,7 @@ export function validateUpdate(
   input: unknown,
 ): Record<string, unknown> {
   const result = deriveUpdateSchema(collection).safeParse(input)
-  if (!result.success) throw new ValidationError(result.error.issues)
+  if (!result.success)
+    throw new ValidationError({ issues: result.error.issues })
   return stripReadonly(collection.form, result.data)
 }

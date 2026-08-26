@@ -24,7 +24,7 @@ import {
   validateInsert,
   validateUpdate,
 } from './validation/derive-schema.js'
-import { ValidationError } from './validation/validation-error.js'
+import { ValidationError } from './errors/comp-error.js'
 
 const posts = sqliteTable('posts', {
   id: integer('id').primaryKey({ autoIncrement: true }),

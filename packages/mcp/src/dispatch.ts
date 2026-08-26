@@ -21,7 +21,6 @@ import {
   updateRecord,
   validateInsert,
   validateUpdate,
-  ValidationError,
   writeInlines,
   writeManyToMany,
   type ActionDefinition,
@@ -40,6 +39,7 @@ import {
   type SqliteDb,
 } from '@comp/core'
 import type { ToolBinding } from './tools.js'
+import { text, toolError, type ToolResult } from './tool-error.js'
 import { listTools } from './tools.js'
 
 export const PROTOCOL_VERSION = '2024-11-05'
@@ -151,15 +151,6 @@ async function recordFor(
     return { error: { ...text({ error: 'Forbidden' }), isError: true } }
   }
   return { row }
-}
-
-interface ToolResult {
-  content: { type: 'text'; text: string }[]
-  isError?: boolean
-}
-
-function text(value: unknown): ToolResult {
-  return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] }
 }
 
 /** The write context: the same db, store, actor and scope for every tool call. */
@@ -516,29 +507,7 @@ export async function handleRpc(
       try {
         return ok(id, await runTool(binding, params.arguments ?? {}, ctx))
       } catch (error) {
-        if (error instanceof ValidationError) {
-          return ok(id, {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: error.message,
-                  issues: error.issues,
-                }),
-              },
-            ],
-            isError: true,
-          })
-        }
-        return ok(id, {
-          content: [
-            {
-              type: 'text',
-              text: error instanceof Error ? error.message : String(error),
-            },
-          ],
-          isError: true,
-        })
+        return ok(id, toolError(error))
       }
     }
 

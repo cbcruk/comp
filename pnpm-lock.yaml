@@ -203,6 +203,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@comp/server':
+        specifier: workspace:*
+        version: link:../server
       drizzle-orm:
         specifier: ^0.44.2
         version: 0.44.7(@cloudflare/workers-types@4.20260616.1)(gel@2.2.0)

@@ -5,21 +5,7 @@ import type {
   ActionDefinition,
   ActionResult,
 } from './define-action.types.js'
-
-/** Thrown when an action touches a db operation it never declared. */
-export class CapabilityError extends Error {
-  readonly method: string
-  readonly granted: CollectionOperation[]
-
-  constructor(method: string, granted: CollectionOperation[]) {
-    super(
-      `Action lacks the capability to "${method}" (granted: ${granted.join(', ') || 'none'})`,
-    )
-    this.name = 'CapabilityError'
-    this.method = method
-    this.granted = granted
-  }
-}
+import { CapabilityError } from '../errors/comp-error.js'
 
 /** Which operations a db entrypoint requires. */
 const METHOD_CAPABILITY: Record<string, CollectionOperation[]> = {
@@ -46,7 +32,10 @@ export function createCapabilityDb(
         typeof prop === 'string' ? METHOD_CAPABILITY[prop] : undefined
       if (required && !required.some((op) => granted.has(op))) {
         return () => {
-          throw new CapabilityError(String(prop), operations)
+          throw new CapabilityError({
+            method: String(prop),
+            granted: operations,
+          })
         }
       }
       const value = Reflect.get(target, prop, receiver)

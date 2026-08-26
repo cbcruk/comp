@@ -6,7 +6,7 @@ import {
   buildTargetExistsQuery,
 } from '../query/build-m2m-query.js'
 import type { SqliteDb } from '../query/build-list-query.js'
-import { ValidationError } from '../validation/validation-error.js'
+import { ValidationError } from '../errors/comp-error.js'
 import type {
   ManyToManyResult,
   ManyToManySpec,
@@ -99,7 +99,7 @@ export async function writeLinks(
         path: ['manyToMany', spec.name],
         message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
       })) as ZodIssue[]
-      throw new ValidationError(issues)
+      throw new ValidationError({ issues })
     }
   }
 
