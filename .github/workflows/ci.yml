@@ -24,6 +24,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Format
+        run: pnpm format:check
+
       - name: Lint
         run: pnpm lint
 
@@ -37,3 +40,9 @@ jobs:
         run: |
           pnpm --filter @comp/example-blog-d1 build:client
           pnpm --filter @comp/example-shop-d1 build:client
+
+      # Reads the SPAs built above, so it has to follow them. Effect is a
+      # server-side dependency; only tree-shaking keeps it out of the browser
+      # bundle, and that is a bundler's choice rather than a guarantee.
+      - name: Bundle isolation
+        run: pnpm check:bundle

@@ -464,10 +464,11 @@ pnpm dev           # run the blog-d1 example (wrangler; needs D1 + .dev.vars)
 # in examples/blog-d1: pnpm build:client  (vite build the React SPA → dist/client)
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck → lint → test → build → example
-SPA build on push/PR. When adding a package, wire it into the
-workspace, give it `build`/`typecheck` scripts and a `publishConfig`, so the
-root scripts and CI stay complete.
+CI (`.github/workflows/ci.yml`) runs typecheck → format:check → lint → test →
+build → example SPA build → check:bundle on push/PR. The bundle gate reads the
+SPAs the step before it builds, so it stays last. When adding a package, wire
+it into the workspace, give it `build`/`typecheck` scripts and a
+`publishConfig`, so the root scripts and CI stay complete.
 
 ## Working agreements for Claude Code
 
