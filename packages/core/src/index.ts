@@ -12,7 +12,7 @@ export type {
 
 export { resolveLabelField } from './collection/label-field.js'
 
-export { runEffect } from './effect/run-effect.js'
+export { READ_CONCURRENCY, runEffect } from './effect/run-effect.js'
 
 export type { Table } from 'drizzle-orm'
 export { introspectTable } from './introspection/introspect-table.js'

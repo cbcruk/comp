@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { READ_CONCURRENCY } from '../effect/run-effect.js'
 import {
   buildLinkDelete,
   buildLinkInsert,
@@ -88,20 +89,39 @@ export async function readLinks(
  * collection in its own right, and reaching its records sideways must not
  * grant more than listing it would.
  */
-export async function readManyToMany(
+export function readManyToMany(
   db: SqliteDb,
   specs: ManyToManySpec[],
   row: Record<string, unknown>,
   allow?: (spec: ManyToManySpec) => Promise<boolean> | boolean,
-): Promise<Record<string, unknown[]> | undefined> {
-  if (specs.length === 0) return undefined
+): Effect.Effect<Record<string, unknown[]> | undefined> {
+  if (specs.length === 0) return Effect.succeed(undefined)
 
-  const result: Record<string, unknown[]> = {}
-  for (const spec of specs) {
-    if (allow && !(await allow(spec))) continue
-    result[spec.name] = await readLinks(db, spec, row[spec.parentKey])
-  }
-  return result
+  // Independent per relationship, like an inline's rows; collected in
+  // declaration order so concurrency cannot reorder the keys.
+  return Effect.forEach(
+    specs,
+    (spec) =>
+      Effect.gen(function* () {
+        const permitted = allow
+          ? yield* Effect.promise(async () => allow(spec))
+          : true
+        if (!permitted) return null
+        const ids = yield* Effect.promise(() =>
+          readLinks(db, spec, row[spec.parentKey]),
+        )
+        return { name: spec.name, ids }
+      }),
+    { concurrency: READ_CONCURRENCY },
+  ).pipe(
+    Effect.map((entries) => {
+      const result: Record<string, unknown[]> = {}
+      for (const entry of entries) {
+        if (entry) result[entry.name] = entry.ids
+      }
+      return result
+    }),
+  )
 }
 
 /**

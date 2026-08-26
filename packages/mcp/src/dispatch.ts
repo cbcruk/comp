@@ -17,6 +17,7 @@ import {
   parseDatePath,
   parseFilterValue,
   prepareInlines,
+  READ_CONCURRENCY,
   readInlines,
   readManyToMany,
   resolveScope,
@@ -189,9 +190,11 @@ async function withNested(
   if (specs.length === 0 && links.length === 0) return row
   return {
     ...row,
-    ...(specs.length > 0 ? { inlines: await readInlines(db, specs, row) } : {}),
+    ...(specs.length > 0
+      ? { inlines: await runEffect(readInlines(db, specs, row)) }
+      : {}),
     ...(links.length > 0
-      ? { manyToMany: await readManyToMany(db, links, row) }
+      ? { manyToMany: await runEffect(readManyToMany(db, links, row)) }
       : {}),
   }
 }
@@ -295,21 +298,30 @@ async function visibleIds(
   const key = collection.primaryKey
   if (!key) return []
 
-  const allowed: unknown[] = []
-  for (const row of rows) {
-    const permits = await Promise.all(
-      operations.map((operation) =>
-        authorizeRecordAccess(auth, {
-          identity: ctx.identity ?? null,
-          collection,
-          operation,
-          record: row,
+  // A row's decision never depends on another row's, so the rows go together
+  // — the same fan-out the HTTP router does, since a tool call narrowing ids
+  // for a bulk action is the same work.
+  const decisions = await runEffect(
+    Effect.forEach(
+      rows,
+      (row) =>
+        Effect.promise(async () => {
+          const permits = await Promise.all(
+            operations.map((operation) =>
+              authorizeRecordAccess(auth, {
+                identity: ctx.identity ?? null,
+                collection,
+                operation,
+                record: row,
+              }),
+            ),
+          )
+          return permits.every(Boolean)
         }),
-      ),
-    )
-    if (permits.every(Boolean)) allowed.push(row[key])
-  }
-  return allowed
+      { concurrency: READ_CONCURRENCY },
+    ),
+  )
+  return rows.filter((_, index) => decisions[index]).map((row) => row[key])
 }
 
 async function runTool(
