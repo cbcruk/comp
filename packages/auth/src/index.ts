@@ -33,5 +33,8 @@ export type {
 export { createPasskeyAuth } from './create-passkey-auth.js'
 export type { PasskeyAuth, PasskeyAuthOptions } from './create-passkey-auth.js'
 
+export { CeremonyExpired, CeremonyFailed, isAuthError } from './auth-error.js'
+export type { AuthError } from './auth-error.js'
+
 export { createAuthRoutes } from './auth-routes.js'
 export type { AuthRoutesConfig } from './auth-routes.js'

@@ -407,6 +407,16 @@ truth.
     module load from `defineCollection`/`resolve*`, where they belong; routing
     them through a failure channel would make every caller handle something
     that cannot happen at runtime.
+  - **`@comp/auth` has its own union** (`AuthError`: `CeremonyExpired`,
+    `CeremonyFailed`, plus core's `ValidationError` reused for a malformed
+    body). The passkey ceremonies are a separate surface on a separate router;
+    folding them into `CompError` would force the admin and MCP mappers to say
+    what a missing WebAuthn challenge looks like, which cannot reach them.
+  - **What a refusal may say is a security question.** `CeremonyFailed` carries
+    a `reason` that goes to the log and never to the body — whether a
+    credential is unknown or belongs to someone else is what an attacker wants
+    to learn. `verifySession` collapses a forged token, a bad signature and an
+    expiry into one `null` for the same reason; do not "fix" that.
   - Surface `ValidationError.issues` field-by-field in the UI; don't swallow
     them.
 - **`await` on an Effect compiles and does nothing.** An Effect is not a
