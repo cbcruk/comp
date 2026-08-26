@@ -1,5 +1,6 @@
 import {
   bulkDeleteAction,
+  CapabilityError,
   defineCollection,
   type AuthAdapter,
 } from '@comp/core'
@@ -130,6 +131,52 @@ describe('buildToolRegistry', () => {
     expect(names).toContain('articles__get')
     expect(names).not.toContain('articles__create')
     expect(names).not.toContain('articles__delete')
+  })
+})
+
+/**
+ * The executor seam is reachable from `createMcpHandler` too, and matters more
+ * here: a tool call is the surface a model drives, and an action it triggers
+ * is the same action the HTTP router would run.
+ */
+describe('a supplied action executor', () => {
+  it('is used for a tool-triggered action, with the boundary already drawn', async () => {
+    let seen: { name: string; refused: unknown } | null = null
+
+    const ctx: McpContext = {
+      registry: buildToolRegistry([postCollection], actions),
+      actions,
+      db: {} as McpContext['db'],
+      executor: (action, context) => {
+        let refused: unknown
+        try {
+          // The action declares delete, not insert.
+          ;(context.db as unknown as { insert: () => void }).insert()
+        } catch (error) {
+          refused = error
+        }
+        seen = { name: action.name, refused }
+        return Promise.resolve({ ok: true, message: 'ran elsewhere' })
+      },
+    }
+
+    const res = await handleRpc(
+      {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'tools/call',
+        params: {
+          name: 'posts__action__delete',
+          arguments: { ids: [1] },
+        },
+      },
+      ctx,
+    )
+
+    expect(seen).not.toBeNull()
+    expect(seen!.name).toBe('delete')
+    expect(seen!.refused).toBeInstanceOf(CapabilityError)
+    expect(JSON.stringify(res?.result)).toContain('ran elsewhere')
   })
 })
 
