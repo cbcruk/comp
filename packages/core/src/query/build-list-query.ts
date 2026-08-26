@@ -2,6 +2,7 @@ import {
   and,
   asc,
   desc,
+  eq,
   getTableColumns,
   gte,
   lt,
@@ -10,7 +11,13 @@ import {
   type SQL,
   type Table,
 } from 'drizzle-orm'
-import type { BaseSQLiteDatabase, SQLiteTable } from 'drizzle-orm/sqlite-core'
+import {
+  alias,
+  type BaseSQLiteDatabase,
+  type SQLiteColumn,
+  type SQLiteTable,
+} from 'drizzle-orm/sqlite-core'
+import { foreignTableFor } from '../introspection/foreign-table.js'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { FilterMap, FilterValue } from '../filters/filter.types.js'
 import { datePathRange } from '../hierarchy/date-path.js'
@@ -97,8 +104,71 @@ export function buildListWhere(
   return conditions.length === 1 ? conditions[0] : and(...conditions)
 }
 
-function buildOrderBy(collection: Collection, params: ListParams): SQL[] {
-  const columns = columnsOf(collection.model)
+/**
+ * The joins and extra selections a list's traversed columns need.
+ *
+ * A foreign key is to-one, so a left join here cannot multiply a record the
+ * way one through a join table would — which is why search reaches a far table
+ * with a subquery and this reaches it with a join. One alias per foreign key,
+ * so a table joined twice through two different keys stays two things.
+ *
+ * Each value is selected under the declared key, with an explicit `as`. That
+ * is not cosmetic: some drivers hand rows back keyed by column name, and
+ * `authors.name` beside `posts.name` would collapse into one. `mapWith` keeps
+ * the far column's own decoding, so a date over there still arrives as a Date.
+ */
+function traversals(collection: Collection): {
+  joins: { table: SQLiteTable; on: SQL }[]
+  selection: Record<string, SQL.Aliased>
+  columns: Record<string, Column>
+} {
+  const joins: { table: SQLiteTable; on: SQL }[] = []
+  const selection: Record<string, SQL.Aliased> = {}
+  const columns: Record<string, Column> = {}
+  const joined = new Map<string, Record<string, Column>>()
+  const local = columnsOf(collection.model)
+
+  for (const entry of collection.listColumns) {
+    if (!entry.through) continue
+
+    let far = joined.get(entry.field)
+    if (!far) {
+      const target = foreignTableFor(collection.model, entry.field)
+      const key = local[entry.field]
+      if (!target || !key) continue
+      const aliased = alias(target.table, `__${entry.field}`)
+      const aliasedColumns = getTableColumns(aliased) as Record<string, Column>
+      const referenced =
+        aliasedColumns[nameOf(target.referenced, target.columns)]
+      if (!referenced) continue
+      joins.push({ table: aliased, on: eq(key, referenced) })
+      far = aliasedColumns
+      joined.set(entry.field, far)
+    }
+
+    const column = far[entry.through.field]
+    if (!column) continue
+    selection[entry.key] = sql`${column}`.mapWith(column).as(entry.key)
+    columns[entry.key] = column
+  }
+
+  return { joins, selection, columns }
+}
+
+/** The property name a column is known by on its table. */
+function nameOf(column: Column, columns: Record<string, Column>): string {
+  for (const [key, candidate] of Object.entries(columns)) {
+    if (candidate.name === column.name) return key
+  }
+  return column.name
+}
+
+function buildOrderBy(
+  collection: Collection,
+  params: ListParams,
+  extra: Record<string, Column> = {},
+): SQL[] {
+  const columns = { ...columnsOf(collection.model), ...extra }
   const specs = params.ordering ?? collection.ordering
   const order: SQL[] = []
   for (const spec of specs) {
@@ -123,15 +193,22 @@ export function buildListQuery(
   params: ListParams = {},
 ) {
   const where = buildListWhere(db, collection, params)
-  const orderBy = buildOrderBy(collection, params)
+  const { joins, selection, columns } = traversals(collection)
+  const orderBy = buildOrderBy(collection, params, columns)
   const pageSize = Math.max(1, params.pageSize ?? collection.pageSize)
   const page = Math.max(1, params.page ?? 1)
   const offset = (page - 1) * pageSize
 
-  let query = db
-    .select()
-    .from(collection.model as unknown as SQLiteTable)
-    .$dynamic()
+  // Named explicitly rather than left to `select()`, so a traversal's value
+  // can join the same row. With no traversals the two are the same columns in
+  // the same order, so a plain list's SQL is unchanged.
+  const model = collection.model as unknown as SQLiteTable
+  const selected = {
+    ...(getTableColumns(collection.model) as Record<string, SQLiteColumn>),
+    ...selection,
+  }
+  let query = db.select(selected).from(model).$dynamic()
+  for (const join of joins) query = query.leftJoin(join.table, join.on)
   if (where) query = query.where(where)
   if (orderBy.length > 0) query = query.orderBy(...orderBy)
   return query.limit(pageSize).offset(offset)
