@@ -10,6 +10,19 @@ type Row = Record<string, unknown>
 /** A derived schema decodes an unknown payload into a row. */
 export type RowSchema = Schema.Schema<Row, Row, never>
 
+export interface ValidateOptions {
+  /**
+   * Columns to leave out of the schema entirely — not the caller's to supply.
+   *
+   * An inline's foreign key is the case this exists for: the parent key is set
+   * by the write, never by the payload (the update path already strips it, so
+   * a row cannot be re-parented). Leaving it out is what lets a child row be
+   * checked *before* its parent exists, which is the difference between
+   * refusing a bad nested write and refusing it after inserting the parent.
+   */
+  readonly omit?: readonly string[]
+}
+
 /**
  * A date arrives in whatever the transport could carry it in — a Date from a
  * direct call, a string from JSON, a number from a client that sent epoch
@@ -50,9 +63,14 @@ function baseSchema(field: FieldMeta): Schema.Schema.AnyNoContext {
  * from an update: an update states only what moved, so nothing is required of
  * it, while an insert still has to carry every column the table demands.
  */
-function structFor(collection: Collection, allOptional: boolean): RowSchema {
+function structFor(
+  collection: Collection,
+  allOptional: boolean,
+  omit: readonly string[] = [],
+): RowSchema {
   const fields: Record<string, Schema.Struct.Field> = {}
   for (const field of Object.values(collection.fields)) {
+    if (omit.includes(field.name)) continue
     const value = field.notNull
       ? baseSchema(field)
       : Schema.NullOr(baseSchema(field))
@@ -71,13 +89,19 @@ function structFor(collection: Collection, allOptional: boolean): RowSchema {
  * default are optional. Validation always traces back to the schema — never
  * hand-maintained alongside it.
  */
-export function deriveInsertSchema(collection: Collection): RowSchema {
-  return structFor(collection, false)
+export function deriveInsertSchema(
+  collection: Collection,
+  options: ValidateOptions = {},
+): RowSchema {
+  return structFor(collection, false, options.omit)
 }
 
 /** Update schema: every field optional, for partial edits. */
-export function deriveUpdateSchema(collection: Collection): RowSchema {
-  return structFor(collection, true)
+export function deriveUpdateSchema(
+  collection: Collection,
+  options: ValidateOptions = {},
+): RowSchema {
+  return structFor(collection, true, options.omit)
 }
 
 /**
@@ -111,13 +135,21 @@ function decode(schema: RowSchema, input: unknown): Row {
  * for readonly fields are dropped before validation, so declaring one readonly
  * is enforced on every transport rather than only hidden in the UI.
  */
-export function validateInsert(collection: Collection, input: unknown): Row {
-  const values = decode(deriveInsertSchema(collection), input)
+export function validateInsert(
+  collection: Collection,
+  input: unknown,
+  options: ValidateOptions = {},
+): Row {
+  const values = decode(deriveInsertSchema(collection, options), input)
   return stripReadonly(collection.form, values)
 }
 
 /** Validate partial update input, throwing {@link ValidationError} on failure. */
-export function validateUpdate(collection: Collection, input: unknown): Row {
-  const values = decode(deriveUpdateSchema(collection), input)
+export function validateUpdate(
+  collection: Collection,
+  input: unknown,
+  options: ValidateOptions = {},
+): Row {
+  const values = decode(deriveUpdateSchema(collection, options), input)
   return stripReadonly(collection.form, values)
 }

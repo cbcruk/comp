@@ -7,6 +7,7 @@ import {
   buildGetByIdQuery,
   buildListQuery,
   buildRecordsByIdsQuery,
+  checkLinkTargets,
   checksRecords,
   collectDateHierarchy,
   collectFilterChoices,
@@ -15,6 +16,7 @@ import {
   deleteRecord,
   parseDatePath,
   parseFilterValue,
+  prepareInlines,
   readInlines,
   readManyToMany,
   resolveScope,
@@ -32,6 +34,7 @@ import {
   type FilterMap,
   type HistoryStore,
   type InlineSpec,
+  type PreparedInlineWrite,
   type InlineWritePayload,
   type ManyToManySpec,
   type ManyToManyWrite,
@@ -204,15 +207,31 @@ async function applyLinks(
   await runEffect(writeManyToMany(db, links, row, payload as ManyToManyWrite))
 }
 
-/** Apply the tool call's inline changes, if it made any. */
+/**
+ * Check the tool call's inline changes, if it made any, before the parent row
+ * is written — the same two-phase order the HTTP routes use, and for the same
+ * reason: a child row refused after the parent exists leaves the parent there,
+ * and D1 has no transaction to undo it with.
+ */
+async function prepareInlinesFor(
+  specs: InlineSpec[],
+  payload: unknown,
+): Promise<PreparedInlineWrite[]> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return []
+  }
+  return runEffect(prepareInlines(specs, payload as InlineWritePayload))
+}
+
+/** Apply changes already checked by {@link prepareInlinesFor}. */
 async function applyInlines(
   db: SqliteDb,
   specs: InlineSpec[],
   row: Record<string, unknown>,
-  payload: unknown,
+  prepared: readonly PreparedInlineWrite[],
 ): Promise<void> {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
-  await runEffect(writeInlines(db, specs, row, payload as InlineWritePayload))
+  if (prepared.length === 0) return
+  await runEffect(writeInlines(db, specs, row, prepared))
 }
 
 function parseOrdering(sort: unknown): ListParams['ordering'] {
@@ -346,12 +365,22 @@ async function runTool(
       // Nothing to narrow to and nothing to decide about: a row that does not
       // exist yet is governed by the collection's `create` grant alone.
       const values = validateInsert(collection, rest)
+      const preparedInlines = await prepareInlinesFor(binding.inlines, inlines)
+      if (manyToMany && typeof manyToMany === 'object') {
+        await runEffect(
+          checkLinkTargets(
+            db,
+            binding.links ?? [],
+            manyToMany as ManyToManyWrite,
+          ),
+        )
+      }
       const row = await runEffect(
         createRecord(mutationContext(ctx, collection), values),
       )
       if (!row)
         return { ...text({ error: 'Insert returned no row' }), isError: true }
-      await applyInlines(db, binding.inlines, row, inlines)
+      await applyInlines(db, binding.inlines, row, preparedInlines)
       await applyLinks(db, binding.links ?? [], row, manyToMany)
       return text(
         await withNested(db, binding.inlines, binding.links ?? [], row),
@@ -367,6 +396,7 @@ async function runTool(
       }
 
       const values = validateUpdate(collection, rest)
+      const preparedInlines = await prepareInlinesFor(binding.inlines, inlines)
       // Editing only the child rows is a real edit; don't force an empty
       // UPDATE on the parent just to reach them.
       const row =
@@ -385,7 +415,7 @@ async function runTool(
             ((await buildGetByIdQuery(db, collection, id, scope).all())[0] as
               Record<string, unknown> | undefined))
       if (!row) return { ...text({ error: 'Not found' }), isError: true }
-      await applyInlines(db, binding.inlines, row, inlines)
+      await applyInlines(db, binding.inlines, row, preparedInlines)
       await applyLinks(db, binding.links ?? [], row, manyToMany)
       return text(
         await withNested(db, binding.inlines, binding.links ?? [], row),

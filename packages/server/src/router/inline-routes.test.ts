@@ -140,6 +140,87 @@ describe('inline routes', () => {
     return body
   }
 
+  /**
+   * A nested write is not atomic — D1 has no interactive transaction, and a
+   * batch cannot help either, because the child rows need the id the parent's
+   * INSERT generates and a batch prepares every statement up front. So the
+   * whole payload is checked before anything is written. Before that, a bad
+   * child row was found *after* the parent existed, and the caller got a 400
+   * describing a row it had no idea was now in the table.
+   */
+  describe('a nested write that cannot succeed', () => {
+    async function ordersInTable(): Promise<number> {
+      const { body } = await call('GET', '/collections/orders')
+      return (body as unknown as { total: number }).total
+    }
+
+    it('leaves no parent behind when a child row is invalid', async () => {
+      const before = await ordersInTable()
+      const { status } = await call('POST', '/collections/orders', {
+        reference: 'A-9',
+        inlines: {
+          order_items: { create: [{ product: 42, quantity: 1, unitPrice: 1 }] },
+        },
+      })
+      expect(status).toBe(400)
+      expect(await ordersInTable()).toBe(before)
+    })
+
+    it('leaves no parent behind when the inline is not one of ours', async () => {
+      const before = await ordersInTable()
+      const { status } = await call('POST', '/collections/orders', {
+        reference: 'A-10',
+        inlines: { nope: { create: [{ product: 'Cup' }] } },
+      })
+      expect(status).toBe(400)
+      expect(await ordersInTable()).toBe(before)
+    })
+
+    it('still names the row and field, now that it refuses earlier', async () => {
+      const { body } = await call('POST', '/collections/orders', {
+        reference: 'A-11',
+        inlines: {
+          order_items: {
+            create: [
+              { product: 'ok', quantity: 1, unitPrice: 1 },
+              { product: 42, quantity: 1, unitPrice: 1 },
+            ],
+          },
+        },
+      })
+      expect(body.issues?.[0]?.path).toEqual([
+        'inlines',
+        'order_items',
+        1,
+        'product',
+      ])
+    })
+
+    it('does not apply the child changes either', async () => {
+      const created = await seedOrder()
+      const [first] = items(created)
+      const { status } = await call(
+        'PATCH',
+        `/collections/orders/${created.data.id}`,
+        {
+          inlines: {
+            order_items: {
+              delete: [first?.id],
+              create: [{ product: 42, quantity: 1, unitPrice: 1 }],
+            },
+          },
+        },
+      )
+      expect(status).toBe(400)
+      const { body } = await call(
+        'GET',
+        `/collections/orders/${created.data.id}`,
+      )
+      // The delete was in the same refused payload, so it did not happen.
+      expect(items(body)).toHaveLength(2)
+    })
+  })
+
   it('advertises the resolved inline on the collection', async () => {
     const { body } = await call('GET', '/collections')
     const summary = (body as unknown as Json[]).find((c) => c.slug === 'orders')

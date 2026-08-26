@@ -185,6 +185,25 @@ describe("setting a record's links", () => {
     expect(links(created.data.id)).toEqual([3])
   })
 
+  // The create path is the only one where refusing after the write leaves a
+  // row that should never have existed — an update's parent was already there.
+  it('leaves no record behind when a create names an id that is not there', async () => {
+    const total = async (): Promise<number> =>
+      (
+        (await (await app.request('/collections/posts')).json()) as {
+          total: number
+        }
+      ).total
+
+    const before = await total()
+    const response = await write('/collections/posts', 'POST', {
+      title: 'Fifth',
+      manyToMany: { tags: [999] },
+    })
+    expect(response.status).toBe(400)
+    expect(await total()).toBe(before)
+  })
+
   it('takes the same id twice as one link', async () => {
     // The join table would refuse the second row; the write should not need it
     // to.

@@ -146,43 +146,40 @@ describe('prepareInlineWrite', () => {
   )?.[0]
   if (!spec) throw new Error('inline did not resolve')
 
-  it('pins created rows to the parent, whatever the caller sent', () => {
-    const prepared = prepareInlineWrite(
-      spec,
-      { create: [{ product: 'Cup', orderId: 999 }] },
-      7,
-    )
-    expect(prepared.create).toEqual([
-      { product: 'Cup', orderId: 7, quantity: undefined },
-    ])
+  // Preparation happens before the parent exists, so the parent key is not
+  // something it can set — and not something the caller may either. It is
+  // dropped here and attached by the write.
+  it('drops the parent key a caller sent on a create', () => {
+    const prepared = prepareInlineWrite(spec, {
+      create: [{ product: 'Cup', orderId: 999 }],
+    })
+    expect(prepared.create).toEqual([{ product: 'Cup', quantity: undefined }])
+  })
+
+  it('validates a child row without demanding the parent key it lacks', () => {
+    expect(
+      prepareInlineWrite(spec, { create: [{ product: 'Cup' }] }).create,
+    ).toHaveLength(1)
   })
 
   it('drops the parent key from updates so a row cannot be re-parented', () => {
-    const prepared = prepareInlineWrite(
-      spec,
-      { update: [{ id: 3, values: { quantity: 2, orderId: 999 } }] },
-      7,
-    )
+    const prepared = prepareInlineWrite(spec, {
+      update: [{ id: 3, values: { quantity: 2, orderId: 999 } }],
+    })
     expect(prepared.update[0]?.values).toEqual({ quantity: 2 })
   })
 
   it('drops an update left with nothing to set', () => {
-    const prepared = prepareInlineWrite(
-      spec,
-      { update: [{ id: 3, values: { orderId: 999 } }] },
-      7,
-    )
+    const prepared = prepareInlineWrite(spec, {
+      update: [{ id: 3, values: { orderId: 999 } }],
+    })
     expect(prepared.update).toEqual([])
   })
 
   it('addresses validation issues to the row and field they came from', () => {
     let error: unknown
     try {
-      prepareInlineWrite(
-        spec,
-        { create: [{ product: 'ok' }, { product: 42 }] },
-        7,
-      )
+      prepareInlineWrite(spec, { create: [{ product: 'ok' }, { product: 42 }] })
     } catch (e) {
       error = e
     }
@@ -207,7 +204,7 @@ describe('prepareInlineWrite', () => {
       readOnlyItems,
     ]).get('orders')?.[0]
     expect(() =>
-      prepareInlineWrite(readOnly!, { create: [{ product: 'Cup' }] }, 7),
+      prepareInlineWrite(readOnly!, { create: [{ product: 'Cup' }] }),
     ).toThrow(NotGranted)
   })
 
@@ -216,12 +213,12 @@ describe('prepareInlineWrite', () => {
       orderCollection([{ collection: 'items', canDelete: false }]),
       itemCollection,
     ]).get('orders')?.[0]
-    expect(() => prepareInlineWrite(guarded!, { delete: [1] }, 7)).toThrow(
+    expect(() => prepareInlineWrite(guarded!, { delete: [1] })).toThrow(
       /canDelete: false/,
     )
     // Non-delete writes are unaffected.
     expect(
-      prepareInlineWrite(guarded!, { create: [{ product: 'Cup' }] }, 7).create,
+      prepareInlineWrite(guarded!, { create: [{ product: 'Cup' }] }).create,
     ).toHaveLength(1)
   })
 })

@@ -57,6 +57,9 @@ export type InlineWritePayload = Record<string, InlineWrite>
 
 /** Validated, parent-scoped rows ready for the query layer. */
 export interface PreparedInlineWrite {
+  /** Which inline this belongs to, so an applied write knows its spec. */
+  collection: string
+  /** Validated child rows, *without* the parent key; the write sets that. */
   create: Record<string, unknown>[]
   update: { id: unknown; values: Record<string, unknown> }[]
   delete: unknown[]
