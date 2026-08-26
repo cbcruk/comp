@@ -1,31 +1,31 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef } from 'react'
 import type {
   CollectionSummary,
   CompClient,
-} from "../client/create-client.types.js";
-import type { CollectionListProps } from "../collection-list/collection-list.types.js";
-import type { ReferenceConfig } from "./reference-labels.js";
+} from '../client/create-client.types.js'
+import type { CollectionListProps } from '../collection-list/collection-list.types.js'
+import type { ReferenceConfig } from './reference-labels.js'
 
-export interface CollectionBrowserProps extends ComponentPropsWithoutRef<"div"> {
-  client: CompClient;
-  collection: CollectionSummary;
+export interface CollectionBrowserProps extends ComponentPropsWithoutRef<'div'> {
+  client: CompClient
+  collection: CollectionSummary
   /** Initial page size; falls back to the server's default when omitted. */
-  pageSize?: number;
+  pageSize?: number
   /** Forwarded to the underlying table for custom cell rendering. */
-  renderCell?: CollectionListProps["renderCell"];
+  renderCell?: CollectionListProps['renderCell']
   /** Enable click-to-edit cells that PATCH on commit (ignored if renderCell is set). */
-  editable?: boolean;
+  editable?: boolean
   /** Notified on action success/failure; when set, action errors route here. */
-  onNotify?: (kind: "success" | "error", message: string) => void;
+  onNotify?: (kind: 'success' | 'error', message: string) => void
   /**
    * Turn the first displayed column into the way in to a record — Django's
    * list makes its first column the change link. A prop rather than a
    * `renderCell` override so FK labels and click-to-edit keep working.
    */
-  onOpenRecord?: (id: string) => void;
+  onOpenRecord?: (id: string) => void
   /**
    * Override how FK columns resolve to labels, keyed by column. Omit it and
    * the collection's introspected relations are used.
    */
-  references?: Record<string, ReferenceConfig>;
+  references?: Record<string, ReferenceConfig>
 }

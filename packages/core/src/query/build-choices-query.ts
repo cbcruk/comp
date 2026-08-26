@@ -1,10 +1,10 @@
-import { sql, type Column } from "drizzle-orm";
-import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { SqliteDb } from "./build-list-query.js";
-import { columnFor } from "./build-relation-query.js";
-import { scopeWhere } from "./build-scope-where.js";
+import { sql, type Column } from 'drizzle-orm'
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { SqliteDb } from './build-list-query.js'
+import { columnFor } from './build-relation-query.js'
+import { scopeWhere } from './build-scope-where.js'
 
 /**
  * The distinct values a column actually holds, ordered, at most `limit` of
@@ -31,19 +31,21 @@ export function buildDistinctValuesQuery(
   limit: number,
   scope?: RecordScope,
 ) {
-  const column: Column = columnFor(collection, field);
-  const visible = scopeWhere(collection, scope);
+  const column: Column = columnFor(collection, field)
+  const visible = scopeWhere(collection, scope)
   let query = db
     .selectDistinct({ value: column as unknown as SQLiteColumn })
     .from(collection.model as unknown as SQLiteTable)
-    .$dynamic();
-  if (visible) query = query.where(visible);
-  return query
-    // Nulls last, so the empty rows never occupy a slot the values need: with
-    // them first, a column holding a null would report one value fewer than it
-    // has and the caller could not tell.
-    .orderBy(sql`${column} asc nulls last`)
-    // One more than asked for: the extra row is how the answer knows it is a
-    // prefix, without a second count query.
-    .limit(limit + 1);
+    .$dynamic()
+  if (visible) query = query.where(visible)
+  return (
+    query
+      // Nulls last, so the empty rows never occupy a slot the values need: with
+      // them first, a column holding a null would report one value fewer than it
+      // has and the caller could not tell.
+      .orderBy(sql`${column} asc nulls last`)
+      // One more than asked for: the extra row is how the answer knows it is a
+      // prefix, without a second count query.
+      .limit(limit + 1)
+  )
 }

@@ -5,10 +5,10 @@ import {
   useHashRoute,
   useToasts,
   type CollectionSummary,
-} from "@comp/admin";
-import { useEffect, useState, type JSX } from "react";
+} from '@comp/admin'
+import { useEffect, useState, type JSX } from 'react'
 
-const client = createClient({ baseUrl: "/admin" });
+const client = createClient({ baseUrl: '/admin' })
 
 /**
  * The whole app. Everything below the fold — the index, each collection's
@@ -17,20 +17,22 @@ const client = createClient({ baseUrl: "/admin" });
  * server reports. There is no screen assembled here per collection.
  */
 export function App(): JSX.Element {
-  const [collections, setCollections] = useState<CollectionSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const { route, navigate } = useHashRoute();
-  const { toasts, notify, dismiss } = useToasts();
+  const [collections, setCollections] = useState<CollectionSummary[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const { route, navigate } = useHashRoute()
+  const { toasts, notify, dismiss } = useToasts()
 
   useEffect(() => {
     client
       .collections()
       .then(setCollections)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, []);
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      )
+  }, [])
 
-  if (error) return <p role="alert">{error}</p>;
-  if (collections.length === 0) return <p>Loading…</p>;
+  if (error) return <p role="alert">{error}</p>
+  if (collections.length === 0) return <p>Loading…</p>
 
   return (
     <AdminSite
@@ -42,5 +44,5 @@ export function App(): JSX.Element {
       title="Comp — shop-d1"
       header={<Toasts toasts={toasts} onDismiss={dismiss} />}
     />
-  );
+  )
 }

@@ -1,21 +1,27 @@
-import { and, getTableColumns, type Column, type SQL, type Table } from "drizzle-orm";
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { FilterValue } from "../filters/filter.types.js";
-import { filterCondition } from "./build-filter-where.js";
+import {
+  and,
+  getTableColumns,
+  type Column,
+  type SQL,
+  type Table,
+} from 'drizzle-orm'
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { FilterValue } from '../filters/filter.types.js'
+import { filterCondition } from './build-filter-where.js'
 
-const OPS = new Set(["exact", "in", "isnull", "range", "preset"]);
+const OPS = new Set(['exact', 'in', 'isnull', 'range', 'preset'])
 
 function asFilterValue(value: unknown): FilterValue {
   if (
     value !== null &&
-    typeof value === "object" &&
-    "op" in value &&
+    typeof value === 'object' &&
+    'op' in value &&
     OPS.has(String((value as { op: unknown }).op))
   ) {
-    return value as FilterValue;
+    return value as FilterValue
   }
-  return { op: "exact", value };
+  return { op: 'exact', value }
 }
 
 /**
@@ -37,23 +43,23 @@ export function scopeConditions(
   const columns = getTableColumns(collection.model as Table) as Record<
     string,
     Column
-  >;
-  const conditions: SQL[] = [];
+  >
+  const conditions: SQL[] = []
 
   for (const [name, raw] of Object.entries(scope)) {
-    const column = columns[name];
-    const field = collection.fields[name];
+    const column = columns[name]
+    const field = collection.fields[name]
     if (!column || !field) {
       throw new Error(
         `Scope on "${collection.slug}" names "${name}", which is not a column ` +
           `— a scope that cannot be applied would silently show every row`,
-      );
+      )
     }
-    const condition = filterCondition(column, field, asFilterValue(raw), now);
-    if (condition) conditions.push(condition);
+    const condition = filterCondition(column, field, asFilterValue(raw), now)
+    if (condition) conditions.push(condition)
   }
 
-  return conditions;
+  return conditions
 }
 
 /** The scope as one condition, or undefined when there is nothing to narrow. */
@@ -62,8 +68,8 @@ export function scopeWhere(
   scope: RecordScope | undefined,
   now?: Date,
 ): SQL | undefined {
-  if (!scope) return undefined;
-  const conditions = scopeConditions(collection, scope, now);
-  if (conditions.length === 0) return undefined;
-  return conditions.length === 1 ? conditions[0] : and(...conditions);
+  if (!scope) return undefined
+  const conditions = scopeConditions(collection, scope, now)
+  if (conditions.length === 0) return undefined
+  return conditions.length === 1 ? conditions[0] : and(...conditions)
 }

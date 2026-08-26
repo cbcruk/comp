@@ -1,17 +1,17 @@
-import type { AuthorizeArgs, CollectionOperation } from "@comp/core";
+import type { AuthorizeArgs, CollectionOperation } from '@comp/core'
 
 /** Operations a role may perform, or "all" for every operation. */
-export type RoleGrant = CollectionOperation[] | "all";
+export type RoleGrant = CollectionOperation[] | 'all'
 
 export interface RolePolicyConfig {
   /** Operations granted per role name. */
-  roles: Record<string, RoleGrant>;
+  roles: Record<string, RoleGrant>
   /** Operations allowed without an identity. Defaults to none. */
-  anonymous?: CollectionOperation[];
+  anonymous?: CollectionOperation[]
 }
 
 function grants(grant: RoleGrant, operation: CollectionOperation): boolean {
-  return grant === "all" || grant.includes(operation);
+  return grant === 'all' || grant.includes(operation)
 }
 
 /**
@@ -24,12 +24,12 @@ export function createRolePolicy(
 ): (args: AuthorizeArgs) => boolean {
   return ({ identity, operation }) => {
     if (!identity) {
-      return (config.anonymous ?? []).includes(operation);
+      return (config.anonymous ?? []).includes(operation)
     }
-    const roles = Array.isArray(identity.roles) ? identity.roles : [];
+    const roles = Array.isArray(identity.roles) ? identity.roles : []
     return roles.some((role) => {
-      const grant = config.roles[role];
-      return grant !== undefined && grants(grant, operation);
-    });
-  };
+      const grant = config.roles[role]
+      return grant !== undefined && grants(grant, operation)
+    })
+  }
 }

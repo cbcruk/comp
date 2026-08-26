@@ -1,11 +1,11 @@
-import type { ComponentPropsWithoutRef, JSX } from "react";
-import { mergeProps } from "../merge-props/merge-props.js";
-import type { CollectionListProps } from "./collection-list.types.js";
+import type { ComponentPropsWithoutRef, JSX } from 'react'
+import { mergeProps } from '../merge-props/merge-props.js'
+import type { CollectionListProps } from './collection-list.types.js'
 
 function defaultCell(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString()
+  return String(value)
 }
 
 /**
@@ -13,7 +13,7 @@ function defaultCell(value: unknown): string {
  * presentational — it renders what the query layer resolved and nothing more.
  * Cell/header/empty rendering are render-prop slots rather than prop flags.
  */
-const SORT_INDICATOR = { asc: " ▲", desc: " ▼" } as const;
+const SORT_INDICATOR = { asc: ' ▲', desc: ' ▼' } as const
 
 export function CollectionList({
   columns,
@@ -26,28 +26,28 @@ export function CollectionList({
   ...rest
 }: CollectionListProps): JSX.Element {
   if (rows.length === 0 && renderEmpty) {
-    return <>{renderEmpty()}</>;
+    return <>{renderEmpty()}</>
   }
 
   function headerContent(column: string): JSX.Element | string {
-    const label = renderHeader ? renderHeader(column) : column;
-    if (!sort) return <>{label}</>;
-    const active = sort.field === column ? sort.direction : null;
+    const label = renderHeader ? renderHeader(column) : column
+    if (!sort) return <>{label}</>
+    const active = sort.field === column ? sort.direction : null
     return (
       <button type="button" onClick={() => sort.onSort(column)}>
         {label}
-        {active ? SORT_INDICATOR[active] : ""}
+        {active ? SORT_INDICATOR[active] : ''}
       </button>
-    );
+    )
   }
 
-  function ariaSort(column: string): "ascending" | "descending" | "none" {
-    if (!sort || sort.field !== column || !sort.direction) return "none";
-    return sort.direction === "asc" ? "ascending" : "descending";
+  function ariaSort(column: string): 'ascending' | 'descending' | 'none' {
+    if (!sort || sort.field !== column || !sort.direction) return 'none'
+    return sort.direction === 'asc' ? 'ascending' : 'descending'
   }
 
   return (
-    <table {...mergeProps<ComponentPropsWithoutRef<"table">>({}, rest)}>
+    <table {...mergeProps<ComponentPropsWithoutRef<'table'>>({}, rest)}>
       <thead>
         <tr>
           {selection && (
@@ -71,7 +71,7 @@ export function CollectionList({
       </thead>
       <tbody>
         {rows.map((row, index) => {
-          const id = selection?.getRowId(row) ?? null;
+          const id = selection?.getRowId(row) ?? null
           return (
             <tr key={id ?? index}>
               {selection && (
@@ -94,9 +94,9 @@ export function CollectionList({
                 </td>
               ))}
             </tr>
-          );
+          )
         })}
       </tbody>
     </table>
-  );
+  )
 }

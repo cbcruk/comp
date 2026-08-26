@@ -2,7 +2,7 @@
 
 The example for admin features that a two-table blog cannot exercise. Where
 `blog-d1` shows the stack working (D1, passkeys, MCP, deployment), this one has
-a schema that is *hard* for an admin:
+a schema that is _hard_ for an admin:
 
 - **orders → order_items**: dependent rows that only make sense edited with
   their parent. This is the inline.
@@ -45,7 +45,7 @@ fragment; an app with its own router passes `route`/`onNavigate` itself, and
 The worker passes one `createDrizzleHistoryStore(db)` to both routers, and that
 is the whole setup — writes start being recorded because the logging lives in
 the mutation layer rather than in each route. Open any record and click
-*History*:
+_History_:
 
 ```
 2026-07-16 10:04   ada    ada changed status, placedAt on A-1
@@ -105,7 +105,7 @@ manyToMany: [{ collection: "tags", through: orderTags, filter: true }],
 
 That names the join table and the far side. Which key is the order's and which
 is the tag's is read off `order_tags`'s own foreign keys, so nothing is
-declared twice. `through` has to be passed because nothing points *at* a join
+declared twice. `through` has to be passed because nothing points _at_ a join
 table — the registry has no way to find it — and a table that misses a side, or
 reaches one twice without saying which key to use, throws at startup.
 
@@ -166,8 +166,8 @@ calling `orders__delete`.
 ```ts
 defineCollection({
   model: orders,
-  listDisplay: ["reference", "customerId", "status", "placedAt"],
-  inlines: ["order_items"],
+  listDisplay: ['reference', 'customerId', 'status', 'placedAt'],
+  inlines: ['order_items'],
 })
 ```
 
@@ -226,7 +226,7 @@ Clicking a period narrows the list to that half-open window and puts it in the
 URL (`?date=2026-07-16`), so a drilled-in list is a link you can send, and the
 total under the table counts what the window actually holds.
 
-Only periods that *have* records are offered, and the counts are taken **within
+Only periods that _have_ records are offered, and the counts are taken **within
 whatever else is narrowing the list** — with `?status=paid` a month emptied by
 that filter disappears from the trail rather than leading to an empty page.
 Those counts come from the database, in one query with a summed `case` per
@@ -239,16 +239,16 @@ carries the trail, so an agent can drill the way the UI does.
 ## The filters
 
 `orders` declares `filters: ["status", { field: "channel", kind: "values" },
-"customerId", "placedAt"]` and nothing else. What each one *is* comes from the
+"customerId", "placedAt"]` and nothing else. What each one _is_ comes from the
 column:
 
-| Column | Kind | What it offers |
-| --- | --- | --- |
-| `status` | `choices` | its own enum values, singly or `in:draft,paid` |
-| `tags` | `m2m` | the tags themselves, matched through the join table |
-| `channel` | `values` | the values the orders actually hold, plus Empty |
-| `customerId` | `relation` | the customers it points at, plus Empty / Not empty |
-| `placedAt` | `date` | Today, Past 7 days, This month, This year, or `range:FROM..TO` |
+| Column       | Kind       | What it offers                                                 |
+| ------------ | ---------- | -------------------------------------------------------------- |
+| `status`     | `choices`  | its own enum values, singly or `in:draft,paid`                 |
+| `tags`       | `m2m`      | the tags themselves, matched through the join table            |
+| `channel`    | `values`   | the values the orders actually hold, plus Empty                |
+| `customerId` | `relation` | the customers it points at, plus Empty / Not empty             |
+| `placedAt`   | `date`     | Today, Past 7 days, This month, This year, or `range:FROM..TO` |
 
 The value carries its operation, so the URL stays a shareable link that keeps
 meaning what it said: `?status=in:draft,paid&placedAt=preset:month`. Relative

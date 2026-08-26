@@ -4,30 +4,30 @@ import type {
   Collection,
   HistoryStore,
   SqliteDb,
-} from "@comp/core";
-import { Hono, type Context } from "hono";
-import { handleRpc, type JsonRpcRequest } from "./dispatch.js";
-import { buildToolRegistry } from "./tools.js";
+} from '@comp/core'
+import { Hono, type Context } from 'hono'
+import { handleRpc, type JsonRpcRequest } from './dispatch.js'
+import { buildToolRegistry } from './tools.js'
 
 export interface McpHandlerConfig {
-  collections: Collection[];
-  actions?: ActionDefinition[];
+  collections: Collection[]
+  actions?: ActionDefinition[]
   /** Resolve the database per request (D1 binding lives on `c.env`). */
-  getDb: (c: Context) => SqliteDb;
+  getDb: (c: Context) => SqliteDb
   /**
    * Where to record who changed what. Pass the same store the HTTP router
    * uses: a write is a write, and a history that only sees one transport is
    * worse than none.
    */
-  history?: HistoryStore;
+  history?: HistoryStore
   /** Who these tool calls act as, for history entries. */
-  actor?: string | null;
+  actor?: string | null
   /**
    * Who is calling and what they may do. Pass the same adapter the HTTP router
    * takes: the tools are the same operations on the same collections, so a
    * permission honored by only one of them is not a permission.
    */
-  auth?: AuthAdapter;
+  auth?: AuthAdapter
 }
 
 /**
@@ -36,26 +36,28 @@ export interface McpHandlerConfig {
  * UI and CLI use — one core surface, three frontends.
  */
 export function createMcpHandler(config: McpHandlerConfig): Hono {
-  const app = new Hono();
-  const actions = config.actions ?? [];
-  const registry = buildToolRegistry(config.collections, actions);
+  const app = new Hono()
+  const actions = config.actions ?? []
+  const registry = buildToolRegistry(config.collections, actions)
 
-  app.post("/", async (c) => {
+  app.post('/', async (c) => {
     const body = (await c.req.json().catch(() => null)) as
-      | JsonRpcRequest
-      | JsonRpcRequest[]
-      | null;
+      JsonRpcRequest | JsonRpcRequest[] | null
     if (!body) {
       return c.json(
-        { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } },
+        {
+          jsonrpc: '2.0',
+          id: null,
+          error: { code: -32700, message: 'Parse error' },
+        },
         400,
-      );
+      )
     }
 
     // Once per request, not once per tool call: a batch is one caller.
     const identity = config.auth
       ? await config.auth.authenticate(c.req.raw)
-      : null;
+      : null
 
     const ctx = {
       registry,
@@ -65,17 +67,19 @@ export function createMcpHandler(config: McpHandlerConfig): Hono {
       actor: config.actor ?? identity?.subject ?? null,
       auth: config.auth,
       identity,
-    };
-
-    if (Array.isArray(body)) {
-      const responses = await Promise.all(body.map((req) => handleRpc(req, ctx)));
-      return c.json(responses.filter((r) => r !== null));
     }
 
-    const response = await handleRpc(body, ctx);
-    if (!response) return c.body(null, 204);
-    return c.json(response);
-  });
+    if (Array.isArray(body)) {
+      const responses = await Promise.all(
+        body.map((req) => handleRpc(req, ctx)),
+      )
+      return c.json(responses.filter((r) => r !== null))
+    }
 
-  return app;
+    const response = await handleRpc(body, ctx)
+    if (!response) return c.body(null, 204)
+    return c.json(response)
+  })
+
+  return app
 }

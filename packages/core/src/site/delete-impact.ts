@@ -1,17 +1,17 @@
-import type { Collection } from "../collection/define-collection.types.js";
-import type { ReferentialAction } from "../introspection/introspect-table.types.js";
-import type { SqliteDb } from "../query/build-list-query.js";
-import { buildReferenceCountQuery } from "../query/build-relation-query.js";
-import { resolveRelations } from "../relations/resolve-relations.js";
+import type { Collection } from '../collection/define-collection.types.js'
+import type { ReferentialAction } from '../introspection/introspect-table.types.js'
+import type { SqliteDb } from '../query/build-list-query.js'
+import { buildReferenceCountQuery } from '../query/build-relation-query.js'
+import { resolveRelations } from '../relations/resolve-relations.js'
 
 /** A collection whose foreign key points at the record being deleted. */
 export interface DeleteRelation {
-  collection: Collection;
+  collection: Collection
   /** FK field on that collection. */
-  field: string;
+  field: string
   /** Field on the record being deleted that the key points at. */
-  targetField: string;
-  onDelete?: ReferentialAction;
+  targetField: string
+  onDelete?: ReferentialAction
 }
 
 /**
@@ -21,35 +21,35 @@ export interface DeleteRelation {
  * refuse the delete. Where foreign keys are not enforced the rows are left
  * pointing at nothing instead — which is worth warning about either way.
  */
-export type DeleteEffect = "cascade" | "clear" | "block";
+export type DeleteEffect = 'cascade' | 'clear' | 'block'
 
 export interface DeleteImpactEntry {
-  collection: string;
-  field: string;
-  count: number;
-  effect: DeleteEffect;
+  collection: string
+  field: string
+  count: number
+  effect: DeleteEffect
 }
 
 export interface DeleteImpact {
-  collection: string;
-  id: unknown;
+  collection: string
+  id: unknown
   /** Rows that reference this record, per collection; zero counts omitted. */
-  related: DeleteImpactEntry[];
+  related: DeleteImpactEntry[]
   /** Rows that would go with it. */
-  cascades: number;
+  cascades: number
   /** True when a key would refuse the delete. */
-  blocked: boolean;
+  blocked: boolean
 }
 
 function effectOf(onDelete: ReferentialAction | undefined): DeleteEffect {
   switch (onDelete) {
-    case "cascade":
-      return "cascade";
-    case "set null":
-    case "set default":
-      return "clear";
+    case 'cascade':
+      return 'cascade'
+    case 'set null':
+    case 'set default':
+      return 'clear'
     default:
-      return "block";
+      return 'block'
   }
 }
 
@@ -61,26 +61,26 @@ function effectOf(onDelete: ReferentialAction | undefined): DeleteEffect {
 export function resolveDeleteRelations(
   collections: Collection[],
 ): Map<string, DeleteRelation[]> {
-  const bySlug = new Map(collections.map((c) => [c.slug, c]));
-  const graph = resolveRelations(collections);
-  const resolved = new Map<string, DeleteRelation[]>();
+  const bySlug = new Map(collections.map((c) => [c.slug, c]))
+  const graph = resolveRelations(collections)
+  const resolved = new Map<string, DeleteRelation[]>()
 
   for (const collection of collections) {
-    const relations: DeleteRelation[] = [];
+    const relations: DeleteRelation[] = []
     for (const inbound of graph.inbound[collection.slug] ?? []) {
-      const child = bySlug.get(inbound.collection);
-      if (!child) continue;
+      const child = bySlug.get(inbound.collection)
+      if (!child) continue
       relations.push({
         collection: child,
         field: inbound.field,
         targetField: inbound.targetField,
         ...(inbound.onDelete ? { onDelete: inbound.onDelete } : {}),
-      });
+      })
     }
-    resolved.set(collection.slug, relations);
+    resolved.set(collection.slug, relations)
   }
 
-  return resolved;
+  return resolved
 }
 
 /**
@@ -98,9 +98,9 @@ export async function collectDeleteImpact(
   record: Record<string, unknown>,
   relations: DeleteRelation[],
 ): Promise<DeleteImpact> {
-  const related: DeleteImpactEntry[] = [];
-  let cascades = 0;
-  let blocked = false;
+  const related: DeleteImpactEntry[] = []
+  let cascades = 0
+  let blocked = false
 
   for (const relation of relations) {
     const rows = await buildReferenceCountQuery(
@@ -108,20 +108,20 @@ export async function collectDeleteImpact(
       relation.collection,
       relation.field,
       record[relation.targetField],
-    ).all();
-    const count = rows[0]?.count ?? 0;
-    if (count === 0) continue;
+    ).all()
+    const count = rows[0]?.count ?? 0
+    if (count === 0) continue
 
-    const effect = effectOf(relation.onDelete);
-    if (effect === "cascade") cascades += count;
-    if (effect === "block") blocked = true;
+    const effect = effectOf(relation.onDelete)
+    if (effect === 'cascade') cascades += count
+    if (effect === 'block') blocked = true
 
     related.push({
       collection: relation.collection.slug,
       field: relation.field,
       count,
       effect,
-    });
+    })
   }
 
   return {
@@ -130,5 +130,5 @@ export async function collectDeleteImpact(
     related,
     cascades,
     blocked,
-  };
+  }
 }

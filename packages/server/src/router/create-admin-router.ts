@@ -43,31 +43,31 @@ import {
   type ManyToManyWrite,
   type RecordScope,
   type SqliteDb,
-} from "@comp/core";
-import { Hono, type Context } from "hono";
-import { splitInlineBody } from "./inline-body.js";
-import { parseListParams } from "./list-params.js";
+} from '@comp/core'
+import { Hono, type Context } from 'hono'
+import { splitInlineBody } from './inline-body.js'
+import { parseListParams } from './list-params.js'
 
 export interface AdminRouterConfig {
-  collections: Collection[];
+  collections: Collection[]
   /** Bulk/custom actions, scoped to a collection by their `collection` slug. */
-  actions?: ActionDefinition[];
+  actions?: ActionDefinition[]
   /** Auth adapter; defaults to allow-all. */
-  auth?: AuthAdapter;
+  auth?: AuthAdapter
   /**
    * Where to record who changed what. Omit it and no history is kept — the
    * feature is opt-in, and its cost (an extra read per update) comes with it.
    */
-  history?: HistoryStore;
+  history?: HistoryStore
   /**
    * Resolve the database for a request. On Workers the D1 binding lives on
    * `c.env`, so the db must be built per request rather than at module load.
    */
-  getDb: (c: Context) => SqliteDb;
+  getDb: (c: Context) => SqliteDb
 }
 
 function allows(collection: Collection, op: CollectionOperation): boolean {
-  return collection.manifest.operations.includes(op);
+  return collection.manifest.operations.includes(op)
 }
 
 /** An action may only touch operations its target collection grants. */
@@ -75,7 +75,7 @@ function withinCapabilities(
   action: ActionDefinition,
   collection: Collection,
 ): boolean {
-  return action.operations.every((op) => allows(collection, op));
+  return action.operations.every((op) => allows(collection, op))
 }
 
 /**
@@ -86,19 +86,19 @@ function withinCapabilities(
  */
 function inlineAwareError(c: Context, error: unknown): Response {
   if (error instanceof ValidationError) {
-    return c.json({ error: error.message, issues: error.issues }, 400);
+    return c.json({ error: error.message, issues: error.issues }, 400)
   }
   if (error instanceof InlineError) {
-    return c.json({ error: error.message }, 405);
+    return c.json({ error: error.message }, 405)
   }
-  throw error;
+  throw error
 }
 
 async function parseJsonBody(c: Context): Promise<unknown> {
   try {
-    return await c.req.json();
+    return await c.req.json()
   } catch {
-    return undefined;
+    return undefined
   }
 }
 
@@ -109,25 +109,25 @@ async function parseJsonBody(c: Context): Promise<unknown> {
  * Writes are gated on the collection manifest's declared operations.
  */
 export function createAdminRouter(config: AdminRouterConfig): Hono {
-  const app = new Hono();
-  const auth = config.auth ?? allowAll;
-  const bySlug = new Map(config.collections.map((c) => [c.slug, c]));
+  const app = new Hono()
+  const auth = config.auth ?? allowAll
+  const bySlug = new Map(config.collections.map((c) => [c.slug, c]))
   // The relation graph is a property of the whole registry, so it is resolved
   // once here rather than per request — and served to clients so the UI never
   // has to be told which collection an FK points at. Inlines bind to that same
   // graph, and a bad declaration throws here, at startup, not on a request.
-  const relations = resolveRelations(config.collections);
-  const inlines = resolveInlines(config.collections);
+  const relations = resolveRelations(config.collections)
+  const inlines = resolveInlines(config.collections)
   // A join table is not a collection, so the far side of every many-to-many is
   // bound here, where the registry is known — the same startup step inlines
   // and the relation graph take.
-  const links = bindManyToMany(config.collections);
-  const deleteRelations = resolveDeleteRelations(config.collections);
-  const actionsBySlug = new Map<string, ActionDefinition[]>();
+  const links = bindManyToMany(config.collections)
+  const deleteRelations = resolveDeleteRelations(config.collections)
+  const actionsBySlug = new Map<string, ActionDefinition[]>()
   for (const action of config.actions ?? []) {
-    const list = actionsBySlug.get(action.collection) ?? [];
-    list.push(action);
-    actionsBySlug.set(action.collection, list);
+    const list = actionsBySlug.get(action.collection) ?? []
+    list.push(action)
+    actionsBySlug.set(action.collection, list)
   }
 
   async function authorized(
@@ -135,8 +135,8 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     collection: Collection,
     operation: CollectionOperation,
   ): Promise<boolean> {
-    const identity = await auth.authenticate(c.req.raw);
-    return Boolean(await auth.authorize({ identity, collection, operation }));
+    const identity = await auth.authenticate(c.req.raw)
+    return Boolean(await auth.authorize({ identity, collection, operation }))
   }
 
   /**
@@ -149,8 +149,8 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     c: Context,
     collection: Collection,
   ): Promise<RecordScope | undefined> {
-    const identity = await auth.authenticate(c.req.raw);
-    return resolveScope(auth, identity, collection);
+    const identity = await auth.authenticate(c.req.raw)
+    return resolveScope(auth, identity, collection)
   }
 
   /**
@@ -170,21 +170,19 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     id: unknown,
     operation: CollectionOperation,
     scope: RecordScope | undefined,
-  ): Promise<
-    { row: Record<string, unknown> } | { refusal: Response }
-  > {
-    const rows = await buildGetByIdQuery(db, collection, id, scope).all();
-    const row = rows[0] as Record<string, unknown> | undefined;
-    if (!row) return { refusal: c.json({ error: "Not found" }, 404) };
+  ): Promise<{ row: Record<string, unknown> } | { refusal: Response }> {
+    const rows = await buildGetByIdQuery(db, collection, id, scope).all()
+    const row = rows[0] as Record<string, unknown> | undefined
+    if (!row) return { refusal: c.json({ error: 'Not found' }, 404) }
 
-    const identity = await auth.authenticate(c.req.raw);
+    const identity = await auth.authenticate(c.req.raw)
     const allowed = await authorizeRecordAccess(auth, {
       identity,
       collection,
       operation,
       record: row,
-    });
-    return allowed ? { row } : { refusal: c.json({ error: "Forbidden" }, 403) };
+    })
+    return allowed ? { row } : { refusal: c.json({ error: 'Forbidden' }, 403) }
   }
 
   /**
@@ -201,20 +199,20 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     operations: readonly CollectionOperation[],
     requested: unknown[],
   ): Promise<unknown[]> {
-    if (requested.length === 0 || !checksRecords(auth)) return requested;
+    if (requested.length === 0 || !checksRecords(auth)) return requested
 
     const rows = (await buildRecordsByIdsQuery(
       db,
       collection,
       requested,
       await scopeFor(c, collection),
-    ).all()) as Record<string, unknown>[];
+    ).all()) as Record<string, unknown>[]
 
-    const identity = await auth.authenticate(c.req.raw);
-    const key = collection.primaryKey;
-    if (!key) return [];
+    const identity = await auth.authenticate(c.req.raw)
+    const key = collection.primaryKey
+    if (!key) return []
 
-    const allowed: unknown[] = [];
+    const allowed: unknown[] = []
     for (const row of rows) {
       const permitted = await Promise.all(
         operations.map((operation) =>
@@ -225,18 +223,18 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
             record: row,
           }),
         ),
-      );
-      if (permitted.every(Boolean)) allowed.push(row[key]);
+      )
+      if (permitted.every(Boolean)) allowed.push(row[key])
     }
-    return allowed;
+    return allowed
   }
 
   function specsFor(collection: Collection): InlineSpec[] {
-    return inlines.get(collection.slug) ?? [];
+    return inlines.get(collection.slug) ?? []
   }
 
   function linksFor(collection: Collection): ManyToManySpec[] {
-    return links.get(collection.slug) ?? [];
+    return links.get(collection.slug) ?? []
   }
 
   /**
@@ -251,9 +249,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     db: SqliteDb,
   ): Promise<Record<string, unknown[]> | undefined> {
     return readManyToMany(db, linksFor(collection), row, async (spec) => {
-      if (!allows(spec.target, "list")) return false;
-      return authorized(c, spec.target, "list");
-    });
+      if (!allows(spec.target, 'list')) return false
+      return authorized(c, spec.target, 'list')
+    })
   }
 
   /**
@@ -266,17 +264,19 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     collection: Collection,
     payload: ManyToManyWrite,
   ): Promise<Response | null> {
-    const byName = new Map(linksFor(collection).map((spec) => [spec.name, spec]));
+    const byName = new Map(
+      linksFor(collection).map((spec) => [spec.name, spec]),
+    )
     for (const name of Object.keys(payload)) {
-      const spec = byName.get(name);
+      const spec = byName.get(name)
       if (!spec) {
-        return c.json({ error: `"${name}" is not a relationship here` }, 400);
+        return c.json({ error: `"${name}" is not a relationship here` }, 400)
       }
-      if (!(await authorized(c, spec.target, "list"))) {
-        return c.json({ error: "Forbidden" }, 403);
+      if (!(await authorized(c, spec.target, 'list'))) {
+        return c.json({ error: 'Forbidden' }, 403)
       }
     }
-    return null;
+    return null
   }
 
   /**
@@ -290,12 +290,12 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     row: Record<string, unknown>,
     db: SqliteDb,
   ): Promise<Record<string, Record<string, unknown>[]> | undefined> {
-    const specs = specsFor(collection);
-    if (specs.length === 0) return undefined;
+    const specs = specsFor(collection)
+    if (specs.length === 0) return undefined
     return readInlines(db, specs, row, async (spec) => {
-      if (!allows(spec.collection, "list")) return false;
-      return authorized(c, spec.collection, "list");
-    });
+      if (!allows(spec.collection, 'list')) return false
+      return authorized(c, spec.collection, 'list')
+    })
   }
 
   /**
@@ -310,29 +310,32 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   ): Promise<Response | null> {
     const bySlug = new Map(
       specsFor(collection).map((spec) => [spec.collection.slug, spec]),
-    );
+    )
     for (const [slug, write] of Object.entries(payload)) {
-      const spec = bySlug.get(slug);
+      const spec = bySlug.get(slug)
       if (!spec) {
-        return c.json({ error: `"${slug}" is not an inline of this collection` }, 400);
+        return c.json(
+          { error: `"${slug}" is not an inline of this collection` },
+          400,
+        )
       }
       for (const operation of inlineOperations(write)) {
         if (!allows(spec.collection, operation)) {
-          return c.json({ error: `${operation} not allowed on "${slug}"` }, 405);
+          return c.json({ error: `${operation} not allowed on "${slug}"` }, 405)
         }
         if (!(await authorized(c, spec.collection, operation))) {
-          return c.json({ error: "Forbidden" }, 403);
+          return c.json({ error: 'Forbidden' }, 403)
         }
       }
     }
-    return null;
+    return null
   }
 
   /** Who is making this request, for the history entry. */
   async function actorOf(c: Context): Promise<string | null> {
-    if (!config.history) return null;
-    const identity: Identity | null = await auth.authenticate(c.req.raw);
-    return identity?.subject ?? null;
+    if (!config.history) return null
+    const identity: Identity | null = await auth.authenticate(c.req.raw)
+    return identity?.subject ?? null
   }
 
   async function mutationContext(
@@ -340,17 +343,17 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     collection: Collection,
     db: SqliteDb,
   ): Promise<{
-    db: SqliteDb;
-    collection: Collection;
-    history: HistoryStore | undefined;
-    actor: string | null;
+    db: SqliteDb
+    collection: Collection
+    history: HistoryStore | undefined
+    actor: string | null
   }> {
     return {
       db,
       collection,
       history: config.history,
       actor: await actorOf(c),
-    };
+    }
   }
 
   /** The operations this caller may actually perform on a collection. */
@@ -358,11 +361,11 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     c: Context,
     collection: Collection,
   ): Promise<CollectionOperation[]> {
-    const permitted: CollectionOperation[] = [];
+    const permitted: CollectionOperation[] = []
     for (const operation of collection.manifest.operations) {
-      if (await authorized(c, collection, operation)) permitted.push(operation);
+      if (await authorized(c, collection, operation)) permitted.push(operation)
     }
-    return permitted;
+    return permitted
   }
 
   /**
@@ -370,11 +373,11 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
    * rather than listed and then refused — an index that advertises screens you
    * are not allowed to open is worse than no index.
    */
-  app.get("/collections", async (c) => {
-    const summaries = [];
+  app.get('/collections', async (c) => {
+    const summaries = []
     for (const collection of config.collections) {
-      const permitted = await permittedOperations(c, collection);
-      if (!permitted.includes("list")) continue;
+      const permitted = await permittedOperations(c, collection)
+      if (!permitted.includes('list')) continue
       summaries.push({
         slug: collection.slug,
         label: collection.label,
@@ -401,79 +404,80 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         actions: (actionsBySlug.get(collection.slug) ?? []).map(
           (action) => action.manifest,
         ),
-      });
+      })
     }
-    return c.json(summaries);
-  });
+    return c.json(summaries)
+  })
 
-  app.get("/collections/:slug/:id/delete-preview", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!allows(collection, "delete")) {
-      return c.json({ error: "Delete not allowed" }, 405);
+  app.get('/collections/:slug/:id/delete-preview', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!allows(collection, 'delete')) {
+      return c.json({ error: 'Delete not allowed' }, 405)
     }
-    if (!(await authorized(c, collection, "delete"))) {
-      return c.json({ error: "Forbidden" }, 403);
+    if (!(await authorized(c, collection, 'delete'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const db = config.getDb(c);
+    const db = config.getDb(c)
     const found = await loadRecord(
       c,
       collection,
       db,
-      c.req.param("id"),
-      "delete",
+      c.req.param('id'),
+      'delete',
       await scopeFor(c, collection),
-    );
-    if ("refusal" in found) return found.refusal;
+    )
+    if ('refusal' in found) return found.refusal
 
-    const relations: DeleteRelation[] = deleteRelations.get(collection.slug) ?? [];
+    const relations: DeleteRelation[] =
+      deleteRelations.get(collection.slug) ?? []
     return c.json({
       data: await collectDeleteImpact(db, collection, found.row, relations),
-    });
-  });
+    })
+  })
 
   /**
    * Recent activity across the site — the panel Django puts on its index.
    * Narrowed to collections this caller may list, so history cannot become a
    * way to learn about records they are not allowed to see.
    */
-  app.get("/history", async (c) => {
-    if (!config.history) return c.json({ error: "History is not enabled" }, 404);
+  app.get('/history', async (c) => {
+    if (!config.history) return c.json({ error: 'History is not enabled' }, 404)
 
-    const visible: string[] = [];
+    const visible: string[] = []
     for (const collection of config.collections) {
-      if (await authorized(c, collection, "list")) visible.push(collection.slug);
+      if (await authorized(c, collection, 'list')) visible.push(collection.slug)
     }
 
-    const limit = Number.parseInt(c.req.query("limit") ?? "", 10);
+    const limit = Number.parseInt(c.req.query('limit') ?? '', 10)
     return c.json({
       data: await config.history.list({
         collections: visible,
         ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
       }),
-    });
-  });
+    })
+  })
 
-  app.get("/collections/:slug", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!(await authorized(c, collection, "list"))) {
-      return c.json({ error: "Forbidden" }, 403);
+  app.get('/collections/:slug', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!(await authorized(c, collection, 'list'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const db = config.getDb(c);
+    const db = config.getDb(c)
     // The scope is part of the query, not a check after it: the rows, the
     // total, the drill-down counts and the filter choices are all the same
     // narrowed set.
-    const scope = await scopeFor(c, collection);
+    const scope = await scopeFor(c, collection)
     const params = {
       ...parseListParams(collection, c.req.query()),
       ...(scope ? { scope } : {}),
-    };
-    const rows = await buildListQuery(db, collection, params).all();
-    const totals = await buildCountQuery(db, collection, params).all();
-    const total = totals[0]?.count ?? 0;
+    }
+    const rows = await buildListQuery(db, collection, params).all()
+    const totals = await buildCountQuery(db, collection, params).all()
+    const total = totals[0]?.count ?? 0
 
     return c.json({
       data: rows,
@@ -487,65 +491,65 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       // cannot travel with the static collection summary; costs nothing unless
       // one is declared.
       choices: await collectFilterChoices(db, collection, scope),
-    });
-  });
+    })
+  })
 
-  app.get("/collections/:slug/:id", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!(await authorized(c, collection, "read"))) {
-      return c.json({ error: "Forbidden" }, 403);
+  app.get('/collections/:slug/:id', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!(await authorized(c, collection, 'read'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const db = config.getDb(c);
+    const db = config.getDb(c)
     const found = await loadRecord(
       c,
       collection,
       db,
-      c.req.param("id"),
-      "read",
+      c.req.param('id'),
+      'read',
       await scopeFor(c, collection),
-    );
-    if ("refusal" in found) return found.refusal;
+    )
+    if ('refusal' in found) return found.refusal
 
     return c.json({
       data: found.row,
       inlines: await inlineRows(c, collection, found.row, db),
       manyToMany: await linkedIds(c, collection, found.row, db),
-    });
-  });
+    })
+  })
 
-  app.post("/collections/:slug", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!allows(collection, "create")) {
-      return c.json({ error: "Create not allowed" }, 405);
+  app.post('/collections/:slug', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!allows(collection, 'create')) {
+      return c.json({ error: 'Create not allowed' }, 405)
     }
-    if (!(await authorized(c, collection, "create"))) {
-      return c.json({ error: "Forbidden" }, 403);
+    if (!(await authorized(c, collection, 'create'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const body = splitInlineBody(await parseJsonBody(c));
+    const body = splitInlineBody(await parseJsonBody(c))
     const refusal =
       (await refuseInlineWrite(c, collection, body.inlines)) ??
-      (await refuseLinkWrite(c, collection, body.manyToMany));
-    if (refusal) return refusal;
+      (await refuseLinkWrite(c, collection, body.manyToMany))
+    if (refusal) return refusal
 
-    const db = config.getDb(c);
+    const db = config.getDb(c)
     try {
       // No scope here, and no per-record check: there is no record yet to
       // narrow to or to decide about. What may be created is the collection's
       // `create` grant plus validation — the same split Django makes, where
       // `has_add_permission` is the one that takes no object.
-      const values = validateInsert(collection, body.values);
+      const values = validateInsert(collection, body.values)
       const row = await createRecord(
         await mutationContext(c, collection, db),
         values,
-      );
-      if (!row) return c.json({ error: "Insert returned no row" }, 500);
+      )
+      if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines);
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany);
+      await writeInlines(db, specsFor(collection), row, body.inlines)
+      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
       return c.json(
         {
           data: row,
@@ -553,49 +557,49 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
           manyToMany: await linkedIds(c, collection, row, db),
         },
         201,
-      );
+      )
     } catch (error) {
-      return inlineAwareError(c, error);
+      return inlineAwareError(c, error)
     }
-  });
+  })
 
-  app.patch("/collections/:slug/:id", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!allows(collection, "update")) {
-      return c.json({ error: "Update not allowed" }, 405);
+  app.patch('/collections/:slug/:id', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!allows(collection, 'update')) {
+      return c.json({ error: 'Update not allowed' }, 405)
     }
-    if (!(await authorized(c, collection, "update"))) {
-      return c.json({ error: "Forbidden" }, 403);
+    if (!(await authorized(c, collection, 'update'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const body = splitInlineBody(await parseJsonBody(c));
+    const body = splitInlineBody(await parseJsonBody(c))
     const refusal =
       (await refuseInlineWrite(c, collection, body.inlines)) ??
-      (await refuseLinkWrite(c, collection, body.manyToMany));
-    if (refusal) return refusal;
+      (await refuseLinkWrite(c, collection, body.manyToMany))
+    if (refusal) return refusal
 
-    const db = config.getDb(c);
-    const scope = await scopeFor(c, collection);
+    const db = config.getDb(c)
+    const scope = await scopeFor(c, collection)
     // Deciding per record means reading the record, so only an adapter that
     // decides per record pays for it. The row read here is also the "before"
     // state history would otherwise read again.
-    let before: Record<string, unknown> | undefined;
+    let before: Record<string, unknown> | undefined
     if (checksRecords(auth)) {
       const found = await loadRecord(
         c,
         collection,
         db,
-        c.req.param("id"),
-        "update",
+        c.req.param('id'),
+        'update',
         scope,
-      );
-      if ("refusal" in found) return found.refusal;
-      before = found.row;
+      )
+      if ('refusal' in found) return found.refusal
+      before = found.row
     }
 
     try {
-      const values = validateUpdate(collection, body.values);
+      const values = validateUpdate(collection, body.values)
       // Editing only the child rows is a real edit; don't force an empty
       // UPDATE on the parent just to get at its inlines.
       const row =
@@ -606,7 +610,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
                 ...(scope ? { scope } : {}),
                 ...(before ? { before } : {}),
               },
-              c.req.param("id"),
+              c.req.param('id'),
               values,
             )
           : (before ??
@@ -614,46 +618,46 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
               await buildGetByIdQuery(
                 db,
                 collection,
-                c.req.param("id"),
+                c.req.param('id'),
                 scope,
               ).all()
-            )[0] as Record<string, unknown> | undefined));
-      if (!row) return c.json({ error: "Not found" }, 404);
+            )[0] as Record<string, unknown> | undefined))
+      if (!row) return c.json({ error: 'Not found' }, 404)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines);
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany);
+      await writeInlines(db, specsFor(collection), row, body.inlines)
+      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
       return c.json({
         data: row,
         inlines: await inlineRows(c, collection, row, db),
         manyToMany: await linkedIds(c, collection, row, db),
-      });
+      })
     } catch (error) {
-      return inlineAwareError(c, error);
+      return inlineAwareError(c, error)
     }
-  });
+  })
 
-  app.delete("/collections/:slug/:id", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!allows(collection, "delete")) {
-      return c.json({ error: "Delete not allowed" }, 405);
+  app.delete('/collections/:slug/:id', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!allows(collection, 'delete')) {
+      return c.json({ error: 'Delete not allowed' }, 405)
     }
-    if (!(await authorized(c, collection, "delete"))) {
-      return c.json({ error: "Forbidden" }, 403);
+    if (!(await authorized(c, collection, 'delete'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const db = config.getDb(c);
-    const scope = await scopeFor(c, collection);
+    const db = config.getDb(c)
+    const scope = await scopeFor(c, collection)
     if (checksRecords(auth)) {
       const found = await loadRecord(
         c,
         collection,
         db,
-        c.req.param("id"),
-        "delete",
+        c.req.param('id'),
+        'delete',
         scope,
-      );
-      if ("refusal" in found) return found.refusal;
+      )
+      if ('refusal' in found) return found.refusal
     }
 
     const row = await deleteRecord(
@@ -661,23 +665,23 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         ...(await mutationContext(c, collection, db)),
         ...(scope ? { scope } : {}),
       },
-      c.req.param("id"),
-    );
-    if (!row) return c.json({ error: "Not found" }, 404);
-    return c.json({ data: row });
-  });
+      c.req.param('id'),
+    )
+    if (!row) return c.json({ error: 'Not found' }, 404)
+    return c.json({ data: row })
+  })
 
   /**
    * A record's history — Django's per-object history view. Gated on reading
    * the record, since that is what the entries are about; the entries survive
    * the record, so this keeps answering after a delete.
    */
-  app.get("/collections/:slug/:id/history", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
-    if (!config.history) return c.json({ error: "History is not enabled" }, 404);
-    if (!(await authorized(c, collection, "read"))) {
-      return c.json({ error: "Forbidden" }, 403);
+  app.get('/collections/:slug/:id/history', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+    if (!config.history) return c.json({ error: 'History is not enabled' }, 404)
+    if (!(await authorized(c, collection, 'read'))) {
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
     // Entries say what a record was, so a caller who may not see the record
@@ -689,49 +693,48 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         c,
         collection,
         config.getDb(c),
-        c.req.param("id"),
-        "read",
+        c.req.param('id'),
+        'read',
         await scopeFor(c, collection),
-      );
-      if ("refusal" in found) return found.refusal;
+      )
+      if ('refusal' in found) return found.refusal
     }
 
-    const limit = Number.parseInt(c.req.query("limit") ?? "", 10);
+    const limit = Number.parseInt(c.req.query('limit') ?? '', 10)
     return c.json({
       data: await config.history.list({
         collection: collection.slug,
-        recordId: c.req.param("id"),
+        recordId: c.req.param('id'),
         ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
       }),
-    });
-  });
+    })
+  })
 
-  app.post("/collections/:slug/actions/:name", async (c) => {
-    const collection = bySlug.get(c.req.param("slug"));
-    if (!collection) return c.json({ error: "Unknown collection" }, 404);
+  app.post('/collections/:slug/actions/:name', async (c) => {
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
 
     const action = (actionsBySlug.get(collection.slug) ?? []).find(
-      (a) => a.name === c.req.param("name"),
-    );
-    if (!action) return c.json({ error: "Unknown action" }, 404);
+      (a) => a.name === c.req.param('name'),
+    )
+    if (!action) return c.json({ error: 'Unknown action' }, 404)
     if (!withinCapabilities(action, collection)) {
       return c.json(
         { error: "Action exceeds the collection's capabilities" },
         403,
-      );
+      )
     }
     for (const operation of action.operations) {
       if (!(await authorized(c, collection, operation))) {
-        return c.json({ error: "Forbidden" }, 403);
+        return c.json({ error: 'Forbidden' }, 403)
       }
     }
 
     const body = (await parseJsonBody(c)) as
-      | { ids?: unknown[]; input?: unknown }
-      | undefined;
-    const requested = Array.isArray(body?.ids) ? body.ids : [];
+      { ids?: unknown[]; input?: unknown } | undefined
+    const requested = Array.isArray(body?.ids) ? body.ids : []
 
-    const db = config.getDb(c);
+    const db = config.getDb(c)
     // An action reaches rows by id, so the scope has to narrow the ids before
     // the handler sees them — otherwise "delete the selected" is a way to
     // delete what the list would never have shown.
@@ -741,16 +744,16 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       db,
       action.operations,
       requested,
-    );
+    )
 
     const result = await runAction(action, {
       db,
       collection,
       ids,
       input: body?.input,
-    });
-    return c.json(result);
-  });
+    })
+    return c.json(result)
+  })
 
-  return app;
+  return app
 }

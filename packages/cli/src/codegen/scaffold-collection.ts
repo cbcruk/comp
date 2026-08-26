@@ -1,19 +1,19 @@
-import { toCamelCase } from "../naming.js";
+import { toCamelCase } from '../naming.js'
 
 export interface ScaffoldCollectionOptions {
   /** Collection name, e.g. "posts" or "BlogPost". */
-  name: string;
+  name: string
   /** Drizzle table identifier to import. */
-  table: string;
+  table: string
   /** Module the table is imported from. */
-  module: string;
-  listDisplay: string[];
-  filters?: string[];
-  search?: string[];
+  module: string
+  listDisplay: string[]
+  filters?: string[]
+  search?: string[]
 }
 
 function arrayLiteral(values: string[]): string {
-  return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
+  return `[${values.map((value) => JSON.stringify(value)).join(', ')}]`
 }
 
 /**
@@ -22,7 +22,7 @@ function arrayLiteral(values: string[]): string {
  * and CLI all consume.
  */
 export function scaffoldCollection(options: ScaffoldCollectionOptions): string {
-  const exportName = `${toCamelCase(options.name)}Collection`;
+  const exportName = `${toCamelCase(options.name)}Collection`
   const lines = [
     `import { defineCollection } from "@comp/core";`,
     `import { ${options.table} } from "${options.module}";`,
@@ -30,13 +30,13 @@ export function scaffoldCollection(options: ScaffoldCollectionOptions): string {
     `export const ${exportName} = defineCollection({`,
     `  model: ${options.table},`,
     `  listDisplay: ${arrayLiteral(options.listDisplay)},`,
-  ];
+  ]
   if (options.filters && options.filters.length > 0) {
-    lines.push(`  filters: ${arrayLiteral(options.filters)},`);
+    lines.push(`  filters: ${arrayLiteral(options.filters)},`)
   }
   if (options.search && options.search.length > 0) {
-    lines.push(`  search: ${arrayLiteral(options.search)},`);
+    lines.push(`  search: ${arrayLiteral(options.search)},`)
   }
-  lines.push(`});`, ``);
-  return lines.join("\n");
+  lines.push(`});`, ``)
+  return lines.join('\n')
 }

@@ -1,5 +1,5 @@
-import type { Table } from "drizzle-orm";
-import type { Collection } from "../collection/define-collection.types.js";
+import type { Table } from 'drizzle-orm'
+import type { Collection } from '../collection/define-collection.types.js'
 
 /**
  * A many-to-many relationship, declared on the collection that edits it.
@@ -13,18 +13,18 @@ import type { Collection } from "../collection/define-collection.types.js";
  */
 export interface ManyToManyConfig {
   /** Slug of the collection on the other side. */
-  collection: string;
+  collection: string
   /** The join table. */
-  through: Table;
+  through: Table
   /**
    * Name this appears under in payloads and on the form. Defaults to the other
    * collection's slug; set it when a collection joins the same one twice.
    */
-  name?: string;
+  name?: string
   /** Join-table key pointing here; needed only when it points here twice. */
-  field?: string;
+  field?: string
   /** Join-table key pointing at the other side; same rule. */
-  targetField?: string;
+  targetField?: string
   /**
    * Offer this relationship as a filter — Django's `list_filter` over a
    * many-to-many. Declared here rather than in `filters` because a
@@ -32,7 +32,7 @@ export interface ManyToManyConfig {
    * checked against the columns at authoring time; a name that slipped past
    * that check would be a filter that silently never matched.
    */
-  filter?: boolean;
+  filter?: boolean
 }
 
 /**
@@ -44,38 +44,38 @@ export interface ManyToManyConfig {
  */
 export interface ManyToManyMeta {
   /** Property name in payloads. */
-  name: string;
+  name: string
   /** Declared slug of the collection on the far side. */
-  collection: string;
+  collection: string
   /** Table on the far side, which the registry checks that slug against. */
-  table: string;
-  through: Table;
+  table: string
+  through: Table
   /** Join-table field holding this collection's key. */
-  field: string;
+  field: string
   /** Field on this collection that key points at. */
-  parentKey: string;
+  parentKey: string
   /** Join-table field holding the far side's key. */
-  targetField: string;
+  targetField: string
   /** Field on the far collection that key points at. */
-  targetKey: string;
+  targetKey: string
   /** Whether it is offered as a filter. */
-  filter: boolean;
+  filter: boolean
 }
 
 /** A many-to-many with the far side bound to a registered collection. */
 export interface ManyToManySpec extends ManyToManyMeta {
-  target: Collection;
+  target: Collection
 }
 
 /** The serializable view, for clients and tool schemas. */
 export interface ManyToManySummary {
-  name: string;
+  name: string
   /** Slug of the collection on the far side. */
-  collection: string;
+  collection: string
   /** Field on that collection a link stores — the option's value. */
-  targetKey: string;
+  targetKey: string
   /** Field standing in for one of its records. */
-  labelField: string | null;
+  labelField: string | null
 }
 
 /**
@@ -87,11 +87,11 @@ export interface ManyToManySummary {
  * added since it was drawn. The diff against what is stored happens on the
  * server, where the current state actually is.
  */
-export type ManyToManyWrite = Record<string, unknown[]>;
+export type ManyToManyWrite = Record<string, unknown[]>
 
 /** What a write changed, per relationship. */
 export interface ManyToManyResult {
-  name: string;
-  linked: unknown[];
-  unlinked: unknown[];
+  name: string
+  linked: unknown[]
+  unlinked: unknown[]
 }

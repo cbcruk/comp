@@ -1,18 +1,22 @@
-import type { ComponentPropsWithoutRef, JSX } from "react";
-import { mergeProps } from "../merge-props/merge-props.js";
-import type { Toast } from "./toast-store.js";
+import type { ComponentPropsWithoutRef, JSX } from 'react'
+import { mergeProps } from '../merge-props/merge-props.js'
+import type { Toast } from './toast-store.js'
 
-export interface ToastsProps extends ComponentPropsWithoutRef<"div"> {
-  toasts: Toast[];
-  onDismiss: (id: number) => void;
+export interface ToastsProps extends ComponentPropsWithoutRef<'div'> {
+  toasts: Toast[]
+  onDismiss: (id: number) => void
 }
 
 /** Render the active toasts with a dismiss control. Presentational. */
-export function Toasts({ toasts, onDismiss, ...rest }: ToastsProps): JSX.Element {
+export function Toasts({
+  toasts,
+  onDismiss,
+  ...rest
+}: ToastsProps): JSX.Element {
   return (
     <div
-      {...mergeProps<ComponentPropsWithoutRef<"div">>(
-        { role: "region", "aria-label": "Notifications" },
+      {...mergeProps<ComponentPropsWithoutRef<'div'>>(
+        { role: 'region', 'aria-label': 'Notifications' },
         rest,
       )}
     >
@@ -29,5 +33,5 @@ export function Toasts({ toasts, onDismiss, ...rest }: ToastsProps): JSX.Element
         </div>
       ))}
     </div>
-  );
+  )
 }

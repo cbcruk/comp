@@ -1,19 +1,19 @@
-import type { FilterChoices, FilterSummary } from "@comp/core";
-import type { JSX } from "react";
-import type { CompClient } from "../client/create-client.types.js";
-import { useReferenceOptions } from "./use-reference-options.js";
-import { NULL_OPTIONS, controlFor, optionsFor } from "./filter-controls.js";
+import type { FilterChoices, FilterSummary } from '@comp/core'
+import type { JSX } from 'react'
+import type { CompClient } from '../client/create-client.types.js'
+import { useReferenceOptions } from './use-reference-options.js'
+import { NULL_OPTIONS, controlFor, optionsFor } from './filter-controls.js'
 
 export interface FilterFieldProps {
-  client: CompClient;
-  filter: FilterSummary;
-  value: string;
-  onChange: (value: string) => void;
+  client: CompClient
+  filter: FilterSummary
+  value: string
+  onChange: (value: string) => void
   /**
    * For a distinct-value filter: the values the current list reported. Without
    * it the control has nothing to offer, since only the data knows them.
    */
-  choices?: FilterChoices;
+  choices?: FilterChoices
 }
 
 /**
@@ -30,15 +30,15 @@ export function FilterField({
   onChange,
   choices,
 }: FilterFieldProps): JSX.Element {
-  const control = controlFor(filter);
+  const control = controlFor(filter)
   const references = useReferenceOptions(
     client,
-    control === "reference" ? filter.collection : undefined,
+    control === 'reference' ? filter.collection : undefined,
     filter.labelField ?? null,
     filter.targetField,
-  );
+  )
 
-  if (control === "text") {
+  if (control === 'text') {
     return (
       <label>
         {filter.field}
@@ -48,15 +48,15 @@ export function FilterField({
           onChange={(e) => onChange(e.target.value)}
         />
       </label>
-    );
+    )
   }
 
   const options =
-    control === "reference"
+    control === 'reference'
       ? [...references, ...(filter.nullable ? NULL_OPTIONS : [])]
-      : control === "values"
+      : control === 'values'
         ? (choices?.options ?? [])
-        : optionsFor(filter);
+        : optionsFor(filter)
 
   return (
     <label>
@@ -81,5 +81,5 @@ export function FilterField({
         </span>
       )}
     </label>
-  );
+  )
 }

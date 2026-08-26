@@ -1,8 +1,8 @@
-import type { Row } from "../client/create-client.types.js";
+import type { Row } from '../client/create-client.types.js'
 
 export interface ReferenceOption {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
 /**
@@ -14,15 +14,16 @@ export function toOptions(
   valueField: string,
   labelField: string,
 ): ReferenceOption[] {
-  const options: ReferenceOption[] = [];
+  const options: ReferenceOption[] = []
   for (const row of rows) {
-    const value = row[valueField];
-    if (value === null || value === undefined) continue;
-    const label = row[labelField];
+    const value = row[valueField]
+    if (value === null || value === undefined) continue
+    const label = row[labelField]
     options.push({
       value: String(value),
-      label: label === null || label === undefined ? String(value) : String(label),
-    });
+      label:
+        label === null || label === undefined ? String(value) : String(label),
+    })
   }
-  return options;
+  return options
 }

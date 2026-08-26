@@ -1,23 +1,23 @@
-import { z } from "zod";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { FieldMeta } from "../introspection/introspect-table.types.js";
-import { stripReadonly } from "../form/resolve-form.js";
-import { ValidationError } from "./validation-error.js";
+import { z } from 'zod'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { FieldMeta } from '../introspection/introspect-table.types.js'
+import { stripReadonly } from '../form/resolve-form.js'
+import { ValidationError } from './validation-error.js'
 
 function baseSchema(field: FieldMeta): z.ZodTypeAny {
   switch (field.dataType) {
-    case "string":
-      return z.string();
-    case "number":
-      return z.number();
-    case "bigint":
-      return z.bigint();
-    case "boolean":
-      return z.boolean();
-    case "date":
-      return z.coerce.date();
+    case 'string':
+      return z.string()
+    case 'number':
+      return z.number()
+    case 'bigint':
+      return z.bigint()
+    case 'boolean':
+      return z.boolean()
+    case 'date':
+      return z.coerce.date()
     default:
-      return z.unknown();
+      return z.unknown()
   }
 }
 
@@ -30,23 +30,23 @@ function baseSchema(field: FieldMeta): z.ZodTypeAny {
 export function deriveInsertSchema(
   collection: Collection,
 ): z.ZodObject<z.ZodRawShape> {
-  const shape: z.ZodRawShape = {};
+  const shape: z.ZodRawShape = {}
   for (const field of Object.values(collection.fields)) {
-    let schema = baseSchema(field);
-    if (!field.notNull) schema = schema.nullable();
+    let schema = baseSchema(field)
+    if (!field.notNull) schema = schema.nullable()
     if (field.primaryKey || !field.notNull || field.hasDefault) {
-      schema = schema.optional();
+      schema = schema.optional()
     }
-    shape[field.name] = schema;
+    shape[field.name] = schema
   }
-  return z.object(shape);
+  return z.object(shape)
 }
 
 /** Update schema: every field optional, for partial edits. */
 export function deriveUpdateSchema(
   collection: Collection,
 ): z.ZodObject<z.ZodRawShape> {
-  return deriveInsertSchema(collection).partial();
+  return deriveInsertSchema(collection).partial()
 }
 
 /**
@@ -58,9 +58,9 @@ export function validateInsert(
   collection: Collection,
   input: unknown,
 ): Record<string, unknown> {
-  const result = deriveInsertSchema(collection).safeParse(input);
-  if (!result.success) throw new ValidationError(result.error.issues);
-  return stripReadonly(collection.form, result.data);
+  const result = deriveInsertSchema(collection).safeParse(input)
+  if (!result.success) throw new ValidationError(result.error.issues)
+  return stripReadonly(collection.form, result.data)
 }
 
 /** Validate partial update input, throwing {@link ValidationError} on failure. */
@@ -68,7 +68,7 @@ export function validateUpdate(
   collection: Collection,
   input: unknown,
 ): Record<string, unknown> {
-  const result = deriveUpdateSchema(collection).safeParse(input);
-  if (!result.success) throw new ValidationError(result.error.issues);
-  return stripReadonly(collection.form, result.data);
+  const result = deriveUpdateSchema(collection).safeParse(input)
+  if (!result.success) throw new ValidationError(result.error.issues)
+  return stripReadonly(collection.form, result.data)
 }

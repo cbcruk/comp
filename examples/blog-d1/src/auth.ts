@@ -4,13 +4,13 @@ import {
   createRolePolicy,
   type PasskeyStore,
   type RpInfo,
-} from "@comp/auth";
-import type { SqliteDb } from "@comp/core";
+} from '@comp/auth'
+import type { SqliteDb } from '@comp/core'
 
 export interface BlogAuthEnv {
-  SESSION_SECRET: string;
-  RP_ID: string;
-  RP_ORIGIN: string;
+  SESSION_SECRET: string
+  RP_ID: string
+  RP_ORIGIN: string
 }
 
 /**
@@ -24,16 +24,20 @@ export interface BlogAuthEnv {
 export function createBlogAuth(
   env: BlogAuthEnv,
   db: SqliteDb,
-): { auth: ReturnType<typeof createPasskeyAuth>; store: PasskeyStore; rp: RpInfo } {
+): {
+  auth: ReturnType<typeof createPasskeyAuth>
+  store: PasskeyStore
+  rp: RpInfo
+} {
   const auth = createPasskeyAuth({
     secret: env.SESSION_SECRET,
-    cookie: { secure: env.RP_ORIGIN.startsWith("https://") },
+    cookie: { secure: env.RP_ORIGIN.startsWith('https://') },
     authorize: createRolePolicy({
       roles: {
-        admin: "all",
-        editor: ["list", "read", "create", "update"],
+        admin: 'all',
+        editor: ['list', 'read', 'create', 'update'],
       },
-      anonymous: ["list", "read"],
+      anonymous: ['list', 'read'],
     }),
     // Which rows exist for you. A reader who has not signed in sees published
     // posts and nothing else — not a filter they could remove, a narrowing
@@ -41,17 +45,17 @@ export function createBlogAuth(
     // to open by id. A draft answers "not found", the same as a post that was
     // never written.
     scope: ({ identity, collection }) =>
-      identity || collection.slug !== "posts" ? null : { status: "published" },
+      identity || collection.slug !== 'posts' ? null : { status: 'published' },
     // The same operation, decided again with the row in hand: a published post
     // is locked. Unpublish it first — which is a change to the post, so the
     // rule has to let that one through.
     authorizeRecord: ({ operation, record }) =>
-      operation !== "delete" || record.status !== "published",
-  });
+      operation !== 'delete' || record.status !== 'published',
+  })
 
   return {
     auth,
     store: createDrizzlePasskeyStore(db),
-    rp: { rpID: env.RP_ID, rpName: "Comp Blog", origin: env.RP_ORIGIN },
-  };
+    rp: { rpID: env.RP_ID, rpName: 'Comp Blog', origin: env.RP_ORIGIN },
+  }
 }

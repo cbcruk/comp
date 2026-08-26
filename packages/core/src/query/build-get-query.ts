@@ -1,10 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { SqliteDb } from "./build-list-query.js";
-import { primaryKeyColumn } from "./primary-key.js";
-import { scopeWhere } from "./build-scope-where.js";
+import { and, eq, inArray } from 'drizzle-orm'
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { SqliteDb } from './build-list-query.js'
+import { primaryKeyColumn } from './primary-key.js'
+import { scopeWhere } from './build-scope-where.js'
 
 /**
  * Resolve a single row by its primary key. Returns a Drizzle query limited to
@@ -20,13 +20,13 @@ export function buildGetByIdQuery(
   id: unknown,
   scope?: RecordScope,
 ) {
-  const pk = primaryKeyColumn(collection);
-  const visible = scopeWhere(collection, scope);
+  const pk = primaryKeyColumn(collection)
+  const visible = scopeWhere(collection, scope)
   return db
     .select()
     .from(collection.model as unknown as SQLiteTable)
     .where(visible ? and(eq(pk, id), visible) : eq(pk, id))
-    .limit(1);
+    .limit(1)
 }
 
 /**
@@ -43,11 +43,11 @@ export function buildRecordsByIdsQuery(
   ids: readonly unknown[],
   scope?: RecordScope,
 ) {
-  const pk = primaryKeyColumn(collection);
-  const visible = scopeWhere(collection, scope);
-  const where = inArray(pk, ids as unknown[]);
+  const pk = primaryKeyColumn(collection)
+  const visible = scopeWhere(collection, scope)
+  const where = inArray(pk, ids as unknown[])
   return db
     .select()
     .from(collection.model as unknown as SQLiteTable)
-    .where(visible ? and(where, visible) : where);
+    .where(visible ? and(where, visible) : where)
 }

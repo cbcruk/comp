@@ -1,11 +1,11 @@
 /** What happened to a record. Django's `action_flag`, spelled out. */
-export type HistoryAction = "create" | "update" | "delete";
+export type HistoryAction = 'create' | 'update' | 'delete'
 
 export interface HistoryEntry {
-  collection: string;
+  collection: string
   /** Primary key of the record, as text — an entry outlives its row. */
-  recordId: string;
-  action: HistoryAction;
+  recordId: string
+  action: HistoryAction
   /**
    * What the record looked like at the time, from its `labelField`.
    *
@@ -13,22 +13,22 @@ export interface HistoryEntry {
    * a record that no longer exists, so an id alone leaves the history unable
    * to say what was deleted.
    */
-  label: string;
+  label: string
   /** Fields that actually changed; empty for a create or a delete. */
-  fields: string[];
+  fields: string[]
   /** Who made the change, or null when nobody was authenticated. */
-  actor: string | null;
-  at: Date;
+  actor: string | null
+  at: Date
 }
 
 export interface HistoryQuery {
   /** Narrow to one collection. */
-  collection?: string;
+  collection?: string
   /** Narrow to one record; requires `collection`. */
-  recordId?: string;
+  recordId?: string
   /** Only collections in this list — how a caller's permissions are applied. */
-  collections?: string[];
-  limit?: number;
+  collections?: string[]
+  limit?: number
 }
 
 /**
@@ -40,6 +40,6 @@ export interface HistoryQuery {
  * history is opt-in, and everything else works without it.
  */
 export interface HistoryStore {
-  record(entry: HistoryEntry): Promise<void>;
-  list(query: HistoryQuery): Promise<HistoryEntry[]>;
+  record(entry: HistoryEntry): Promise<void>
+  list(query: HistoryQuery): Promise<HistoryEntry[]>
 }

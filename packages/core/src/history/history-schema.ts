@@ -1,4 +1,4 @@
-import { integer, index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, index, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 /**
  * The canonical history table, for apps that want to keep entries in the same
@@ -11,35 +11,35 @@ import { integer, index, sqliteTable, text } from "drizzle-orm/sqlite-core";
  * nothing at the edge.
  */
 export const historyEntries = sqliteTable(
-  "comp_history",
+  'comp_history',
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    collection: text("collection").notNull(),
-    recordId: text("record_id").notNull(),
-    action: text("action", { enum: ["create", "update", "delete"] }).notNull(),
-    label: text("label").notNull(),
-    fields: text("fields").notNull().default("[]"),
-    actor: text("actor"),
-    at: integer("at", { mode: "timestamp" }).notNull(),
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    collection: text('collection').notNull(),
+    recordId: text('record_id').notNull(),
+    action: text('action', { enum: ['create', 'update', 'delete'] }).notNull(),
+    label: text('label').notNull(),
+    fields: text('fields').notNull().default('[]'),
+    actor: text('actor'),
+    at: integer('at', { mode: 'timestamp' }).notNull(),
   },
   (table) => [
     // The per-record history view reads by (collection, record) newest first.
-    index("comp_history_record_idx").on(table.collection, table.recordId),
-    index("comp_history_at_idx").on(table.at),
+    index('comp_history_record_idx').on(table.collection, table.recordId),
+    index('comp_history_at_idx').on(table.at),
   ],
-);
+)
 
 /** Decode the stored field list, tolerating anything that is not a JSON array. */
 export function parseFields(raw: string | null): string[] {
-  if (!raw) return [];
+  if (!raw) return []
   try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map(String) : []
   } catch {
-    return [];
+    return []
   }
 }
 
 export function serializeFields(fields: readonly string[]): string {
-  return JSON.stringify(fields);
+  return JSON.stringify(fields)
 }

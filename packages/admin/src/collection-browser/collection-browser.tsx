@@ -1,27 +1,32 @@
-import { useMemo, useState, type ComponentPropsWithoutRef, type JSX } from "react";
-import { mergeProps } from "../merge-props/merge-props.js";
-import { toInputValue } from "../collection-form/collection-form.utils.js";
-import { CollectionList } from "../collection-list/collection-list.js";
-import type { CollectionListProps } from "../collection-list/collection-list.types.js";
-import { useCollectionList } from "../hooks/use-collection-list.js";
-import type { CollectionBrowserProps } from "./collection-browser.types.js";
-import { InlineInput } from "./inline-cell.js";
-import { canEditColumn, isEditing } from "./inline-edit.js";
-import { DateHierarchyStrip } from "./date-hierarchy.js";
-import { choicesFor } from "./filter-controls.js";
-import { FilterField } from "./filter-field.js";
-import { searchPlaceholder } from "./search-placeholder.js";
-import { hasNextPage, hasPrevPage, pageCount } from "./pagination.js";
-import { referencesFromRelations, resolveLabel } from "./reference-labels.js";
-import { allSelected, rowId, toIds, toggle, toggleAll } from "./selection.js";
-import { nextSort, parseSort } from "./sorting.js";
-import { useInlineEdit } from "./use-inline-edit.js";
-import { useReferenceLabels } from "./use-reference-labels.js";
+import {
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+  type JSX,
+} from 'react'
+import { mergeProps } from '../merge-props/merge-props.js'
+import { toInputValue } from '../collection-form/collection-form.utils.js'
+import { CollectionList } from '../collection-list/collection-list.js'
+import type { CollectionListProps } from '../collection-list/collection-list.types.js'
+import { useCollectionList } from '../hooks/use-collection-list.js'
+import type { CollectionBrowserProps } from './collection-browser.types.js'
+import { InlineInput } from './inline-cell.js'
+import { canEditColumn, isEditing } from './inline-edit.js'
+import { DateHierarchyStrip } from './date-hierarchy.js'
+import { choicesFor } from './filter-controls.js'
+import { FilterField } from './filter-field.js'
+import { searchPlaceholder } from './search-placeholder.js'
+import { hasNextPage, hasPrevPage, pageCount } from './pagination.js'
+import { referencesFromRelations, resolveLabel } from './reference-labels.js'
+import { allSelected, rowId, toIds, toggle, toggleAll } from './selection.js'
+import { nextSort, parseSort } from './sorting.js'
+import { useInlineEdit } from './use-inline-edit.js'
+import { useReferenceLabels } from './use-reference-labels.js'
 
 function displayValue(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString()
+  return String(value)
 }
 
 /**
@@ -46,38 +51,54 @@ export function CollectionBrowser({
   const resolvedReferences = useMemo(
     () => references ?? referencesFromRelations(collection.relations),
     [references, collection.relations],
-  );
-  const { rows, page, pageSize: size, total, hierarchy, choices, query, loading, error, setQuery, reload, applyLocal } =
-    useCollectionList(client, collection.slug, pageSize ? { pageSize } : {});
+  )
+  const {
+    rows,
+    page,
+    pageSize: size,
+    total,
+    hierarchy,
+    choices,
+    query,
+    loading,
+    error,
+    setQuery,
+    reload,
+    applyLocal,
+  } = useCollectionList(client, collection.slug, pageSize ? { pageSize } : {})
 
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [running, setRunning] = useState(false);
-  const [actionError, setActionError] = useState<Error | null>(null);
-  const pk = collection.primaryKey;
-  const edit = useInlineEdit(client, collection.slug, reload, (id, field, value) =>
-    applyLocal((row) => rowId(row, pk) === id, { [field]: value }),
-  );
-  const labels = useReferenceLabels(client, resolvedReferences);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [running, setRunning] = useState(false)
+  const [actionError, setActionError] = useState<Error | null>(null)
+  const pk = collection.primaryKey
+  const edit = useInlineEdit(
+    client,
+    collection.slug,
+    reload,
+    (id, field, value) =>
+      applyLocal((row) => rowId(row, pk) === id, { [field]: value }),
+  )
+  const labels = useReferenceLabels(client, resolvedReferences)
 
-  const totalPages = pageCount(total, size || 1);
-  const filters = query.filters ?? {};
-  const currentSort = parseSort(query.sort);
+  const totalPages = pageCount(total, size || 1)
+  const filters = query.filters ?? {}
+  const currentSort = parseSort(query.sort)
 
-  const customRenderCell: CollectionListProps["renderCell"] = ({
+  const customRenderCell: CollectionListProps['renderCell'] = ({
     column,
     value,
     row,
   }) => {
-    const display = resolveLabel(labels, column, value, displayValue(value));
-    const field = collection.fields[column];
-    const id = rowId(row, pk);
+    const display = resolveLabel(labels, column, value, displayValue(value))
+    const field = collection.fields[column]
+    const id = rowId(row, pk)
 
     if (onOpenRecord && id !== null && column === collection.listDisplay[0]) {
       return (
         <button type="button" onClick={() => onOpenRecord(id)}>
-          {display || "—"}
+          {display || '—'}
         </button>
-      );
+      )
     }
 
     if (
@@ -96,56 +117,56 @@ export function CollectionBrowser({
             onCommit={() => edit.commit(field)}
             onCancel={edit.cancel}
           />
-        );
+        )
       }
       return (
         <button
           type="button"
           onClick={() => edit.start(id, column, toInputValue(field, value))}
         >
-          {display || "—"}
+          {display || '—'}
         </button>
-      );
+      )
     }
-    return display;
-  };
+    return display
+  }
 
-  const hasReferences = Object.keys(resolvedReferences).length > 0;
+  const hasReferences = Object.keys(resolvedReferences).length > 0
   const cellRenderer =
     renderCell ??
-    (editable || hasReferences || onOpenRecord ? customRenderCell : undefined);
+    (editable || hasReferences || onOpenRecord ? customRenderCell : undefined)
 
   async function runAction(name: string): Promise<void> {
-    setRunning(true);
-    setActionError(null);
+    setRunning(true)
+    setActionError(null)
     try {
       const result = await client.action(collection.slug, name, {
         ids: toIds(selected),
-      });
-      setSelected(new Set());
-      reload();
-      onNotify?.("success", result.message ?? `${name}: done`);
+      })
+      setSelected(new Set())
+      reload()
+      onNotify?.('success', result.message ?? `${name}: done`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err)
       if (onNotify) {
-        onNotify("error", message);
+        onNotify('error', message)
       } else {
-        setActionError(new Error(message));
+        setActionError(new Error(message))
       }
     } finally {
-      setRunning(false);
+      setRunning(false)
     }
   }
 
   return (
-    <div {...mergeProps<ComponentPropsWithoutRef<"div">>({}, rest)}>
+    <div {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
       {collection.search.length > 0 && (
         <input
           type="search"
           aria-label={`Search ${collection.slug}`}
           placeholder={searchPlaceholder(collection)}
           title="Every word must match; quote a phrase to keep it together"
-          value={query.q ?? ""}
+          value={query.q ?? ''}
           // Changing the query returns to the first page, like a filter does.
           onChange={(e) => setQuery({ page: 1, q: e.target.value })}
         />
@@ -154,7 +175,7 @@ export function CollectionBrowser({
       {hierarchy && (
         <DateHierarchyStrip
           hierarchy={hierarchy}
-          value={query.date ?? ""}
+          value={query.date ?? ''}
           onNavigate={(date) => setQuery({ date })}
         />
       )}
@@ -167,7 +188,7 @@ export function CollectionBrowser({
           // A distinct-value filter's options travel with the list, not with
           // the collection — only the data knows them.
           choices={choicesFor(choices, filter.field)}
-          value={filters[filter.field] ?? ""}
+          value={filters[filter.field] ?? ''}
           onChange={(value) =>
             // Changing a filter returns to the first page: page 4 of the old
             // result set says nothing about the new one.
@@ -202,7 +223,7 @@ export function CollectionBrowser({
         columns={collection.listDisplay}
         rows={rows}
         renderCell={cellRenderer}
-        renderEmpty={() => <p>{loading ? "Loading…" : "No records"}</p>}
+        renderEmpty={() => <p>{loading ? 'Loading…' : 'No records'}</p>}
         sort={{
           field: currentSort?.field ?? null,
           direction: currentSort?.direction ?? null,
@@ -212,8 +233,7 @@ export function CollectionBrowser({
           getRowId: (row) => rowId(row, pk),
           selected,
           onToggle: (id) => setSelected((prev) => toggle(prev, id)),
-          onToggleAll: () =>
-            setSelected((prev) => toggleAll(rows, pk, prev)),
+          onToggleAll: () => setSelected((prev) => toggleAll(rows, pk, prev)),
           allSelected: allSelected(rows, pk, selected),
         }}
       />
@@ -238,5 +258,5 @@ export function CollectionBrowser({
         </button>
       </nav>
     </div>
-  );
+  )
 }

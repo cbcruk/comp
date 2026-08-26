@@ -1,22 +1,22 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
-import type { SqliteDb } from "../query/build-list-query.js";
+import { and, desc, eq, inArray } from 'drizzle-orm'
+import type { SqliteDb } from '../query/build-list-query.js'
 import {
   historyEntries,
   parseFields,
   serializeFields,
-} from "./history-schema.js";
+} from './history-schema.js'
 import type {
   HistoryAction,
   HistoryEntry,
   HistoryQuery,
   HistoryStore,
-} from "./history.types.js";
+} from './history.types.js'
 
-const DEFAULT_LIMIT = 50;
+const DEFAULT_LIMIT = 50
 
 /** Newest first, and never unbounded — a history view is a page, not a dump. */
 function limitOf(query: HistoryQuery): number {
-  return Math.max(1, Math.min(query.limit ?? DEFAULT_LIMIT, 500));
+  return Math.max(1, Math.min(query.limit ?? DEFAULT_LIMIT, 500))
 }
 
 /**
@@ -35,33 +35,33 @@ export function createDrizzleHistoryStore(db: SqliteDb): HistoryStore {
         fields: serializeFields(entry.fields),
         actor: entry.actor,
         at: entry.at,
-      });
+      })
     },
 
     async list(query) {
-      const conditions = [];
+      const conditions = []
       if (query.collection) {
-        conditions.push(eq(historyEntries.collection, query.collection));
+        conditions.push(eq(historyEntries.collection, query.collection))
       }
       if (query.recordId !== undefined) {
-        conditions.push(eq(historyEntries.recordId, query.recordId));
+        conditions.push(eq(historyEntries.recordId, query.recordId))
       }
       if (query.collections) {
         // An empty allow-list means the caller may see nothing, which is not
         // the same as no filter at all.
-        if (query.collections.length === 0) return [];
-        conditions.push(inArray(historyEntries.collection, query.collections));
+        if (query.collections.length === 0) return []
+        conditions.push(inArray(historyEntries.collection, query.collections))
       }
 
-      let statement = db.select().from(historyEntries).$dynamic();
+      let statement = db.select().from(historyEntries).$dynamic()
       if (conditions.length > 0) {
         statement = statement.where(
           conditions.length === 1 ? conditions[0] : and(...conditions),
-        );
+        )
       }
       const rows = await statement
         .orderBy(desc(historyEntries.at), desc(historyEntries.id))
-        .limit(limitOf(query));
+        .limit(limitOf(query))
 
       return rows.map((row) => ({
         collection: row.collection,
@@ -71,9 +71,9 @@ export function createDrizzleHistoryStore(db: SqliteDb): HistoryStore {
         fields: parseFields(row.fields),
         actor: row.actor,
         at: row.at,
-      }));
+      }))
     },
-  };
+  }
 }
 
 /**
@@ -81,31 +81,35 @@ export function createDrizzleHistoryStore(db: SqliteDb): HistoryStore {
  * runtime discards it between requests, so it is never the production answer.
  */
 export function createMemoryHistoryStore(): HistoryStore & {
-  entries: HistoryEntry[];
+  entries: HistoryEntry[]
 } {
-  const entries: HistoryEntry[] = [];
+  const entries: HistoryEntry[] = []
 
   return {
     entries,
     record(entry) {
-      entries.push(entry);
-      return Promise.resolve();
+      entries.push(entry)
+      return Promise.resolve()
     },
     list(query) {
-      const allowed = query.collections ? new Set(query.collections) : null;
+      const allowed = query.collections ? new Set(query.collections) : null
       const matches = entries
         .filter((entry) => {
-          if (query.collection && entry.collection !== query.collection) return false;
-          if (query.recordId !== undefined && entry.recordId !== query.recordId) {
-            return false;
+          if (query.collection && entry.collection !== query.collection)
+            return false
+          if (
+            query.recordId !== undefined &&
+            entry.recordId !== query.recordId
+          ) {
+            return false
           }
-          if (allowed && !allowed.has(entry.collection)) return false;
-          return true;
+          if (allowed && !allowed.has(entry.collection)) return false
+          return true
         })
         .slice()
         .reverse()
-        .slice(0, limitOf(query));
-      return Promise.resolve(matches);
+        .slice(0, limitOf(query))
+      return Promise.resolve(matches)
     },
-  };
+  }
 }

@@ -1,18 +1,18 @@
-import { getTableName } from "drizzle-orm";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { FieldMap } from "../introspection/introspect-table.types.js";
+import { getTableName } from 'drizzle-orm'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { FieldMap } from '../introspection/introspect-table.types.js'
 import type {
   InboundRelation,
   OutboundRelation,
   RelationGraph,
-} from "./resolve-relations.types.js";
+} from './resolve-relations.types.js'
 
 /** Find the field whose database column carries the given name. */
 function fieldForColumn(fields: FieldMap, columnName: string): string | null {
   for (const field of Object.values(fields)) {
-    if (field.columnName === columnName) return field.name;
+    if (field.columnName === columnName) return field.name
   }
-  return null;
+  return null
 }
 
 /**
@@ -30,43 +30,43 @@ function fieldForColumn(fields: FieldMap, columnName: string): string | null {
  * not have yet.
  */
 export function resolveRelations(collections: Collection[]): RelationGraph {
-  const byTable = new Map<string, Collection>();
+  const byTable = new Map<string, Collection>()
   for (const collection of collections) {
-    byTable.set(getTableName(collection.model), collection);
+    byTable.set(getTableName(collection.model), collection)
   }
 
-  const outbound: Record<string, OutboundRelation[]> = {};
-  const inbound: Record<string, InboundRelation[]> = {};
+  const outbound: Record<string, OutboundRelation[]> = {}
+  const inbound: Record<string, InboundRelation[]> = {}
   for (const collection of collections) {
-    outbound[collection.slug] = [];
-    inbound[collection.slug] = [];
+    outbound[collection.slug] = []
+    inbound[collection.slug] = []
   }
 
   for (const collection of collections) {
     for (const field of Object.values(collection.fields)) {
-      const relation = field.relation;
-      if (!relation) continue;
+      const relation = field.relation
+      if (!relation) continue
 
-      const target = byTable.get(relation.table);
-      if (!target) continue;
+      const target = byTable.get(relation.table)
+      if (!target) continue
 
-      const targetField = fieldForColumn(target.fields, relation.column);
-      if (!targetField) continue;
+      const targetField = fieldForColumn(target.fields, relation.column)
+      if (!targetField) continue
 
       outbound[collection.slug]?.push({
         field: field.name,
         collection: target.slug,
         targetField,
         labelField: target.labelField,
-      });
+      })
       inbound[target.slug]?.push({
         collection: collection.slug,
         field: field.name,
         targetField,
         ...(relation.onDelete ? { onDelete: relation.onDelete } : {}),
-      });
+      })
     }
   }
 
-  return { outbound, inbound };
+  return { outbound, inbound }
 }

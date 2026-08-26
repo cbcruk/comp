@@ -5,20 +5,20 @@ import {
   type FilterChoices,
   type FilterOption,
   type FilterSummary,
-} from "@comp/core";
+} from '@comp/core'
 
 /** The empty/not-empty pair a nullable column offers, on top of its own values. */
 export const NULL_OPTIONS: FilterOption[] = [
-  { value: "isnull:true", label: "Empty" },
-  { value: "isnull:false", label: "Not empty" },
-];
+  { value: 'isnull:true', label: 'Empty' },
+  { value: 'isnull:false', label: 'Not empty' },
+]
 
 export const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "past7", label: "Past 7 days" },
-  { value: "month", label: "This month" },
-  { value: "year", label: "This year" },
-];
+  { value: 'today', label: 'Today' },
+  { value: 'past7', label: 'Past 7 days' },
+  { value: 'month', label: 'This month' },
+  { value: 'year', label: 'This year' },
+]
 
 /**
  * How a filter should be rendered. `select` covers everything with a known set
@@ -27,25 +27,25 @@ export const DATE_PRESETS: { value: DatePreset; label: string }[] = [
  * collection the key points at; `text` is the fallback for a column whose
  * values nothing can enumerate.
  */
-export type FilterControl = "select" | "values" | "reference" | "text";
+export type FilterControl = 'select' | 'values' | 'reference' | 'text'
 
 export function controlFor(filter: FilterSummary): FilterControl {
   switch (filter.kind) {
-    case "choices":
-    case "boolean":
-    case "date":
-      return "select";
-    case "values":
+    case 'choices':
+    case 'boolean':
+    case 'date':
+      return 'select'
+    case 'values':
       // Its answers come with the list rather than with the collection, so it
       // is a select whose options arrive per request.
-      return "values";
-    case "relation":
-    case "m2m":
+      return 'values'
+    case 'relation':
+    case 'm2m':
       // Both offer records from another collection; an m2m's come through the
       // join table, which is the query layer's business, not the widget's.
-      return filter.collection ? "reference" : "text";
+      return filter.collection ? 'reference' : 'text'
     default:
-      return "text";
+      return 'text'
   }
 }
 
@@ -59,7 +59,7 @@ export function choicesFor(
   choices: readonly FilterChoices[] | undefined,
   field: string,
 ): FilterChoices | undefined {
-  return choices?.find((entry) => entry.field === field);
+  return choices?.find((entry) => entry.field === field)
 }
 
 /**
@@ -69,13 +69,13 @@ export function choicesFor(
  */
 export function optionsFor(filter: FilterSummary): FilterOption[] {
   const own =
-    filter.kind === "date"
+    filter.kind === 'date'
       ? DATE_PRESETS.map((preset) => ({
           value: `preset:${preset.value}`,
           label: preset.label,
         }))
-      : filter.options;
-  return filter.nullable ? [...own, ...NULL_OPTIONS] : own;
+      : filter.options
+  return filter.nullable ? [...own, ...NULL_OPTIONS] : own
 }
 
 /**
@@ -87,12 +87,12 @@ export function activeLabel(
   filter: FilterSummary,
   raw: string | undefined,
 ): string | null {
-  if (!raw) return null;
-  const option = optionsFor(filter).find((entry) => entry.value === raw);
-  if (option) return option.label;
+  if (!raw) return null
+  const option = optionsFor(filter).find((entry) => entry.value === raw)
+  if (option) return option.label
 
-  const value = parseFilterValue(raw);
-  if (!value) return null;
-  if (value.op === "exact") return String(value.value);
-  return formatFilterValue(value);
+  const value = parseFilterValue(raw)
+  if (!value) return null
+  if (value.op === 'exact') return String(value.value)
+  return formatFilterValue(value)
 }

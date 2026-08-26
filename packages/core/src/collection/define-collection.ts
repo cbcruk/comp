@@ -1,25 +1,25 @@
-import { getTableName, type Table } from "drizzle-orm";
-import { introspectTable } from "../introspection/introspect-table.js";
-import { resolveFilters } from "../filters/resolve-filters.js";
-import { resolveForm } from "../form/resolve-form.js";
-import { resolveLabels } from "../site/labels.js";
-import { resolveSearch } from "../search/resolve-search.js";
-import { resolveManyToMany } from "../m2m/resolve-m2m.js";
-import { resolveLabelField } from "./label-field.js";
+import { getTableName, type Table } from 'drizzle-orm'
+import { introspectTable } from '../introspection/introspect-table.js'
+import { resolveFilters } from '../filters/resolve-filters.js'
+import { resolveForm } from '../form/resolve-form.js'
+import { resolveLabels } from '../site/labels.js'
+import { resolveSearch } from '../search/resolve-search.js'
+import { resolveManyToMany } from '../m2m/resolve-m2m.js'
+import { resolveLabelField } from './label-field.js'
 import type {
   Collection,
   CollectionConfig,
   CollectionOperation,
-} from "./define-collection.types.js";
+} from './define-collection.types.js'
 
-const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 25
 const DEFAULT_OPERATIONS: CollectionOperation[] = [
-  "list",
-  "read",
-  "create",
-  "update",
-  "delete",
-];
+  'list',
+  'read',
+  'create',
+  'update',
+  'delete',
+]
 
 /**
  * Declare a collection over a Drizzle table. The result is static and
@@ -30,30 +30,30 @@ const DEFAULT_OPERATIONS: CollectionOperation[] = [
 export function defineCollection<TTable extends Table>(
   config: CollectionConfig<TTable>,
 ): Collection {
-  const introspection = introspectTable(config.model);
-  const slug = config.slug ?? getTableName(config.model);
-  const operations = config.operations ?? DEFAULT_OPERATIONS;
-  const labels = resolveLabels(slug, config.label, config.labelPlural);
+  const introspection = introspectTable(config.model)
+  const slug = config.slug ?? getTableName(config.model)
+  const operations = config.operations ?? DEFAULT_OPERATIONS
+  const labels = resolveLabels(slug, config.label, config.labelPlural)
 
   // A hierarchy over something that is not a date would silently navigate
   // nowhere; say so here rather than rendering an empty strip.
   if (config.dateHierarchy) {
-    const field = introspection.fields[config.dateHierarchy];
+    const field = introspection.fields[config.dateHierarchy]
     if (!field) {
       throw new Error(
         `dateHierarchy on "${slug}" names "${config.dateHierarchy}", which is not a column`,
-      );
+      )
     }
-    if (field.dataType !== "date") {
+    if (field.dataType !== 'date') {
       throw new Error(
         `dateHierarchy on "${slug}" names "${config.dateHierarchy}", which is not a date column`,
-      );
+      )
     }
   }
 
   const manyToMany = (config.manyToMany ?? []).map((entry) =>
     resolveManyToMany(slug, config.model, entry),
-  );
+  )
 
   return {
     slug,
@@ -84,12 +84,17 @@ export function defineCollection<TTable extends Table>(
     dateHierarchy: config.dateHierarchy ?? null,
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
-    form: resolveForm(slug, introspection.fields, introspection.primaryKey, config),
+    form: resolveForm(
+      slug,
+      introspection.fields,
+      introspection.primaryKey,
+      config,
+    ),
     inlines: config.inlines ?? [],
     manyToMany,
     manifest: {
       collection: slug,
       operations,
     },
-  };
+  }
 }

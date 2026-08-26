@@ -1,5 +1,5 @@
-import type { CollectionOperation, DeleteImpact } from "@comp/core";
-import type { CollectionSummary } from "../client/create-client.types.js";
+import type { CollectionOperation, DeleteImpact } from '@comp/core'
+import type { CollectionSummary } from '../client/create-client.types.js'
 
 /**
  * Whether a screen should exist for this caller. The server already narrowed
@@ -10,7 +10,7 @@ export function can(
   collection: CollectionSummary,
   operation: CollectionOperation,
 ): boolean {
-  return collection.permitted.includes(operation);
+  return collection.permitted.includes(operation)
 }
 
 /** The label for a record: its label field if there is one, else its key. */
@@ -19,17 +19,17 @@ export function recordTitle(
   record: Record<string, unknown> | null,
   id: string,
 ): string {
-  const value = collection.labelField ? record?.[collection.labelField] : null;
-  return value === null || value === undefined || value === ""
+  const value = collection.labelField ? record?.[collection.labelField] : null
+  return value === null || value === undefined || value === ''
     ? `${collection.label} ${id}`
-    : String(value);
+    : String(value)
 }
 
 export interface ImpactLine {
-  collection: string;
-  text: string;
+  collection: string
+  text: string
   /** True when this line is why the delete cannot go ahead. */
-  blocking: boolean;
+  blocking: boolean
 }
 
 /**
@@ -40,37 +40,37 @@ export interface ImpactLine {
  */
 export function describeImpact(impact: DeleteImpact): ImpactLine[] {
   return impact.related.map((entry) => {
-    const rows = `${String(entry.count)} ${entry.collection}`;
+    const rows = `${String(entry.count)} ${entry.collection}`
     switch (entry.effect) {
-      case "cascade":
+      case 'cascade':
         return {
           collection: entry.collection,
           text: `${rows} will be deleted with it`,
           blocking: false,
-        };
-      case "clear":
+        }
+      case 'clear':
         return {
           collection: entry.collection,
           text: `${rows} will lose their ${entry.field}`,
           blocking: false,
-        };
-      case "block":
+        }
+      case 'block':
         return {
           collection: entry.collection,
           text: `${rows} still reference this record, so the delete will be refused`,
           blocking: true,
-        };
+        }
     }
-  });
+  })
 }
 
 /** One line summarizing the whole delete, for a heading. */
 export function summarizeImpact(impact: DeleteImpact): string {
-  if (impact.blocked) return "This record cannot be deleted yet.";
+  if (impact.blocked) return 'This record cannot be deleted yet.'
   if (impact.cascades > 0) {
     return `This will also delete ${String(impact.cascades)} related record${
-      impact.cascades === 1 ? "" : "s"
-    }.`;
+      impact.cascades === 1 ? '' : 's'
+    }.`
   }
-  return "Nothing else references this record.";
+  return 'Nothing else references this record.'
 }

@@ -9,21 +9,21 @@ import {
   type Column,
   type SQL,
   type Table,
-} from "drizzle-orm";
+} from 'drizzle-orm'
 import {
   SQLiteTable,
   getTableConfig,
   type SQLiteColumn,
-} from "drizzle-orm/sqlite-core";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { ResolvedSearch, SearchLookup } from "../search/search.types.js";
-import { splitSearchTerms } from "../search/resolve-search.js";
-import type { SqliteDb } from "./build-list-query.js";
+} from 'drizzle-orm/sqlite-core'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { ResolvedSearch, SearchLookup } from '../search/search.types.js'
+import { splitSearchTerms } from '../search/resolve-search.js'
+import type { SqliteDb } from './build-list-query.js'
 
 /** The table a foreign key points at, and the columns on it. */
 interface RelationTarget {
-  table: SQLiteTable;
-  columns: Record<string, Column>;
+  table: SQLiteTable
+  columns: Record<string, Column>
 }
 
 /**
@@ -34,30 +34,30 @@ interface RelationTarget {
  * requirement that the target even be a registered collection.
  */
 function relationTarget(model: Table, field: string): RelationTarget | null {
-  if (!is(model, SQLiteTable)) return null;
+  if (!is(model, SQLiteTable)) return null
 
-  const columns = getTableColumns(model) as Record<string, Column>;
-  const column = columns[field];
-  if (!column) return null;
+  const columns = getTableColumns(model) as Record<string, Column>
+  const column = columns[field]
+  if (!column) return null
 
   for (const foreignKey of getTableConfig(model).foreignKeys) {
-    const reference = foreignKey.reference();
-    if (reference.columns.length !== 1) continue;
-    if (reference.columns[0]?.name !== column.name) continue;
-    const table = reference.foreignTable as SQLiteTable;
-    return { table, columns: getTableColumns(table) as Record<string, Column> };
+    const reference = foreignKey.reference()
+    if (reference.columns.length !== 1) continue
+    if (reference.columns[0]?.name !== column.name) continue
+    const table = reference.foreignTable as SQLiteTable
+    return { table, columns: getTableColumns(table) as Record<string, Column> }
   }
-  return null;
+  return null
 }
 
 function match(column: Column, lookup: SearchLookup, term: string): SQL {
   switch (lookup) {
-    case "startswith":
-      return like(column, `${term}%`);
-    case "exact":
-      return eq(column, term);
+    case 'startswith':
+      return like(column, `${term}%`)
+    case 'exact':
+      return eq(column, term)
     default:
-      return like(column, `%${term}%`);
+      return like(column, `%${term}%`)
   }
 }
 
@@ -74,19 +74,19 @@ function condition(
   term: string,
   columns: Record<string, Column>,
 ): SQL | undefined {
-  const column = columns[spec.field];
-  if (!column) return undefined;
+  const column = columns[spec.field]
+  if (!column) return undefined
 
-  if (!spec.through) return match(column, spec.lookup, term);
+  if (!spec.through) return match(column, spec.lookup, term)
 
-  const target = relationTarget(collection.model, spec.field);
-  const far = target?.columns[spec.through.field];
-  if (!target || !far) return undefined;
+  const target = relationTarget(collection.model, spec.field)
+  const far = target?.columns[spec.through.field]
+  if (!target || !far) return undefined
 
   const keyColumn = Object.values(target.columns).find(
     (candidate) => candidate.primary,
-  );
-  if (!keyColumn) return undefined;
+  )
+  if (!keyColumn) return undefined
 
   return inArray(
     column,
@@ -96,7 +96,7 @@ function condition(
       .select({ value: keyColumn as unknown as SQLiteColumn })
       .from(target.table)
       .where(match(far, spec.lookup, term)),
-  );
+  )
 }
 
 /**
@@ -111,20 +111,20 @@ export function searchConditions(
   collection: Collection,
   query: string,
 ): SQL[] {
-  if (collection.search.length === 0) return [];
+  if (collection.search.length === 0) return []
 
-  const columns = getTableColumns(collection.model) as Record<string, Column>;
-  const conditions: SQL[] = [];
+  const columns = getTableColumns(collection.model) as Record<string, Column>
+  const conditions: SQL[] = []
 
   for (const term of splitSearchTerms(query)) {
     const matches = collection.search
       .map((spec) => condition(db, collection, spec, term, columns))
-      .filter((entry): entry is SQL => entry !== undefined);
-    if (matches.length === 0) continue;
-    conditions.push(matches.length === 1 ? matches[0]! : or(...matches)!);
+      .filter((entry): entry is SQL => entry !== undefined)
+    if (matches.length === 0) continue
+    conditions.push(matches.length === 1 ? matches[0]! : or(...matches)!)
   }
 
-  return conditions;
+  return conditions
 }
 
 /** The whole search as one condition, or undefined when it matches nothing. */
@@ -133,7 +133,7 @@ export function searchCondition(
   collection: Collection,
   query: string,
 ): SQL | undefined {
-  const conditions = searchConditions(db, collection, query);
-  if (conditions.length === 0) return undefined;
-  return conditions.length === 1 ? conditions[0] : and(...conditions);
+  const conditions = searchConditions(db, collection, query)
+  if (conditions.length === 0) return undefined
+  return conditions.length === 1 ? conditions[0] : and(...conditions)
 }

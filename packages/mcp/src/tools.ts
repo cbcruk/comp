@@ -9,81 +9,82 @@ import {
   type DeleteRelation,
   type InlineSpec,
   type ManyToManySpec,
-} from "@comp/core";
+} from '@comp/core'
 import {
   fieldsToJsonSchema,
   filtersToJsonSchema,
   inlinesToJsonSchema,
   manyToManyToJsonSchema,
-} from "./fields-to-schema.js";
-import type { JsonSchema } from "./json-schema.js";
+} from './fields-to-schema.js'
+import type { JsonSchema } from './json-schema.js'
 
 export type ToolKind =
-  | "list"
-  | "get"
-  | "create"
-  | "update"
-  | "delete"
-  | "delete_preview"
-  | "history"
-  | "action";
+  | 'list'
+  | 'get'
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'delete_preview'
+  | 'history'
+  | 'action'
 
 export interface McpTool {
-  name: string;
-  description: string;
-  inputSchema: JsonSchema;
+  name: string
+  description: string
+  inputSchema: JsonSchema
 }
 
 export interface ToolBinding {
-  tool: McpTool;
-  kind: ToolKind;
-  collection: Collection;
+  tool: McpTool
+  kind: ToolKind
+  collection: Collection
   /** Inlines of this collection, so a write tool can apply them. */
-  inlines: InlineSpec[];
+  inlines: InlineSpec[]
   /** Many-to-many relationships, so a write tool can set their links. */
-  links?: ManyToManySpec[];
+  links?: ManyToManySpec[]
   /** Inbound keys, so a delete can be described before it runs. */
-  deleteRelations?: DeleteRelation[];
-  actionName?: string;
+  deleteRelations?: DeleteRelation[]
+  actionName?: string
   /** For an action: what it declared it touches, so it can be authorized. */
-  operations?: CollectionOperation[];
+  operations?: CollectionOperation[]
 }
 
 const ID_SCHEMA: JsonSchema = {
-  type: "object",
-  properties: { id: { type: "string", description: "Primary key value" } },
-  required: ["id"],
-};
+  type: 'object',
+  properties: { id: { type: 'string', description: 'Primary key value' } },
+  required: ['id'],
+}
 
 /** Say what the search box matches, so a caller knows why a query missed. */
 function searchHint(collection: Collection): string {
-  if (collection.search.length === 0) return "This collection declares no search fields.";
+  if (collection.search.length === 0)
+    return 'This collection declares no search fields.'
   const fields = collection.search.map((spec) => {
     const name = spec.through
       ? `${spec.field} → ${spec.through.table}.${spec.through.field}`
-      : spec.field;
-    if (spec.lookup === "startswith") return `${name} (starts with)`;
-    if (spec.lookup === "exact") return `${name} (exact)`;
-    return name;
-  });
+      : spec.field
+    if (spec.lookup === 'startswith') return `${name} (starts with)`
+    if (spec.lookup === 'exact') return `${name} (exact)`
+    return name
+  })
   return (
-    `Free-text search over ${fields.join(", ")}. ` +
-    "Every word must match at least one of them; quote a phrase to keep it whole."
-  );
+    `Free-text search over ${fields.join(', ')}. ` +
+    'Every word must match at least one of them; quote a phrase to keep it whole.'
+  )
 }
 
 function listSchema(collection: Collection): JsonSchema {
   return {
-    type: "object",
+    type: 'object',
     properties: {
-      page: { type: "number" },
-      pageSize: { type: "number" },
-      q: { type: "string", description: searchHint(collection) },
-      sort: { type: "string", description: "field:asc | field:desc" },
+      page: { type: 'number' },
+      pageSize: { type: 'number' },
+      q: { type: 'string', description: searchHint(collection) },
+      sort: { type: 'string', description: 'field:asc | field:desc' },
       ...(collection.dateHierarchy
         ? {
             date: {
-              type: "string" as const,
+              type: 'string' as const,
               description:
                 `Narrow by ${collection.dateHierarchy}: a year (2026), a month ` +
                 `(2026-07) or a day (2026-07-16).`,
@@ -92,11 +93,11 @@ function listSchema(collection: Collection): JsonSchema {
         : {}),
       filters: filtersToJsonSchema(collection),
     },
-  };
+  }
 }
 
 function toolName(slug: string, suffix: string): string {
-  return `${slug}__${suffix}`;
+  return `${slug}__${suffix}`
 }
 
 /** Attach the generated nested-write properties to a write tool's schema. */
@@ -105,7 +106,7 @@ function withNested(
   inlineSchema: JsonSchema | null,
   linkSchema: JsonSchema | null,
 ): JsonSchema {
-  if (!inlineSchema && !linkSchema) return schema;
+  if (!inlineSchema && !linkSchema) return schema
   return {
     ...schema,
     properties: {
@@ -113,7 +114,7 @@ function withNested(
       ...(inlineSchema ? { inlines: inlineSchema } : {}),
       ...(linkSchema ? { manyToMany: linkSchema } : {}),
     },
-  };
+  }
 }
 
 function readTools(
@@ -121,128 +122,130 @@ function readTools(
   inlines: InlineSpec[],
   links: ManyToManySpec[] = [],
 ): ToolBinding[] {
-  const bindings: ToolBinding[] = [];
-  const ops = collection.manifest.operations;
-  const slug = collection.slug;
-  const inlineSchema = inlinesToJsonSchema(inlines);
-  const linkSchema = manyToManyToJsonSchema(links);
+  const bindings: ToolBinding[] = []
+  const ops = collection.manifest.operations
+  const slug = collection.slug
+  const inlineSchema = inlinesToJsonSchema(inlines)
+  const linkSchema = manyToManyToJsonSchema(links)
   const inlineNote =
     inlines.length > 0
-      ? ` Child rows (${inlines.map((i) => inlineSummary(i).collection).join(", ")}) can be written in the same call.`
-      : "";
+      ? ` Child rows (${inlines.map((i) => inlineSummary(i).collection).join(', ')}) can be written in the same call.`
+      : ''
 
-  if (ops.includes("list")) {
+  if (ops.includes('list')) {
     bindings.push({
-      kind: "list",
+      kind: 'list',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "list"),
+        name: toolName(slug, 'list'),
         description: `List ${slug} records (search, filter, sort, paginate).`,
         inputSchema: listSchema(collection),
       },
-    });
+    })
   }
-  if (ops.includes("read")) {
+  if (ops.includes('read')) {
     bindings.push({
-      kind: "history",
+      kind: 'history',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "history"),
+        name: toolName(slug, 'history'),
         description:
           `Who changed a ${slug} record, when, and which fields — newest ` +
           `first. Entries outlive the record, so this still answers after a ` +
           `delete. Empty when the app keeps no history.`,
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
-            id: { type: "string", description: "Primary key value" },
-            limit: { type: "number" },
+            id: { type: 'string', description: 'Primary key value' },
+            limit: { type: 'number' },
           },
-          required: ["id"],
+          required: ['id'],
         },
       },
-    });
+    })
     bindings.push({
-      kind: "get",
+      kind: 'get',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "get"),
+        name: toolName(slug, 'get'),
         description:
           `Get a single ${slug} record by id.` +
-          (inlines.length > 0 ? " Returns its child rows alongside it." : ""),
+          (inlines.length > 0 ? ' Returns its child rows alongside it.' : ''),
         inputSchema: ID_SCHEMA,
       },
-    });
+    })
   }
-  if (ops.includes("create")) {
+  if (ops.includes('create')) {
     bindings.push({
-      kind: "create",
+      kind: 'create',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "create"),
+        name: toolName(slug, 'create'),
         description: `Create a ${slug} record.${inlineNote}`,
         inputSchema: withNested(
-          fieldsToJsonSchema(collection.fields, { skip: collection.form.readonly }),
+          fieldsToJsonSchema(collection.fields, {
+            skip: collection.form.readonly,
+          }),
           inlineSchema,
           linkSchema,
         ),
       },
-    });
+    })
   }
-  if (ops.includes("update")) {
+  if (ops.includes('update')) {
     const fieldSchema = fieldsToJsonSchema(collection.fields, {
       forUpdate: true,
       skip: collection.form.readonly,
-    });
+    })
     bindings.push({
-      kind: "update",
+      kind: 'update',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "update"),
+        name: toolName(slug, 'update'),
         description: `Update a ${slug} record by id.${inlineNote}`,
         inputSchema: withNested(
           {
-            type: "object",
-            properties: { id: { type: "string" }, ...fieldSchema.properties },
-            required: ["id"],
+            type: 'object',
+            properties: { id: { type: 'string' }, ...fieldSchema.properties },
+            required: ['id'],
           },
           inlineSchema,
           linkSchema,
         ),
       },
-    });
+    })
   }
-  if (ops.includes("delete")) {
+  if (ops.includes('delete')) {
     bindings.push({
-      kind: "delete_preview",
+      kind: 'delete_preview',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "delete_preview"),
+        name: toolName(slug, 'delete_preview'),
         description:
           `What deleting a ${slug} record would reach: how many rows in other ` +
           `collections point at it, and whether a foreign key would refuse the ` +
-          `delete. Check this before calling ${toolName(slug, "delete")}.`,
+          `delete. Check this before calling ${toolName(slug, 'delete')}.`,
         inputSchema: ID_SCHEMA,
       },
-    });
+    })
     bindings.push({
-      kind: "delete",
+      kind: 'delete',
       collection,
       inlines,
       tool: {
-        name: toolName(slug, "delete"),
+        name: toolName(slug, 'delete'),
         description: `Delete a ${slug} record by id.`,
         inputSchema: ID_SCHEMA,
       },
-    });
+    })
   }
-  return bindings;
+  return bindings
 }
 
 /**
@@ -254,12 +257,12 @@ export function buildToolRegistry(
   collections: Collection[],
   actions: ActionDefinition[] = [],
 ): Map<string, ToolBinding> {
-  const registry = new Map<string, ToolBinding>();
+  const registry = new Map<string, ToolBinding>()
   // Inlines bind to the relation graph over the whole registry, exactly as in
   // the HTTP API — one resolution, two transports.
-  const inlines = resolveInlines(collections);
-  const links = bindManyToMany(collections);
-  const deleteRelations = resolveDeleteRelations(collections);
+  const inlines = resolveInlines(collections)
+  const links = bindManyToMany(collections)
+  const deleteRelations = resolveDeleteRelations(collections)
 
   for (const collection of collections) {
     for (const binding of readTools(
@@ -271,17 +274,17 @@ export function buildToolRegistry(
         ...binding,
         links: links.get(collection.slug) ?? [],
         deleteRelations: deleteRelations.get(collection.slug) ?? [],
-      });
+      })
     }
   }
 
-  const bySlug = new Map(collections.map((c) => [c.slug, c]));
+  const bySlug = new Map(collections.map((c) => [c.slug, c]))
   for (const action of actions) {
-    const collection = bySlug.get(action.collection);
-    if (!collection) continue;
-    const name = toolName(collection.slug, `action__${action.name}`);
+    const collection = bySlug.get(action.collection)
+    if (!collection) continue
+    const name = toolName(collection.slug, `action__${action.name}`)
     registry.set(name, {
-      kind: "action",
+      kind: 'action',
       collection,
       inlines: [],
       links: [],
@@ -292,21 +295,21 @@ export function buildToolRegistry(
         name,
         description: `Run the "${action.name}" action on ${collection.slug}.`,
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
-            ids: { type: "array", items: { type: "string" } },
-            input: { type: "object" },
+            ids: { type: 'array', items: { type: 'string' } },
+            input: { type: 'object' },
           },
-          required: ["ids"],
+          required: ['ids'],
         },
       },
-    });
+    })
   }
 
-  return registry;
+  return registry
 }
 
 /** The public tool list for `tools/list`. */
 export function listTools(registry: Map<string, ToolBinding>): McpTool[] {
-  return [...registry.values()].map((binding) => binding.tool);
+  return [...registry.values()].map((binding) => binding.tool)
 }

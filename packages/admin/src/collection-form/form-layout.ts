@@ -1,21 +1,21 @@
-import type { FieldMap, FieldMeta, ResolvedForm } from "@comp/core";
+import type { FieldMap, FieldMeta, ResolvedForm } from '@comp/core'
 
 /** A field with everything the renderer needs to draw its control. */
 export interface LayoutField {
-  field: FieldMeta;
-  readonly: boolean;
-  radio: boolean;
+  field: FieldMeta
+  readonly: boolean
+  radio: boolean
 }
 
 export interface LayoutRow {
-  fields: LayoutField[];
+  fields: LayoutField[]
 }
 
 export interface LayoutGroup {
-  title: string | null;
-  description: string | null;
-  collapsed: boolean;
-  rows: LayoutRow[];
+  title: string | null
+  description: string | null
+  collapsed: boolean
+  rows: LayoutRow[]
 }
 
 /**
@@ -29,10 +29,10 @@ export function flatLayout(
 ): LayoutGroup[] {
   const rows = Object.values(fields)
     .filter((field) => field.name !== primaryKey)
-    .map((field) => ({ fields: [{ field, readonly: false, radio: false }] }));
+    .map((field) => ({ fields: [{ field, readonly: false, radio: false }] }))
   return rows.length > 0
     ? [{ title: null, description: null, collapsed: false, rows }]
-    : [];
+    : []
 }
 
 /**
@@ -47,8 +47,8 @@ export function bindLayout(
   form: ResolvedForm,
   fields: FieldMap,
 ): LayoutGroup[] {
-  const readonly = new Set(form.readonly);
-  const radio = new Set(form.radio);
+  const readonly = new Set(form.readonly)
+  const radio = new Set(form.radio)
 
   return form.fieldsets
     .map((fieldset) => ({
@@ -68,14 +68,14 @@ export function bindLayout(
         }))
         .filter((row) => row.fields.length > 0),
     }))
-    .filter((group) => group.rows.length > 0);
+    .filter((group) => group.rows.length > 0)
 }
 
 /** Every field the layout renders, in order. */
 export function layoutFields(groups: LayoutGroup[]): FieldMeta[] {
   return groups.flatMap((group) =>
     group.rows.flatMap((row) => row.fields.map((entry) => entry.field)),
-  );
+  )
 }
 
 /** Fields the form will submit — readonly ones are displayed, never sent. */
@@ -84,5 +84,5 @@ export function submittableFields(groups: LayoutGroup[]): FieldMeta[] {
     group.rows.flatMap((row) =>
       row.fields.filter((entry) => !entry.readonly).map((entry) => entry.field),
     ),
-  );
+  )
 }

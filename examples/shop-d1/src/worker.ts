@@ -1,12 +1,12 @@
-import { createDrizzleHistoryStore } from "@comp/core";
-import { createMcpHandler } from "@comp/mcp";
-import { createAdminRouter } from "@comp/server";
-import { drizzle } from "drizzle-orm/d1";
-import { Hono } from "hono";
-import { actions, collections } from "./collections.js";
+import { createDrizzleHistoryStore } from '@comp/core'
+import { createMcpHandler } from '@comp/mcp'
+import { createAdminRouter } from '@comp/server'
+import { drizzle } from 'drizzle-orm/d1'
+import { Hono } from 'hono'
+import { actions, collections } from './collections.js'
 
 interface Env {
-  DB: D1Database;
+  DB: D1Database
 }
 
 /**
@@ -16,27 +16,27 @@ interface Env {
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const db = drizzle(env.DB);
+    const db = drizzle(env.DB)
     // The same store on both transports: an HTTP write and an MCP write are
     // the same change, and a history that sees only one is worse than none.
-    const history = createDrizzleHistoryStore(db);
-    const app = new Hono();
+    const history = createDrizzleHistoryStore(db)
+    const app = new Hono()
 
     app.route(
-      "/admin",
+      '/admin',
       createAdminRouter({ collections, actions, getDb: () => db, history }),
-    );
+    )
     app.route(
-      "/mcp",
+      '/mcp',
       createMcpHandler({
         collections,
         actions,
         getDb: () => db,
         history,
-        actor: "mcp",
+        actor: 'mcp',
       }),
-    );
+    )
 
-    return app.fetch(request, env);
+    return app.fetch(request, env)
   },
-};
+}

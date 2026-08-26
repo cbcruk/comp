@@ -1,12 +1,12 @@
-import type { ComponentPropsWithoutRef, JSX } from "react";
-import { CollectionBrowser } from "../collection-browser/collection-browser.js";
-import { mergeProps } from "../merge-props/merge-props.js";
-import { AdminIndex } from "./admin-index.js";
-import type { AdminSiteProps } from "./admin-site.types.js";
-import { DeleteScreen } from "./delete-screen.js";
-import { HistoryScreen } from "./history-screen.js";
-import { RecordScreen } from "./record-screen.js";
-import { can } from "./site.utils.js";
+import type { ComponentPropsWithoutRef, JSX } from 'react'
+import { CollectionBrowser } from '../collection-browser/collection-browser.js'
+import { mergeProps } from '../merge-props/merge-props.js'
+import { AdminIndex } from './admin-index.js'
+import type { AdminSiteProps } from './admin-site.types.js'
+import { DeleteScreen } from './delete-screen.js'
+import { HistoryScreen } from './history-screen.js'
+import { RecordScreen } from './record-screen.js'
+import { can } from './site.utils.js'
 
 /**
  * The admin site: register collections and you get the screens, rather than an
@@ -27,27 +27,29 @@ export function AdminSite({
   fieldWidgets,
   renderScreen,
   header,
-  title = "Admin",
+  title = 'Admin',
   ...rest
 }: AdminSiteProps): JSX.Element {
   const collection =
-    route.view === "index"
+    route.view === 'index'
       ? undefined
-      : collections.find((entry) => entry.slug === route.slug);
+      : collections.find((entry) => entry.slug === route.slug)
 
   function screen(): JSX.Element {
-    if (route.view === "index") {
-      return <AdminIndex collections={collections} navigate={onNavigate} />;
+    if (route.view === 'index') {
+      return <AdminIndex collections={collections} navigate={onNavigate} />
     }
     if (!collection) {
       return (
         <section>
-          <p role="alert">No collection named &quot;{route.slug}&quot; is available.</p>
-          <button type="button" onClick={() => onNavigate({ view: "index" })}>
+          <p role="alert">
+            No collection named &quot;{route.slug}&quot; is available.
+          </p>
+          <button type="button" onClick={() => onNavigate({ view: 'index' })}>
             Back to the index
           </button>
         </section>
-      );
+      )
     }
 
     const replacement = renderScreen?.({
@@ -55,18 +57,20 @@ export function AdminSite({
       collection,
       route,
       navigate: onNavigate,
-    });
-    if (replacement !== undefined) return <>{replacement}</>;
+    })
+    if (replacement !== undefined) return <>{replacement}</>
 
     switch (route.view) {
-      case "list":
+      case 'list':
         return (
           <section>
             <h2>{collection.labelPlural}</h2>
-            {can(collection, "create") && (
+            {can(collection, 'create') && (
               <button
                 type="button"
-                onClick={() => onNavigate({ view: "add", slug: collection.slug })}
+                onClick={() =>
+                  onNavigate({ view: 'add', slug: collection.slug })
+                }
               >
                 Add {collection.label.toLowerCase()}
               </button>
@@ -75,31 +79,31 @@ export function AdminSite({
               client={client}
               collection={collection}
               {...(onNotify ? { onNotify } : {})}
-              {...(can(collection, "read")
+              {...(can(collection, 'read')
                 ? {
                     onOpenRecord: (id: string) =>
-                      onNavigate({ view: "change", slug: collection.slug, id }),
+                      onNavigate({ view: 'change', slug: collection.slug, id }),
                   }
                 : {})}
             />
           </section>
-        );
-      case "add":
-      case "change":
+        )
+      case 'add':
+      case 'change':
         return (
           <RecordScreen
             client={client}
             collection={collection}
             collections={collections}
-            id={route.view === "change" ? route.id : null}
+            id={route.view === 'change' ? route.id : null}
             navigate={onNavigate}
             {...(onNotify ? { onNotify } : {})}
             {...(fieldWidgets?.[collection.slug]
               ? { fieldWidgets: fieldWidgets[collection.slug] }
               : {})}
           />
-        );
-      case "history":
+        )
+      case 'history':
         return (
           <HistoryScreen
             client={client}
@@ -107,8 +111,8 @@ export function AdminSite({
             id={route.id}
             navigate={onNavigate}
           />
-        );
-      case "delete":
+        )
+      case 'delete':
         return (
           <DeleteScreen
             client={client}
@@ -117,19 +121,19 @@ export function AdminSite({
             navigate={onNavigate}
             {...(onNotify ? { onNotify } : {})}
           />
-        );
+        )
     }
   }
 
   return (
-    <div {...mergeProps<ComponentPropsWithoutRef<"div">>({}, rest)}>
+    <div {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
       <header>
-        <button type="button" onClick={() => onNavigate({ view: "index" })}>
+        <button type="button" onClick={() => onNavigate({ view: 'index' })}>
           {title}
         </button>
         {header}
       </header>
       {screen()}
     </div>
-  );
+  )
 }

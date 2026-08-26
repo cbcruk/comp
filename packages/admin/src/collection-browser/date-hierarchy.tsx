@@ -1,11 +1,11 @@
-import type { DateHierarchy } from "@comp/core";
-import type { JSX } from "react";
+import type { DateHierarchy } from '@comp/core'
+import type { JSX } from 'react'
 
 export interface DateHierarchyStripProps {
-  hierarchy: DateHierarchy;
+  hierarchy: DateHierarchy
   /** The path currently selected, as it appears in the query string. */
-  value: string;
-  onNavigate: (path: string) => void;
+  value: string
+  onNavigate: (path: string) => void
 }
 
 /**
@@ -22,14 +22,14 @@ export function DateHierarchyStrip({
   onNavigate,
 }: DateHierarchyStripProps): JSX.Element | null {
   if (hierarchy.choices.length === 0 && hierarchy.breadcrumb.length <= 1) {
-    return null;
+    return null
   }
 
   return (
     <nav aria-label={`Browse by ${hierarchy.field}`}>
       <ol>
         {hierarchy.breadcrumb.map((crumb) => (
-          <li key={crumb.path || "all"}>
+          <li key={crumb.path || 'all'}>
             {crumb.path === value ? (
               <span aria-current="page">{crumb.label}</span>
             ) : (
@@ -53,5 +53,5 @@ export function DateHierarchyStrip({
         </ul>
       )}
     </nav>
-  );
+  )
 }

@@ -4,34 +4,28 @@
  * is that decision, made once from the introspected schema.
  */
 export type FilterKind =
-  | "exact"
-  | "choices"
-  | "boolean"
-  | "date"
-  | "relation"
-  | "values"
-  | "m2m";
+  'exact' | 'choices' | 'boolean' | 'date' | 'relation' | 'values' | 'm2m'
 
 /** One ready-made choice, for kinds that enumerate their values. */
 export interface FilterOption {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
 /** A named date window, resolved against "now" at query time. */
-export type DatePreset = "today" | "past7" | "month" | "year";
+export type DatePreset = 'today' | 'past7' | 'month' | 'year'
 
 export interface ResolvedFilter {
-  field: string;
-  kind: FilterKind;
+  field: string
+  kind: FilterKind
   /** Choices for `choices`/`boolean`; empty for kinds that fetch their own. */
-  options: FilterOption[];
+  options: FilterOption[]
   /** Whether the column can be null — an empty/not-empty choice is offered. */
-  nullable: boolean;
+  nullable: boolean
   /** For `relation`/`m2m`: the referenced table, bound to a collection downstream. */
-  table?: string;
+  table?: string
   /** For `values`: how many distinct values to offer before saying "more". */
-  limit?: number;
+  limit?: number
 }
 
 /**
@@ -40,15 +34,15 @@ export interface ResolvedFilter {
  * is static and serializable at declaration time.
  */
 export interface FilterChoices {
-  field: string;
+  field: string
   /** Values present in the column, each encoded as the query value it stands for. */
-  options: FilterOption[];
+  options: FilterOption[]
   /**
    * The column holds more distinct values than the filter's limit, so the list
    * is a prefix. Said out loud rather than silently cut — a filter that quietly
    * omits values is one that quietly hides records.
    */
-  truncated: boolean;
+  truncated: boolean
 }
 
 /**
@@ -57,26 +51,26 @@ export interface FilterChoices {
  * relation widget does — it is never told which collection by the app.
  */
 export interface FilterSummary extends ResolvedFilter {
-  collection?: string;
+  collection?: string
   /** Field on that collection the key points at — the option's value. */
-  targetField?: string;
-  labelField?: string | null;
+  targetField?: string
+  labelField?: string | null
 }
 
 /** Authoring form: a bare field name infers its kind, or state it. */
 export type FilterConfig<TField extends string = string> =
   | TField
   | {
-      field: TField;
+      field: TField
       /** Override the kind inferred from the column's type. */
-      kind?: FilterKind;
+      kind?: FilterKind
       /**
        * For `kind: "values"`: how many distinct values to offer. The list is
        * read from the data on every request, so this is the ceiling on what
        * that costs and on how long the control gets.
        */
-      limit?: number;
-    };
+      limit?: number
+    }
 
 /**
  * A filter's value on the wire and in the query layer: an operation, not a
@@ -85,10 +79,10 @@ export type FilterConfig<TField extends string = string> =
  * query builder can only tell them apart if the value says which one it is.
  */
 export type FilterValue =
-  | { op: "exact"; value: unknown }
-  | { op: "in"; values: unknown[] }
-  | { op: "isnull"; value: boolean }
-  | { op: "range"; from?: unknown; to?: unknown }
-  | { op: "preset"; preset: DatePreset };
+  | { op: 'exact'; value: unknown }
+  | { op: 'in'; values: unknown[] }
+  | { op: 'isnull'; value: boolean }
+  | { op: 'range'; from?: unknown; to?: unknown }
+  | { op: 'preset'; preset: DatePreset }
 
-export type FilterMap = Record<string, FilterValue>;
+export type FilterMap = Record<string, FilterValue>

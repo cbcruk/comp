@@ -1,19 +1,19 @@
-import { getTableName, type Table } from "drizzle-orm";
-import type { Collection } from "../collection/define-collection.types.js";
-import { introspectTable } from "../introspection/introspect-table.js";
-import type { FieldMap } from "../introspection/introspect-table.types.js";
+import { getTableName, type Table } from 'drizzle-orm'
+import type { Collection } from '../collection/define-collection.types.js'
+import { introspectTable } from '../introspection/introspect-table.js'
+import type { FieldMap } from '../introspection/introspect-table.types.js'
 import type {
   ManyToManyConfig,
   ManyToManyMeta,
   ManyToManySpec,
   ManyToManySummary,
-} from "./m2m.types.js";
+} from './m2m.types.js'
 
 /** The join table's foreign keys pointing at one table, as field names. */
 function keysTo(fields: FieldMap, table: string): string[] {
   return Object.values(fields)
     .filter((field) => field.relation?.table === table)
-    .map((field) => field.name);
+    .map((field) => field.name)
 }
 
 function pick(
@@ -23,33 +23,33 @@ function pick(
 ): string {
   if (named) {
     if (!candidates.includes(named)) {
-      throw new Error(`${describe()} has no foreign key "${named}"`);
+      throw new Error(`${describe()} has no foreign key "${named}"`)
     }
-    return named;
+    return named
   }
   if (candidates.length === 0) {
-    throw new Error(`${describe()} has no foreign key to it`);
+    throw new Error(`${describe()} has no foreign key to it`)
   }
   if (candidates.length > 1) {
     throw new Error(
-      `${describe()} is ambiguous (${candidates.join(", ")}); name one`,
-    );
+      `${describe()} is ambiguous (${candidates.join(', ')}); name one`,
+    )
   }
-  return candidates[0]!;
+  return candidates[0]!
 }
 
 /** The field on `fields` whose column the join key points at. */
 function targetOf(joinFields: FieldMap, key: string): string {
-  const relation = joinFields[key]?.relation;
-  if (!relation) throw new Error(`"${key}" is not a foreign key`);
-  return relation.column;
+  const relation = joinFields[key]?.relation
+  if (!relation) throw new Error(`"${key}" is not a foreign key`)
+  return relation.column
 }
 
 function fieldForColumn(fields: FieldMap, columnName: string): string | null {
   for (const field of Object.values(fields)) {
-    if (field.columnName === columnName) return field.name;
+    if (field.columnName === columnName) return field.name
   }
-  return null;
+  return null
 }
 
 /**
@@ -70,39 +70,35 @@ export function resolveManyToMany(
   model: Table,
   config: ManyToManyConfig,
 ): ManyToManyMeta {
-  const here = getTableName(model);
-  const through = introspectTable(config.through);
-  const name = config.name ?? config.collection;
+  const here = getTableName(model)
+  const through = introspectTable(config.through)
+  const name = config.name ?? config.collection
   const describe = (side: string): string =>
     `manyToMany "${name}" on "${slug}": join table ` +
-    `"${getTableName(config.through)}" ${side}`;
+    `"${getTableName(config.through)}" ${side}`
 
-  const field = pick(
-    keysTo(through.fields, here),
-    config.field,
-    () => describe(`→ "${here}"`),
-  );
+  const field = pick(keysTo(through.fields, here), config.field, () =>
+    describe(`→ "${here}"`),
+  )
 
   // The far side is whatever is left. Named explicitly when a table joins to
   // itself, where "the other one" is not a distinguishing description.
   const targetCandidates = Object.values(through.fields)
     .filter((entry) => entry.relation && entry.name !== field)
-    .map((entry) => entry.name);
-  const targetField = pick(
-    targetCandidates,
-    config.targetField,
-    () => describe("→ the other side"),
-  );
+    .map((entry) => entry.name)
+  const targetField = pick(targetCandidates, config.targetField, () =>
+    describe('→ the other side'),
+  )
 
-  const targetTable = through.fields[targetField]?.relation?.table;
+  const targetTable = through.fields[targetField]?.relation?.table
   if (!targetTable) {
-    throw new Error(`${describe("→ the other side")} is not a foreign key`);
+    throw new Error(`${describe('→ the other side')} is not a foreign key`)
   }
 
-  const parentColumn = targetOf(through.fields, field);
-  const parentKey = fieldForColumn(introspectTable(model).fields, parentColumn);
+  const parentColumn = targetOf(through.fields, field)
+  const parentKey = fieldForColumn(introspectTable(model).fields, parentColumn)
   if (!parentKey) {
-    throw new Error(`${describe(`→ "${here}"`)} points at no column here`);
+    throw new Error(`${describe(`→ "${here}"`)} points at no column here`)
   }
 
   return {
@@ -117,7 +113,7 @@ export function resolveManyToMany(
     // field name; `bindManyToMany` does that.
     targetKey: targetOf(through.fields, targetField),
     filter: config.filter ?? false,
-  };
+  }
 }
 
 /**
@@ -134,32 +130,32 @@ export function resolveManyToMany(
 export function bindManyToMany(
   collections: Collection[],
 ): Map<string, ManyToManySpec[]> {
-  const byTable = new Map<string, Collection>();
+  const byTable = new Map<string, Collection>()
   for (const collection of collections) {
-    byTable.set(getTableName(collection.model), collection);
+    byTable.set(getTableName(collection.model), collection)
   }
 
-  const resolved = new Map<string, ManyToManySpec[]>();
+  const resolved = new Map<string, ManyToManySpec[]>()
   for (const collection of collections) {
-    const specs: ManyToManySpec[] = [];
+    const specs: ManyToManySpec[] = []
     for (const meta of collection.manyToMany) {
-      const target = byTable.get(meta.table);
-      if (!target) continue;
+      const target = byTable.get(meta.table)
+      if (!target) continue
       if (target.slug !== meta.collection) {
         throw new Error(
           `manyToMany "${meta.name}" on "${collection.slug}" names ` +
             `"${meta.collection}", but its join table reaches "${target.slug}"`,
-        );
+        )
       }
 
-      const targetKey = fieldForColumn(target.fields, meta.targetKey);
-      if (!targetKey) continue;
+      const targetKey = fieldForColumn(target.fields, meta.targetKey)
+      if (!targetKey) continue
 
-      specs.push({ ...meta, targetKey, target });
+      specs.push({ ...meta, targetKey, target })
     }
-    resolved.set(collection.slug, specs);
+    resolved.set(collection.slug, specs)
   }
-  return resolved;
+  return resolved
 }
 
 /** Strip a relationship down to what a client or tool schema can consume. */
@@ -169,5 +165,5 @@ export function manyToManySummary(spec: ManyToManySpec): ManyToManySummary {
     collection: spec.target.slug,
     targetKey: spec.targetKey,
     labelField: spec.target.labelField,
-  };
+  }
 }

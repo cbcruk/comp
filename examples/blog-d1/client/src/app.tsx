@@ -8,28 +8,30 @@ import {
   referenceWidgets,
   useToasts,
   type CollectionSummary,
-} from "@comp/admin";
-import { useEffect, useState, type JSX } from "react";
+} from '@comp/admin'
+import { useEffect, useState, type JSX } from 'react'
 
-const client = createClient({ baseUrl: "/admin" });
-const passkeys = createPasskeyClient({ baseUrl: "/auth" });
+const client = createClient({ baseUrl: '/admin' })
+const passkeys = createPasskeyClient({ baseUrl: '/auth' })
 
 export function App(): JSX.Element {
-  const [collections, setCollections] = useState<CollectionSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [collections, setCollections] = useState<CollectionSummary[]>([])
+  const [error, setError] = useState<string | null>(null)
   // Bump to refetch the collection list and remount the browser after a write.
-  const [version, setVersion] = useState(0);
-  const { toasts, notify, dismiss } = useToasts();
+  const [version, setVersion] = useState(0)
+  const { toasts, notify, dismiss } = useToasts()
 
   useEffect(() => {
     client
       .collections()
       .then(setCollections)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, []);
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      )
+  }, [])
 
-  const posts = collections.find((c) => c.slug === "posts");
-  const authors = collections.find((c) => c.slug === "authors");
+  const posts = collections.find((c) => c.slug === 'posts')
+  const authors = collections.find((c) => c.slug === 'authors')
 
   return (
     <main>
@@ -38,7 +40,10 @@ export function App(): JSX.Element {
 
       <section>
         <h2>Sign in</h2>
-        <PasskeyLogin client={passkeys} onAuthenticated={() => setVersion((v) => v + 1)} />
+        <PasskeyLogin
+          client={passkeys}
+          onAuthenticated={() => setVersion((v) => v + 1)}
+        />
       </section>
 
       {error && <p role="alert">{error}</p>}
@@ -54,8 +59,8 @@ export function App(): JSX.Element {
               form={authors.form}
               submitLabel="Create"
               onSubmit={async (values) => {
-                await client.create(authors.slug, values);
-                setVersion((v) => v + 1);
+                await client.create(authors.slug, values)
+                setVersion((v) => v + 1)
               }}
             />
           </section>
@@ -88,8 +93,8 @@ export function App(): JSX.Element {
               // never names the target collection.
               fieldWidgets={referenceWidgets(client, posts.relations)}
               onSubmit={async (values) => {
-                await client.create(posts.slug, values);
-                setVersion((v) => v + 1);
+                await client.create(posts.slug, values)
+                setVersion((v) => v + 1)
               }}
             />
           </section>
@@ -107,5 +112,5 @@ export function App(): JSX.Element {
         </>
       )}
     </main>
-  );
+  )
 }

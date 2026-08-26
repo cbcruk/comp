@@ -12,23 +12,23 @@ each one reproduces — and what is still open — in `CLAUDE.md`.
 
 ```ts
 defineCollection({
-  model: posts,                              // Drizzle table
-  listDisplay: ["title", "status", "createdAt"],
-  filters: ["status"],
-  search: ["title", "body"],
+  model: posts, // Drizzle table
+  listDisplay: ['title', 'status', 'createdAt'],
+  filters: ['status'],
+  search: ['title', 'body'],
 })
 ```
 
 ## Packages
 
-| Package        | Role                                                          |
-| -------------- | ------------------------------------------------------------ |
+| Package        | Role                                                              |
+| -------------- | ----------------------------------------------------------------- |
 | `@comp/core`   | Introspection (columns + relations), `defineCollection`, queries. |
-| `@comp/server` | Hono route adapter that mounts the read API over `core`.     |
-| `@comp/admin`  | React admin UI (list browser, detail/edit form, client).     |
-| `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.  |
-| `@comp/mcp`    | Collections + actions over the Model Context Protocol.       |
-| `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.  |
+| `@comp/server` | Hono route adapter that mounts the read API over `core`.          |
+| `@comp/admin`  | React admin UI (list browser, detail/edit form, client).          |
+| `@comp/auth`   | Pluggable auth: WebAuthn passkeys, signed sessions, policy.       |
+| `@comp/mcp`    | Collections + actions over the Model Context Protocol.            |
+| `@comp/cli`    | Scaffolding / codegen (`comp scaffold [--from]`) over core.       |
 
 Two examples: `examples/blog-d1` is the stack reference (Cloudflare D1 +
 Drizzle, passkeys, MCP) and shows composing the admin components by hand;
@@ -67,7 +67,7 @@ then create and browse posts. The React app (`client/`) is served same-origin
 by the Worker (Cloudflare assets) so passkeys work; it talks to the admin API
 under `/admin` (anonymous can read, writes need a role) and the passkey
 ceremonies under `/auth`. The example's policy also shows the two depths below
-the role check: signed out, only *published* posts exist — a draft answers "not
+the role check: signed out, only _published_ posts exist — a draft answers "not
 found", including by id — and a published post is locked against deletion until
 it is unpublished. MCP sits behind the same adapter. `migrations/` is hand-written here; `pnpm db:generate`
 regenerates it from `schema.ts` (which includes the passkey tables).
@@ -145,7 +145,8 @@ resolved kind — select, relation picker, or text), sortable headers, paginatio
 bulk selection + actions, and opt-in click-to-edit cells.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build (packages
-+ example SPA) on every push and PR.
+
+- example SPA) on every push and PR.
 
 Relations are introspected, not declared. `introspectTable` reads the schema's
 foreign keys onto the fields that hold them, and `resolveRelations` links them
