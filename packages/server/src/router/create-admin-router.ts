@@ -36,6 +36,7 @@ import {
   writeInlines,
   writeManyToMany,
   type ActionDefinition,
+  type ActionExecutor,
   type AuthAdapter,
   type Collection,
   type CollectionOperation,
@@ -71,6 +72,15 @@ export interface AdminRouterConfig {
    * `c.env`, so the db must be built per request rather than at module load.
    */
   getDb: (c: Context) => SqliteDb
+  /**
+   * How an action's handler is run. Defaults to calling it in this isolate.
+   *
+   * The capability boundary is drawn before the executor sees anything — the
+   * context it receives already carries a db narrowed to the action's declared
+   * operations — so an executor that ships the call elsewhere inherits the
+   * same limits rather than having to reimplement them.
+   */
+  executor?: ActionExecutor
 }
 
 function allows(collection: Collection, op: CollectionOperation): boolean {
@@ -855,12 +865,11 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       requested,
     )
 
-    const result = await runAction(action, {
-      db,
-      collection,
-      ids,
-      input: body?.input,
-    })
+    const result = await runAction(
+      action,
+      { db, collection, ids, input: body?.input },
+      config.executor,
+    )
     return c.json(result)
   })
 

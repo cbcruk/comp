@@ -349,8 +349,12 @@ truth.
   operations they touch (`ActionManifest`). `runAction` hands the handler a
   capability-scoped db (`createCapabilityDb`) that throws `CapabilityError` on
   any operation outside the declaration. The executor is a pluggable seam
-  (`ActionExecutor`) so actions can later run in a sandboxed isolate **without
-  an API change** — keep handlers pure and capability-declaring.
+  (`ActionExecutor`), passed as `executor` on both `AdminRouterConfig` and
+  `McpHandlerConfig`, so actions can run somewhere else — a sandboxed isolate —
+  **without an API change**. Keep handlers pure and capability-declaring. The
+  narrowing happens _before_ the executor is called, so one that ships the call
+  elsewhere is handing over a context that is already limited rather than being
+  trusted to limit it.
 - **Auth is an adapter from day one.** `AuthAdapter` = `authenticate(request)` +
   `authorize({ identity, collection, operation })`, keyed on the same
   `CollectionOperation` vocabulary as the manifest, plus two optional methods
@@ -485,8 +489,9 @@ for actions (in-process today, isolate-ready via `ActionExecutor`).
 **This section is closed; it is not a backlog.** Do not pick work from it — the
 Django parity backlog is where open work lives. Two things remain merely
 un-precluded, to be built only if a concrete need shows up: running actions in a
-sandboxed isolate (Dynamic Workers), and Agent Skills describing
-collections/actions. Out of scope permanently: Astro theming / content rendering
+sandboxed isolate (Dynamic Workers) — the seam for it is now reachable from
+both transports, so this is a matter of writing an executor, not of changing
+any API — and Agent Skills describing collections/actions. Out of scope permanently: Astro theming / content rendering
 (Comp is an admin layer, not a site renderer) and x402 / pay-per-access.
 
 ## Dev model

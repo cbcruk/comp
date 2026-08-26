@@ -1,5 +1,6 @@
 import type {
   ActionDefinition,
+  ActionExecutor,
   AuthAdapter,
   Collection,
   HistoryStore,
@@ -28,6 +29,13 @@ export interface McpHandlerConfig {
    * permission honored by only one of them is not a permission.
    */
   auth?: AuthAdapter
+  /**
+   * How an action's handler is run. Defaults to calling it in this isolate.
+   * Pass the same executor the HTTP router takes — an action invoked by a tool
+   * is the same action, and the capability boundary is drawn before either of
+   * them reaches the executor.
+   */
+  executor?: ActionExecutor
 }
 
 /**
@@ -66,6 +74,7 @@ export function createMcpHandler(config: McpHandlerConfig): Hono {
       history: config.history,
       actor: config.actor ?? identity?.subject ?? null,
       auth: config.auth,
+      executor: config.executor,
       identity,
     }
 

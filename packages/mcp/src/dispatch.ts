@@ -29,6 +29,7 @@ import {
   writeInlines,
   writeManyToMany,
   type ActionDefinition,
+  type ActionExecutor,
   type AuthAdapter,
   type Collection,
   type CollectionOperation,
@@ -80,6 +81,8 @@ export interface McpContext {
   auth?: AuthAdapter | undefined
   /** The identity resolved once for this request. */
   identity?: Identity | null
+  /** How an action's handler runs; defaults to calling it in this isolate. */
+  executor?: ActionExecutor | undefined
 }
 
 /** The operations a tool performs, in the vocabulary permissions are keyed on. */
@@ -492,12 +495,11 @@ async function runTool(
         action.operations,
         requested,
       )
-      const result = await runAction(action, {
-        db,
-        collection,
-        ids,
-        input: args.input,
-      })
+      const result = await runAction(
+        action,
+        { db, collection, ids, input: args.input },
+        ctx.executor,
+      )
       return text(result)
     }
   }
