@@ -4,6 +4,7 @@
   "description": "Schema introspection, defineCollection, and the query layer for Comp",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -32,10 +33,12 @@
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.36.0",
+    "effect": "^3.22.1",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "drizzle-orm": "^0.44.2",
+    "effect": "^3.22.1",
     "zod": "^3.24.1"
   }
 }

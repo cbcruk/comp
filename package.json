@@ -17,11 +17,13 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check:bundle": "node scripts/check-bundle-isolation.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.0",
+    "effect": "^3.22.1",
     "eslint": "^10.5.0",
     "prettier": "^3.9.6",
     "typescript": "^5.7.2",
