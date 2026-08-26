@@ -5,6 +5,7 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server'
 import { base64UrlToBytes, bytesToBase64Url, encodeUtf8 } from './base64url.js'
+import { CeremonyExpired, CeremonyFailed } from './auth-error.js'
 import type { PasskeyStore } from './passkey-store.types.js'
 
 export type RegistrationResponse = Parameters<
@@ -61,7 +62,8 @@ export async function finishRegistration(
   response: RegistrationResponse,
 ): Promise<{ credentialId: string }> {
   const expectedChallenge = await store.takeChallenge(user.id)
-  if (!expectedChallenge) throw new Error('No registration challenge in flight')
+  if (!expectedChallenge)
+    throw new CeremonyExpired({ ceremony: 'registration' })
 
   const verification = await verifyRegistrationResponse({
     response,
@@ -70,7 +72,10 @@ export async function finishRegistration(
     expectedRPID: rp.rpID,
   })
   if (!verification.verified || !verification.registrationInfo) {
-    throw new Error('Registration could not be verified')
+    throw new CeremonyFailed({
+      ceremony: 'registration',
+      reason: 'the attestation did not verify',
+    })
   }
 
   const { credential } = verification.registrationInfo
@@ -111,11 +116,19 @@ export async function finishAuthentication(
 ): Promise<{ userId: string }> {
   const expectedChallenge = await store.takeChallenge(user.id)
   if (!expectedChallenge)
-    throw new Error('No authentication challenge in flight')
+    throw new CeremonyExpired({ ceremony: 'authentication' })
 
   const credential = await store.getCredentialById(response.id)
+  // Two distinct situations, one indistinguishable refusal: whether the
+  // credential is unknown or simply belongs to someone else is exactly what an
+  // attacker would like to learn. The difference is kept for the log only.
   if (!credential || credential.userId !== user.id) {
-    throw new Error('Unknown credential for user')
+    throw new CeremonyFailed({
+      ceremony: 'authentication',
+      reason: credential
+        ? 'the credential belongs to another user'
+        : 'no such credential',
+    })
   }
 
   const verification = await verifyAuthenticationResponse({
@@ -131,7 +144,10 @@ export async function finishAuthentication(
     },
   })
   if (!verification.verified)
-    throw new Error('Authentication could not be verified')
+    throw new CeremonyFailed({
+      ceremony: 'authentication',
+      reason: 'the assertion did not verify',
+    })
 
   await store.updateCounter(
     credential.id,

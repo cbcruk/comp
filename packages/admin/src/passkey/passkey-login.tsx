@@ -17,6 +17,10 @@ export function PasskeyLogin({
 }: PasskeyLoginProps): JSX.Element {
   const [userId, setUserId] = useState('')
   const [status, setStatus] = useState<string | null>(null)
+  // A refusal is not a status. Both used to land in the same string rendered
+  // as `role="status"`, so "Signed in" and "Authentication could not be
+  // verified" were announced the same way and looked the same.
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function run(
@@ -26,12 +30,13 @@ export function PasskeyLogin({
   ): Promise<void> {
     setBusy(true)
     setStatus(null)
+    setError(null)
     try {
       await action()
       setStatus(success)
       if (authenticated) onAuthenticated?.()
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error))
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
       setBusy(false)
     }
@@ -68,6 +73,7 @@ export function PasskeyLogin({
         Sign in
       </button>
       {status && <p role="status">{status}</p>}
+      {error && <p role="alert">{error}</p>}
     </form>
   )
 }
