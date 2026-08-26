@@ -11,6 +11,8 @@ export type {
 } from './collection/define-collection.types.js'
 
 export { resolveLabelField } from './collection/label-field.js'
+export { resolveListDisplay } from './collection/list-columns.js'
+export type { ListColumn } from './collection/list-columns.js'
 
 export { READ_CONCURRENCY, runEffect } from './effect/run-effect.js'
 

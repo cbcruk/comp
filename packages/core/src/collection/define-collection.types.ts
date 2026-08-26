@@ -1,3 +1,4 @@
+import type { ListColumn } from './list-columns.js'
 import type { Table } from 'drizzle-orm'
 import type { FilterConfig, ResolvedFilter } from '../filters/filter.types.js'
 import type { ResolvedForm } from '../form/form.types.js'
@@ -53,7 +54,7 @@ export interface CollectionConfig<TTable extends Table> extends FormConfig<
   /** Name for the collection; defaults to the slug, humanized. */
   labelPlural?: string
   /** Columns shown as columns in the list view. */
-  listDisplay: ColumnKey<TTable>[]
+  listDisplay: (ColumnKey<TTable> | (string & {}))[]
   /**
    * Columns offered as filters. A bare name infers what the column supports —
    * an enum offers its values, a date offers ranges, a foreign key offers the
@@ -119,6 +120,8 @@ export interface Collection {
   /** Field representing a record when referenced from elsewhere. */
   labelField: string | null
   listDisplay: string[]
+  /** The same columns, resolved against the schema. */
+  listColumns: ListColumn[]
   /** Filters with their kind, choices, and nullability resolved. */
   filters: ResolvedFilter[]
   /** Search fields with their lookup and any relation traversal resolved. */

@@ -6,6 +6,7 @@ import { resolveLabels } from '../site/labels.js'
 import { resolveSearch } from '../search/resolve-search.js'
 import { resolveManyToMany } from '../m2m/resolve-m2m.js'
 import { resolveLabelField } from './label-field.js'
+import { resolveListDisplay } from './list-columns.js'
 import type {
   Collection,
   CollectionConfig,
@@ -79,6 +80,13 @@ export function defineCollection<TTable extends Table>(
         ...manyToMany.filter((link) => link.filter).map((link) => link.name),
       ],
       manyToMany,
+    ),
+    listColumns: resolveListDisplay(
+      slug,
+      config.model,
+      introspection.fields,
+      manyToMany,
+      config.listDisplay,
     ),
     search: resolveSearch(
       slug,

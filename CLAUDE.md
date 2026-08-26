@@ -38,7 +38,15 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 
 **Done**
 
-- `list_display`, ordering, pagination.
+- `list_display`, ordering, pagination — including `author__name`, a column
+  that follows a foreign key. A key is to-one, so the value joins onto the row
+  without multiplying it (which is why _search_ reaches a join table with a
+  subquery instead, and why a many-to-many is refused here: there is no single
+  value for a cell). It is selected under the key it was declared with, so the
+  admin reads `row["authorId__name"]` exactly as it reads `row["title"]` and
+  needed no change; and it is selected with an explicit `as`, because some
+  drivers key rows by column name and `authors.name` beside `posts.name` would
+  otherwise collapse. `mapWith` keeps the far column's own decoding.
 - Change/add form derived from the schema, with validation surfaced
   field-by-field.
 - `list_editable`-style inline cell editing in the list.
@@ -211,8 +219,8 @@ last` so an empty never takes a slot a value needed, and the column itself is
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what
-  the admin still cannot do (a two-pane `filter_horizontal` widget,
-  `list_display` over a relationship) rather than polishing what is built.
+  the admin still cannot do (a two-pane `filter_horizontal` widget) rather than
+  polishing what is built.
 
 When you implement one, say in the commit which Django _behavior_ you
 reproduced and confirm it was re-derived, not copied.

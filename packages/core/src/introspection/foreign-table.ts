@@ -8,6 +8,8 @@ export interface ForeignTable {
   table: SQLiteTable
   columns: Record<string, Column>
   fields: FieldMap
+  /** The column over there that the key points at — one side of a join. */
+  referenced: Column
 }
 
 /**
@@ -36,11 +38,14 @@ export function foreignTableFor(
     const reference = foreignKey.reference()
     if (reference.columns.length !== 1) continue
     if (reference.columns[0]?.name !== column.name) continue
+    const referenced = reference.foreignColumns[0]
+    if (!referenced) continue
     const table = reference.foreignTable as SQLiteTable
     return {
       table,
       columns: getTableColumns(table) as Record<string, Column>,
       fields: introspectTable(table).fields,
+      referenced: referenced as Column,
     }
   }
   return null

@@ -29,7 +29,10 @@ export const tagCollection = defineCollection({
 
 export const orderCollection = defineCollection({
   model: orders,
-  listDisplay: ['reference', 'customerId', 'status', 'placedAt'],
+  // `customerId__name` shows who placed the order instead of the key that
+  // names them — a foreign key is to-one, so the value joins onto the row
+  // without multiplying it.
+  listDisplay: ['reference', 'customerId__name', 'status', 'placedAt'],
   // Each of these filters a different way, and none of it is configured here:
   // status offers its enum values, customerId the customers it points at plus
   // empty/not-empty, placedAt the date windows, and channel — a plain text
