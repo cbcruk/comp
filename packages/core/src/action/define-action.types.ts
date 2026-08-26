@@ -1,22 +1,22 @@
 import type {
   Collection,
   CollectionOperation,
-} from "../collection/define-collection.types.js";
-import type { SqliteDb } from "../query/build-list-query.js";
+} from '../collection/define-collection.types.js'
+import type { SqliteDb } from '../query/build-list-query.js'
 
 export interface ActionContext {
-  db: SqliteDb;
-  collection: Collection;
+  db: SqliteDb
+  collection: Collection
   /** Record ids the action runs against (bulk selection). */
-  ids: unknown[];
+  ids: unknown[]
   /** Optional action-specific parameters from the caller. */
-  input?: unknown;
+  input?: unknown
 }
 
 export interface ActionResult {
-  affected: number;
-  message?: string;
-  data?: unknown;
+  affected: number
+  message?: string
+  data?: unknown
 }
 
 /**
@@ -25,27 +25,27 @@ export interface ActionResult {
  * later be lifted into a sandboxed isolate without changing its API.
  */
 export interface ActionManifest {
-  name: string;
-  collection: string;
-  operations: CollectionOperation[];
+  name: string
+  collection: string
+  operations: CollectionOperation[]
 }
 
 export interface ActionConfig {
-  name: string;
-  label?: string;
+  name: string
+  label?: string
   /** Collection slug this action applies to. */
-  collection: string;
+  collection: string
   /** Operations the action needs; checked against the collection manifest. */
-  operations: CollectionOperation[];
+  operations: CollectionOperation[]
   /** Pure handler — no ambient access beyond the provided context. */
-  handler: (context: ActionContext) => Promise<ActionResult>;
+  handler: (context: ActionContext) => Promise<ActionResult>
 }
 
 export interface ActionDefinition {
-  name: string;
-  label: string;
-  collection: string;
-  operations: CollectionOperation[];
-  manifest: ActionManifest;
-  handler: (context: ActionContext) => Promise<ActionResult>;
+  name: string
+  label: string
+  collection: string
+  operations: CollectionOperation[]
+  manifest: ActionManifest
+  handler: (context: ActionContext) => Promise<ActionResult>
 }

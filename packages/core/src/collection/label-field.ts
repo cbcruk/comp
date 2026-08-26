@@ -1,4 +1,4 @@
-import type { FieldMap } from "../introspection/introspect-table.types.js";
+import type { FieldMap } from '../introspection/introspect-table.types.js'
 
 /**
  * Pick the field that stands in for a whole record when it is referenced from
@@ -22,12 +22,10 @@ export function resolveLabelField(
   primaryKey: string | null,
 ): string | null {
   const candidates = listDisplay.filter((name) => {
-    const field = fields[name];
-    return Boolean(field) && name !== primaryKey && !field?.primaryKey;
-  });
+    const field = fields[name]
+    return Boolean(field) && name !== primaryKey && !field?.primaryKey
+  })
 
-  const textual = candidates.find(
-    (name) => fields[name]?.dataType === "string",
-  );
-  return textual ?? candidates[0] ?? primaryKey;
+  const textual = candidates.find((name) => fields[name]?.dataType === 'string')
+  return textual ?? candidates[0] ?? primaryKey
 }

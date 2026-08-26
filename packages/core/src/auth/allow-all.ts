@@ -1,6 +1,6 @@
-import type { AuthAdapter, Identity } from "./auth-adapter.types.js";
+import type { AuthAdapter, Identity } from './auth-adapter.types.js'
 
-const ANONYMOUS: Identity = { subject: "anonymous" };
+const ANONYMOUS: Identity = { subject: 'anonymous' }
 
 /**
  * The v0.1 default: every request is the anonymous principal and every
@@ -9,9 +9,9 @@ const ANONYMOUS: Identity = { subject: "anonymous" };
  */
 export const allowAll: AuthAdapter = {
   authenticate() {
-    return ANONYMOUS;
+    return ANONYMOUS
   },
   authorize() {
-    return true;
+    return true
   },
-};
+}

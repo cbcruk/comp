@@ -1,39 +1,39 @@
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { FieldOrdering } from "../collection/define-collection.types.js";
-import type { FilterMap, FilterValue } from "../filters/filter.types.js";
-import type { DatePath } from "../hierarchy/date-path.js";
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { FieldOrdering } from '../collection/define-collection.types.js'
+import type { FilterMap, FilterValue } from '../filters/filter.types.js'
+import type { DatePath } from '../hierarchy/date-path.js'
 
 export interface ListParams {
   /** 1-based page number. */
-  page?: number;
+  page?: number
   /** Overrides the collection's default page size. */
-  pageSize?: number;
+  pageSize?: number
   /** Free-text term matched against the collection's `search` columns. */
-  search?: string;
+  search?: string
   /**
    * Filters keyed by column name. A {@link FilterValue} states its operation;
    * a bare scalar is read as an exact match, so simple callers stay simple.
    */
-  filters?: Record<string, FilterValue | unknown>;
+  filters?: Record<string, FilterValue | unknown>
   /** Overrides the collection's default ordering. */
-  ordering?: FieldOrdering[];
+  ordering?: FieldOrdering[]
   /**
    * Where the date drill-down currently is. Narrows the collection's
    * `dateHierarchy` column to that year, month or day.
    */
-  datePath?: DatePath;
+  datePath?: DatePath
   /**
    * Which rows exist for the caller, from the auth adapter. Applied like a
    * filter but never declared by the collection: it is the server's rule, not
    * the request's, and it narrows every read of this list including its total.
    */
-  scope?: RecordScope;
+  scope?: RecordScope
   /**
    * The instant a relative filter (`preset: "today"`) resolves against.
    * Passed in rather than read from the clock so a query is reproducible.
    * Defaults to now.
    */
-  now?: Date;
+  now?: Date
 }
 
-export type { FilterMap, FilterValue };
+export type { FilterMap, FilterValue }

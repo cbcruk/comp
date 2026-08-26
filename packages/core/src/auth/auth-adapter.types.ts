@@ -1,19 +1,19 @@
 import type {
   Collection,
   CollectionOperation,
-} from "../collection/define-collection.types.js";
-import type { FilterValue } from "../filters/filter.types.js";
+} from '../collection/define-collection.types.js'
+import type { FilterValue } from '../filters/filter.types.js'
 
 /** The authenticated principal. `subject` is the stable identifier. */
 export interface Identity {
-  subject: string;
-  [key: string]: unknown;
+  subject: string
+  [key: string]: unknown
 }
 
 export interface AuthorizeArgs {
-  identity: Identity | null;
-  collection: Collection;
-  operation: CollectionOperation;
+  identity: Identity | null
+  collection: Collection
+  operation: CollectionOperation
 }
 
 /**
@@ -26,16 +26,16 @@ export interface AuthorizeArgs {
  * the operation belong in {@link AuthAdapter.authorizeRecord}, which gets the
  * row itself.
  */
-export type RecordScope = Record<string, FilterValue | unknown>;
+export type RecordScope = Record<string, FilterValue | unknown>
 
 export interface ScopeArgs {
-  identity: Identity | null;
-  collection: Collection;
+  identity: Identity | null
+  collection: Collection
 }
 
 export interface RecordAuthorizeArgs extends AuthorizeArgs {
   /** The row the operation targets, already read and already in scope. */
-  record: Record<string, unknown>;
+  record: Record<string, unknown>
 }
 
 /**
@@ -52,22 +52,20 @@ export interface RecordAuthorizeArgs extends AuthorizeArgs {
  * adapter that does not make one should not pay for it.
  */
 export interface AuthAdapter {
-  authenticate(request: Request): Promise<Identity | null> | Identity | null;
-  authorize(args: AuthorizeArgs): Promise<boolean> | boolean;
+  authenticate(request: Request): Promise<Identity | null> | Identity | null
+  authorize(args: AuthorizeArgs): Promise<boolean> | boolean
   /**
    * Narrow which rows this identity can see at all — Django's
    * `get_queryset`. Applied in SQL on every path that touches a row, reads and
    * writes alike, so an out-of-scope record is not "forbidden", it is *not
    * found*: nothing tells the caller it exists.
    */
-  scope?(args: ScopeArgs): Promise<RecordScope | null> | RecordScope | null;
+  scope?(args: ScopeArgs): Promise<RecordScope | null> | RecordScope | null
   /**
    * Decide again with the row in hand — Django's `has_change_permission(request,
    * obj)`. Only consulted for operations that target one record, and only after
    * {@link authorize} has already allowed the operation on the collection.
    * Defining it makes a transport read the row before writing it.
    */
-  authorizeRecord?(
-    args: RecordAuthorizeArgs,
-  ): Promise<boolean> | boolean;
+  authorizeRecord?(args: RecordAuthorizeArgs): Promise<boolean> | boolean
 }

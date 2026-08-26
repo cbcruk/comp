@@ -1,7 +1,7 @@
-import type { DeleteImpact } from "@comp/core";
-import { useEffect, useState, type JSX } from "react";
-import type { DeleteScreenProps } from "./admin-site.types.js";
-import { describeImpact, summarizeImpact } from "./site.utils.js";
+import type { DeleteImpact } from '@comp/core'
+import { useEffect, useState, type JSX } from 'react'
+import type { DeleteScreenProps } from './admin-site.types.js'
+import { describeImpact, summarizeImpact } from './site.utils.js'
 
 /**
  * The delete confirmation. It does not just ask "are you sure" — it says what
@@ -16,30 +16,31 @@ export function DeleteScreen({
   navigate,
   onNotify,
 }: DeleteScreenProps): JSX.Element {
-  const [impact, setImpact] = useState<DeleteImpact | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [impact, setImpact] = useState<DeleteImpact | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    let cancelled = false;
-    setImpact(null);
-    setError(null);
+    let cancelled = false
+    setImpact(null)
+    setError(null)
     client
       .deletePreview(collection.slug, id)
       .then((result) => {
-        if (!cancelled) setImpact(result);
+        if (!cancelled) setImpact(result)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err : new Error(String(err)));
+          setError(err instanceof Error ? err : new Error(String(err)))
         }
-      });
+      })
     return () => {
-      cancelled = true;
-    };
-  }, [client, collection.slug, id]);
+      cancelled = true
+    }
+  }, [client, collection.slug, id])
 
-  const back = (): void => navigate({ view: "change", slug: collection.slug, id });
+  const back = (): void =>
+    navigate({ view: 'change', slug: collection.slug, id })
 
   if (error) {
     return (
@@ -49,11 +50,11 @@ export function DeleteScreen({
           Back
         </button>
       </section>
-    );
+    )
   }
-  if (!impact) return <p>Checking what this would affect…</p>;
+  if (!impact) return <p>Checking what this would affect…</p>
 
-  const lines = describeImpact(impact);
+  const lines = describeImpact(impact)
 
   return (
     <section>
@@ -65,7 +66,10 @@ export function DeleteScreen({
       {lines.length > 0 && (
         <ul>
           {lines.map((line) => (
-            <li key={line.collection} {...(line.blocking ? { role: "alert" } : {})}>
+            <li
+              key={line.collection}
+              {...(line.blocking ? { role: 'alert' } : {})}
+            >
               {line.text}
             </li>
           ))}
@@ -79,22 +83,22 @@ export function DeleteScreen({
         type="button"
         disabled={impact.blocked || busy}
         onClick={async () => {
-          setBusy(true);
+          setBusy(true)
           try {
-            await client.remove(collection.slug, id);
-            onNotify?.("success", `${collection.label} ${id} deleted`);
-            navigate({ view: "list", slug: collection.slug });
+            await client.remove(collection.slug, id)
+            onNotify?.('success', `${collection.label} ${id} deleted`)
+            navigate({ view: 'list', slug: collection.slug })
           } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            if (onNotify) onNotify("error", message);
-            else setError(new Error(message));
+            const message = err instanceof Error ? err.message : String(err)
+            if (onNotify) onNotify('error', message)
+            else setError(new Error(message))
           } finally {
-            setBusy(false);
+            setBusy(false)
           }
         }}
       >
-        {impact.blocked ? "Cannot delete" : "Delete"}
+        {impact.blocked ? 'Cannot delete' : 'Delete'}
       </button>
     </section>
-  );
+  )
 }

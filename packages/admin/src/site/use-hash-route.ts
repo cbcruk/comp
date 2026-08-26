@@ -1,9 +1,9 @@
-import { adminPath, parseAdminPath, type AdminRoute } from "@comp/core";
-import { useCallback, useEffect, useState } from "react";
+import { adminPath, parseAdminPath, type AdminRoute } from '@comp/core'
+import { useCallback, useEffect, useState } from 'react'
 
 export interface HashRoute {
-  route: AdminRoute;
-  navigate: (route: AdminRoute) => void;
+  route: AdminRoute
+  navigate: (route: AdminRoute) => void
 }
 
 /**
@@ -17,23 +17,23 @@ export interface HashRoute {
 export function useHashRoute(): HashRoute {
   const read = (): AdminRoute =>
     parseAdminPath(
-      typeof window === "undefined" ? "/" : window.location.hash.slice(1),
-    );
+      typeof window === 'undefined' ? '/' : window.location.hash.slice(1),
+    )
 
-  const [route, setRoute] = useState<AdminRoute>(read);
+  const [route, setRoute] = useState<AdminRoute>(read)
 
   useEffect(() => {
-    const onChange = (): void => setRoute(read());
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
-  }, []);
+    const onChange = (): void => setRoute(read())
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
 
   const navigate = useCallback((next: AdminRoute) => {
-    window.location.hash = adminPath(next);
+    window.location.hash = adminPath(next)
     // `hashchange` does not fire when the hash is unchanged; set it anyway so
     // navigating to the screen you are already on is not a dead click.
-    setRoute(next);
-  }, []);
+    setRoute(next)
+  }, [])
 
-  return { route, navigate };
+  return { route, navigate }
 }

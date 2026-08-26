@@ -1,22 +1,22 @@
-import type { FieldMap, InlineWrite } from "@comp/core";
-import type { Row } from "../client/create-client.types.js";
+import type { FieldMap, InlineWrite } from '@comp/core'
+import type { Row } from '../client/create-client.types.js'
 import {
   editableFields,
   initialValues,
   toPayload,
-} from "../collection-form/collection-form.utils.js";
+} from '../collection-form/collection-form.utils.js'
 
 export interface InlineRow {
   /** Stable identity for rendering and editing — not the record's key. */
-  key: string;
+  key: string
   /** Primary key of a stored row; null for one added but not yet saved. */
-  id: unknown | null;
+  id: unknown | null
   /** Controlled input values, as strings, like the record form uses. */
-  values: Record<string, string>;
+  values: Record<string, string>
   /** Marked for removal on the next save. */
-  deleted: boolean;
+  deleted: boolean
   /** Edited since it was loaded. */
-  dirty: boolean;
+  dirty: boolean
 }
 
 /** Fields an inline row's editor shows: not the key, not the parent link. */
@@ -27,7 +27,7 @@ export function inlineFields(
 ): ReturnType<typeof editableFields> {
   return editableFields(fields, primaryKey).filter(
     (field) => field.name !== parentField,
-  );
+  )
 }
 
 /** Seed editable state from the rows the server returned. */
@@ -37,14 +37,14 @@ export function inlineRowsFrom(
   primaryKey: string | null,
   parentField: string,
 ): InlineRow[] {
-  const editable = inlineFields(fields, primaryKey, parentField);
+  const editable = inlineFields(fields, primaryKey, parentField)
   return rows.map((row, index) => ({
     key: `saved-${String(primaryKey ? row[primaryKey] : index)}`,
     id: primaryKey ? (row[primaryKey] ?? null) : null,
     values: initialValues(editable, row),
     deleted: false,
     dirty: false,
-  }));
+  }))
 }
 
 /**
@@ -58,7 +58,7 @@ export function addInlineRow(
   primaryKey: string | null,
   parentField: string,
 ): InlineRow[] {
-  const editable = inlineFields(fields, primaryKey, parentField);
+  const editable = inlineFields(fields, primaryKey, parentField)
   return [
     ...state,
     {
@@ -68,7 +68,7 @@ export function addInlineRow(
       deleted: false,
       dirty: true,
     },
-  ];
+  ]
 }
 
 /** Edit one cell, marking its row dirty. */
@@ -82,7 +82,7 @@ export function setInlineValue(
     row.key === key
       ? { ...row, values: { ...row.values, [field]: value }, dirty: true }
       : row,
-  );
+  )
 }
 
 /**
@@ -92,17 +92,17 @@ export function setInlineValue(
  */
 export function removeInlineRow(state: InlineRow[], key: string): InlineRow[] {
   return state.flatMap((row) => {
-    if (row.key !== key) return [row];
-    if (row.id === null) return [];
-    return [{ ...row, deleted: true }];
-  });
+    if (row.key !== key) return [row]
+    if (row.id === null) return []
+    return [{ ...row, deleted: true }]
+  })
 }
 
 /** Undo a pending removal. */
 export function restoreInlineRow(state: InlineRow[], key: string): InlineRow[] {
   return state.map((row) =>
     row.key === key ? { ...row, deleted: false } : row,
-  );
+  )
 }
 
 /**
@@ -116,28 +116,28 @@ export function toInlineWrite(
   primaryKey: string | null,
   parentField: string,
 ): InlineWrite {
-  const editable = inlineFields(fields, primaryKey, parentField);
-  const write: InlineWrite = {};
+  const editable = inlineFields(fields, primaryKey, parentField)
+  const write: InlineWrite = {}
 
   const create = state
     .filter((row) => row.id === null && !row.deleted)
-    .map((row) => toPayload(editable, row.values));
-  if (create.length > 0) write.create = create;
+    .map((row) => toPayload(editable, row.values))
+  if (create.length > 0) write.create = create
 
   const update = state
     .filter((row) => row.id !== null && row.dirty && !row.deleted)
-    .map((row) => ({ id: row.id, values: toPayload(editable, row.values) }));
-  if (update.length > 0) write.update = update;
+    .map((row) => ({ id: row.id, values: toPayload(editable, row.values) }))
+  if (update.length > 0) write.update = update
 
   const remove = state
     .filter((row) => row.id !== null && row.deleted)
-    .map((row) => row.id);
-  if (remove.length > 0) write.delete = remove;
+    .map((row) => row.id)
+  if (remove.length > 0) write.delete = remove
 
-  return write;
+  return write
 }
 
 /** True when a save would send anything for this inline. */
 export function hasInlineChanges(write: InlineWrite): boolean {
-  return Boolean(write.create ?? write.update ?? write.delete);
+  return Boolean(write.create ?? write.update ?? write.delete)
 }

@@ -1,18 +1,18 @@
-import type { Collection } from "../collection/define-collection.types.js";
-import { resolveRelations } from "../relations/resolve-relations.js";
-import type { InlineConfig, InlineSpec, InlineSummary } from "./inline.types.js";
+import type { Collection } from '../collection/define-collection.types.js'
+import { resolveRelations } from '../relations/resolve-relations.js'
+import type { InlineConfig, InlineSpec, InlineSummary } from './inline.types.js'
 
 function normalize(config: InlineConfig): {
-  collection: string;
-  field?: string;
-  canDelete: boolean;
+  collection: string
+  field?: string
+  canDelete: boolean
 } {
-  if (typeof config === "string") return { collection: config, canDelete: true };
+  if (typeof config === 'string') return { collection: config, canDelete: true }
   return {
     collection: config.collection,
     ...(config.field === undefined ? {} : { field: config.field }),
     canDelete: config.canDelete ?? true,
-  };
+  }
 }
 
 /**
@@ -28,43 +28,43 @@ function normalize(config: InlineConfig): {
 export function resolveInlines(
   collections: Collection[],
 ): Map<string, InlineSpec[]> {
-  const bySlug = new Map(collections.map((c) => [c.slug, c]));
-  const graph = resolveRelations(collections);
-  const resolved = new Map<string, InlineSpec[]>();
+  const bySlug = new Map(collections.map((c) => [c.slug, c]))
+  const graph = resolveRelations(collections)
+  const resolved = new Map<string, InlineSpec[]>()
 
   for (const parent of collections) {
-    const specs: InlineSpec[] = [];
-    const inbound = graph.inbound[parent.slug] ?? [];
+    const specs: InlineSpec[] = []
+    const inbound = graph.inbound[parent.slug] ?? []
 
     for (const config of parent.inlines) {
-      const { collection: slug, field, canDelete } = normalize(config);
-      const child = bySlug.get(slug);
+      const { collection: slug, field, canDelete } = normalize(config)
+      const child = bySlug.get(slug)
       if (!child) {
         throw new Error(
           `Inline "${slug}" on "${parent.slug}" is not a registered collection`,
-        );
+        )
       }
 
-      const candidates = inbound.filter((r) => r.collection === slug);
+      const candidates = inbound.filter((r) => r.collection === slug)
       if (candidates.length === 0) {
         throw new Error(
           `Inline "${slug}" on "${parent.slug}" has no foreign key to it`,
-        );
+        )
       }
 
       const relation = field
         ? candidates.find((r) => r.field === field)
         : candidates.length === 1
           ? candidates[0]
-          : undefined;
+          : undefined
       if (!relation) {
         throw new Error(
           field
             ? `Inline "${slug}" on "${parent.slug}" has no foreign key "${field}"`
             : `Inline "${slug}" on "${parent.slug}" is ambiguous (${candidates
                 .map((r) => r.field)
-                .join(", ")}); name one with { field }`,
-        );
+                .join(', ')}); name one with { field }`,
+        )
       }
 
       specs.push({
@@ -72,13 +72,13 @@ export function resolveInlines(
         field: relation.field,
         targetField: relation.targetField,
         canDelete,
-      });
+      })
     }
 
-    resolved.set(parent.slug, specs);
+    resolved.set(parent.slug, specs)
   }
 
-  return resolved;
+  return resolved
 }
 
 /** Strip an inline down to what a client or tool schema can consume. */
@@ -88,5 +88,5 @@ export function inlineSummary(spec: InlineSpec): InlineSummary {
     field: spec.field,
     targetField: spec.targetField,
     canDelete: spec.canDelete,
-  };
+  }
 }

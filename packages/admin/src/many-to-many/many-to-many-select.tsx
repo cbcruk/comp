@@ -1,20 +1,22 @@
-import type { ManyToManySummary } from "@comp/core";
-import { type ComponentPropsWithoutRef, type JSX } from "react";
-import type { CompClient } from "../client/create-client.types.js";
-import { useReferenceOptions } from "../collection-browser/use-reference-options.js";
-import { mergeProps } from "../merge-props/merge-props.js";
-import { isLinked, toggleLink } from "./links.js";
+import type { ManyToManySummary } from '@comp/core'
+import { type ComponentPropsWithoutRef, type JSX } from 'react'
+import type { CompClient } from '../client/create-client.types.js'
+import { useReferenceOptions } from '../collection-browser/use-reference-options.js'
+import { mergeProps } from '../merge-props/merge-props.js'
+import { isLinked, toggleLink } from './links.js'
 
-export interface ManyToManySelectProps
-  extends Omit<ComponentPropsWithoutRef<"fieldset">, "onChange"> {
-  client: CompClient;
+export interface ManyToManySelectProps extends Omit<
+  ComponentPropsWithoutRef<'fieldset'>,
+  'onChange'
+> {
+  client: CompClient
   /** The relationship, as the server resolved it. */
-  relation: ManyToManySummary;
+  relation: ManyToManySummary
   /** Ids currently linked. */
-  value: readonly unknown[];
-  onChange: (next: unknown[]) => void;
+  value: readonly unknown[]
+  onChange: (next: unknown[]) => void
   /** Heading for the group; defaults to the relationship's name. */
-  legend?: string;
+  legend?: string
 }
 
 /**
@@ -41,10 +43,10 @@ export function ManyToManySelect({
     relation.collection,
     relation.labelField,
     relation.targetKey,
-  );
+  )
 
   return (
-    <fieldset {...mergeProps<ComponentPropsWithoutRef<"fieldset">>({}, rest)}>
+    <fieldset {...mergeProps<ComponentPropsWithoutRef<'fieldset'>>({}, rest)}>
       <legend>{legend ?? relation.name}</legend>
       {options.length === 0 && <p>No {relation.collection} to link</p>}
       {options.map((option) => (
@@ -60,5 +62,5 @@ export function ManyToManySelect({
         </label>
       ))}
     </fieldset>
-  );
+  )
 }

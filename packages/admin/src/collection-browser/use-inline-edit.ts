@@ -1,20 +1,20 @@
-import type { FieldMeta } from "@comp/core";
-import { useState } from "react";
-import type { CompClient } from "../client/create-client.types.js";
-import { fromInputValue } from "../collection-form/collection-form.utils.js";
-import { extractIssues, fieldMessage } from "../validation/issues.js";
-import type { EditingCell } from "./inline-edit.js";
+import type { FieldMeta } from '@comp/core'
+import { useState } from 'react'
+import type { CompClient } from '../client/create-client.types.js'
+import { fromInputValue } from '../collection-form/collection-form.utils.js'
+import { extractIssues, fieldMessage } from '../validation/issues.js'
+import type { EditingCell } from './inline-edit.js'
 
 export interface UseInlineEditResult {
-  editing: EditingCell | null;
-  value: string;
-  busy: boolean;
-  error: Error | null;
-  start: (id: string, field: string, current: string) => void;
-  change: (value: string) => void;
-  cancel: () => void;
+  editing: EditingCell | null
+  value: string
+  busy: boolean
+  error: Error | null
+  start: (id: string, field: string, current: string) => void
+  change: (value: string) => void
+  cancel: () => void
   /** Coerce the draft for `field` and PATCH it; reloads via `onSaved`. */
-  commit: (field: FieldMeta) => void;
+  commit: (field: FieldMeta) => void
 }
 
 /**
@@ -31,49 +31,58 @@ export function useInlineEdit(
   onSaved: () => void,
   applyOptimistic?: (id: string, field: string, value: unknown) => void,
 ): UseInlineEditResult {
-  const [editing, setEditing] = useState<EditingCell | null>(null);
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [editing, setEditing] = useState<EditingCell | null>(null)
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
   function start(id: string, field: string, current: string): void {
-    setEditing({ id, field });
-    setValue(current);
-    setError(null);
+    setEditing({ id, field })
+    setValue(current)
+    setError(null)
   }
 
   function cancel(): void {
-    setEditing(null);
-    setError(null);
+    setEditing(null)
+    setError(null)
   }
 
   function commit(field: FieldMeta): void {
-    if (!editing || busy) return;
-    const { id, field: name } = editing;
-    const coerced = fromInputValue(field, value);
-    applyOptimistic?.(id, name, coerced);
-    setBusy(true);
-    setError(null);
+    if (!editing || busy) return
+    const { id, field: name } = editing
+    const coerced = fromInputValue(field, value)
+    applyOptimistic?.(id, name, coerced)
+    setBusy(true)
+    setError(null)
     client
       .update(slug, id, { [name]: coerced })
       .then(() => {
-        setEditing(null);
+        setEditing(null)
       })
       .catch((err: unknown) => {
-        const issueMessage = fieldMessage(extractIssues(err), name);
+        const issueMessage = fieldMessage(extractIssues(err), name)
         if (issueMessage) {
-          setError(new Error(`${name}: ${issueMessage}`));
+          setError(new Error(`${name}: ${issueMessage}`))
         } else {
-          setError(err instanceof Error ? err : new Error(String(err)));
+          setError(err instanceof Error ? err : new Error(String(err)))
         }
       })
       .finally(() => {
-        setBusy(false);
+        setBusy(false)
         // Reconcile with the server: confirms the optimistic value on success,
         // reverts it on error.
-        onSaved();
-      });
+        onSaved()
+      })
   }
 
-  return { editing, value, busy, error, start, change: setValue, cancel, commit };
+  return {
+    editing,
+    value,
+    busy,
+    error,
+    start,
+    change: setValue,
+    cancel,
+    commit,
+  }
 }

@@ -1,17 +1,15 @@
-import type { FieldMap } from "../introspection/introspect-table.types.js";
-import type { ResolvedSearch, SearchLookup } from "./search.types.js";
+import type { FieldMap } from '../introspection/introspect-table.types.js'
+import type { ResolvedSearch, SearchLookup } from './search.types.js'
 
 const PREFIX: Record<string, SearchLookup> = {
-  "^": "startswith",
-  "=": "exact",
-};
+  '^': 'startswith',
+  '=': 'exact',
+}
 
 /** Split `field__other` into the key and the field on the far side. */
 function splitTraversal(name: string): [string, string | undefined] {
-  const at = name.indexOf("__");
-  return at === -1
-    ? [name, undefined]
-    : [name.slice(0, at), name.slice(at + 2)];
+  const at = name.indexOf('__')
+  return at === -1 ? [name, undefined] : [name.slice(0, at), name.slice(at + 2)]
 }
 
 /**
@@ -30,38 +28,38 @@ export function resolveSearch(
   fields: FieldMap,
   configs: readonly string[],
 ): ResolvedSearch[] {
-  const resolved: ResolvedSearch[] = [];
+  const resolved: ResolvedSearch[] = []
 
   for (const config of configs) {
-    const lookup = PREFIX[config.charAt(0)] ?? "contains";
-    const name = lookup === "contains" ? config : config.slice(1);
-    const [key, target] = splitTraversal(name);
+    const lookup = PREFIX[config.charAt(0)] ?? 'contains'
+    const name = lookup === 'contains' ? config : config.slice(1)
+    const [key, target] = splitTraversal(name)
 
-    const field = fields[key];
+    const field = fields[key]
     if (!field) {
       throw new Error(
         `Search on "${slug}" names "${key}", which is not a column`,
-      );
+      )
     }
 
     if (target === undefined) {
-      resolved.push({ field: key, lookup });
-      continue;
+      resolved.push({ field: key, lookup })
+      continue
     }
 
     if (!field.relation) {
       throw new Error(
         `Search on "${slug}" traverses "${key}", which is not a foreign key`,
-      );
+      )
     }
     resolved.push({
       field: key,
       lookup,
       through: { table: field.relation.table, field: target },
-    });
+    })
   }
 
-  return resolved;
+  return resolved
 }
 
 /**
@@ -73,23 +71,23 @@ export function resolveSearch(
  * of matching the whole string as one substring.
  */
 export function splitSearchTerms(query: string): string[] {
-  const terms: string[] = [];
-  let current = "";
-  let quoted = false;
+  const terms: string[] = []
+  let current = ''
+  let quoted = false
 
   for (const character of query) {
     if (character === '"') {
-      quoted = !quoted;
-      continue;
+      quoted = !quoted
+      continue
     }
     if (!quoted && /\s/.test(character)) {
-      if (current !== "") terms.push(current);
-      current = "";
-      continue;
+      if (current !== '') terms.push(current)
+      current = ''
+      continue
     }
-    current += character;
+    current += character
   }
-  if (current !== "") terms.push(current);
+  if (current !== '') terms.push(current)
 
-  return terms;
+  return terms
 }

@@ -1,26 +1,18 @@
-import {
-  asc,
-  desc,
-  gte,
-  lt,
-  sql,
-  type Column,
-  type SQL,
-} from "drizzle-orm";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { HierarchyBucket } from "../hierarchy/date-path.js";
-import { buildListWhere, type SqliteDb } from "./build-list-query.js";
-import { columnFor } from "./build-relation-query.js";
-import type { ListParams } from "./list-query.types.js";
+import { asc, desc, gte, lt, sql, type Column, type SQL } from 'drizzle-orm'
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { HierarchyBucket } from '../hierarchy/date-path.js'
+import { buildListWhere, type SqliteDb } from './build-list-query.js'
+import { columnFor } from './build-relation-query.js'
+import type { ListParams } from './list-query.types.js'
 
 function asTable(collection: Collection): SQLiteTable {
-  return collection.model as unknown as SQLiteTable;
+  return collection.model as unknown as SQLiteTable
 }
 
 /** Column name a bucket's count comes back under. */
 export function bucketKey(index: number): string {
-  return `b${String(index)}`;
+  return `b${String(index)}`
 }
 
 /**
@@ -38,14 +30,14 @@ export function buildDateBoundQuery(
   collection: Collection,
   params: ListParams,
   column: Column,
-  direction: "min" | "max",
+  direction: 'min' | 'max',
 ) {
-  const where = buildListWhere(db, collection, params);
-  let query = db.select().from(asTable(collection)).$dynamic();
-  if (where) query = query.where(where);
+  const where = buildListWhere(db, collection, params)
+  let query = db.select().from(asTable(collection)).$dynamic()
+  if (where) query = query.where(where)
   return query
-    .orderBy(direction === "min" ? asc(column) : desc(column))
-    .limit(1);
+    .orderBy(direction === 'min' ? asc(column) : desc(column))
+    .limit(1)
 }
 
 /**
@@ -69,25 +61,28 @@ export function buildBucketCountQuery(
   column: Column,
   buckets: readonly HierarchyBucket[],
 ) {
-  const counts: Record<string, SQL.Aliased<number>> = {};
+  const counts: Record<string, SQL.Aliased<number>> = {}
   buckets.forEach((bucket, index) => {
-    const name = bucketKey(index);
-    counts[name] = sql<number>`sum(case when ${gte(column, bucket.from)} and ${lt(
-      column,
-      bucket.to,
-    )} then 1 else 0 end)`.as(name);
-  });
+    const name = bucketKey(index)
+    counts[name] =
+      sql<number>`sum(case when ${gte(column, bucket.from)} and ${lt(
+        column,
+        bucket.to,
+      )} then 1 else 0 end)`.as(name)
+  })
 
-  const where = buildListWhere(db, collection, params);
-  let query = db.select(counts).from(asTable(collection)).$dynamic();
-  if (where) query = query.where(where);
-  return query;
+  const where = buildListWhere(db, collection, params)
+  let query = db.select(counts).from(asTable(collection)).$dynamic()
+  if (where) query = query.where(where)
+  return query
 }
 
 /** The hierarchy column, or throw if the declaration named something else. */
 export function hierarchyColumn(collection: Collection): Column {
   if (!collection.dateHierarchy) {
-    throw new Error(`Collection "${collection.slug}" declares no date hierarchy`);
+    throw new Error(
+      `Collection "${collection.slug}" declares no date hierarchy`,
+    )
   }
-  return columnFor(collection, collection.dateHierarchy);
+  return columnFor(collection, collection.dateHierarchy)
 }

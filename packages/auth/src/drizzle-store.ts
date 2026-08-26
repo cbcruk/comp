@@ -1,15 +1,12 @@
-import type { SqliteDb } from "@comp/core";
-import { eq } from "drizzle-orm";
+import type { SqliteDb } from '@comp/core'
+import { eq } from 'drizzle-orm'
 import {
   parseTransports,
   passkeyChallenges,
   passkeyCredentials,
   serializeTransports,
-} from "./passkey-schema.js";
-import type {
-  PasskeyStore,
-  StoredCredential,
-} from "./passkey-store.types.js";
+} from './passkey-schema.js'
+import type { PasskeyStore, StoredCredential } from './passkey-store.types.js'
 
 /**
  * A {@link PasskeyStore} backed by Drizzle over SQLite/D1, using the canonical
@@ -25,18 +22,18 @@ export function createDrizzlePasskeyStore(db: SqliteDb): PasskeyStore {
         .onConflictDoUpdate({
           target: passkeyChallenges.userId,
           set: { challenge },
-        });
+        })
     },
     async takeChallenge(userId) {
       const rows = await db
         .select({ challenge: passkeyChallenges.challenge })
         .from(passkeyChallenges)
         .where(eq(passkeyChallenges.userId, userId))
-        .limit(1);
+        .limit(1)
       await db
         .delete(passkeyChallenges)
-        .where(eq(passkeyChallenges.userId, userId));
-      return rows[0]?.challenge ?? null;
+        .where(eq(passkeyChallenges.userId, userId))
+      return rows[0]?.challenge ?? null
     },
     async saveCredential(credential) {
       await db.insert(passkeyCredentials).values({
@@ -45,30 +42,30 @@ export function createDrizzlePasskeyStore(db: SqliteDb): PasskeyStore {
         publicKey: credential.publicKey,
         counter: credential.counter,
         transports: serializeTransports(credential.transports),
-      });
+      })
     },
     async getCredentialsByUser(userId) {
       const rows = await db
         .select()
         .from(passkeyCredentials)
-        .where(eq(passkeyCredentials.userId, userId));
-      return rows.map(toStoredCredential);
+        .where(eq(passkeyCredentials.userId, userId))
+      return rows.map(toStoredCredential)
     },
     async getCredentialById(id) {
       const rows = await db
         .select()
         .from(passkeyCredentials)
         .where(eq(passkeyCredentials.id, id))
-        .limit(1);
-      return rows[0] ? toStoredCredential(rows[0]) : null;
+        .limit(1)
+      return rows[0] ? toStoredCredential(rows[0]) : null
     },
     async updateCounter(id, counter) {
       await db
         .update(passkeyCredentials)
         .set({ counter })
-        .where(eq(passkeyCredentials.id, id));
+        .where(eq(passkeyCredentials.id, id))
     },
-  };
+  }
 }
 
 function toStoredCredential(
@@ -80,5 +77,5 @@ function toStoredCredential(
     publicKey: row.publicKey,
     counter: row.counter,
     transports: parseTransports(row.transports),
-  };
+  }
 }

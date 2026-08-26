@@ -1,4 +1,4 @@
-import type { Row } from "../client/create-client.types.js";
+import type { Row } from '../client/create-client.types.js'
 
 /**
  * Merge `patch` into rows matching `predicate`, returning a new array (never
@@ -9,5 +9,5 @@ export function applyPatch(
   predicate: (row: Row) => boolean,
   patch: Row,
 ): Row[] {
-  return rows.map((row) => (predicate(row) ? { ...row, ...patch } : row));
+  return rows.map((row) => (predicate(row) ? { ...row, ...patch } : row))
 }

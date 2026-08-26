@@ -1,15 +1,15 @@
-import { and, eq, type SQL } from "drizzle-orm";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { Collection } from "../collection/define-collection.types.js";
-import type { SqliteDb } from "../query/build-list-query.js";
-import { primaryKeyColumn } from "../query/primary-key.js";
-import { scopeWhere } from "../query/build-scope-where.js";
+import { and, eq, type SQL } from 'drizzle-orm'
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { Collection } from '../collection/define-collection.types.js'
+import type { SqliteDb } from '../query/build-list-query.js'
+import { primaryKeyColumn } from '../query/primary-key.js'
+import { scopeWhere } from '../query/build-scope-where.js'
 
-type InsertValues = SQLiteTable["$inferInsert"];
+type InsertValues = SQLiteTable['$inferInsert']
 
 function asTable(collection: Collection): SQLiteTable {
-  return collection.model as unknown as SQLiteTable;
+  return collection.model as unknown as SQLiteTable
 }
 
 /**
@@ -24,9 +24,9 @@ function target(
   id: unknown,
   scope: RecordScope | undefined,
 ): SQL {
-  const pk = primaryKeyColumn(collection);
-  const visible = scopeWhere(collection, scope);
-  return visible ? and(eq(pk, id), visible)! : eq(pk, id);
+  const pk = primaryKeyColumn(collection)
+  const visible = scopeWhere(collection, scope)
+  return visible ? and(eq(pk, id), visible)! : eq(pk, id)
 }
 
 /**
@@ -41,7 +41,7 @@ export function buildInsertQuery(
   return db
     .insert(asTable(collection))
     .values(values as InsertValues)
-    .returning();
+    .returning()
 }
 
 /** Update the row identified by `id` and return the new state. */
@@ -56,7 +56,7 @@ export function buildUpdateQuery(
     .update(asTable(collection))
     .set(values)
     .where(target(collection, id, scope))
-    .returning();
+    .returning()
 }
 
 /** Delete the row identified by `id` and return what was removed. */
@@ -69,5 +69,5 @@ export function buildDeleteQuery(
   return db
     .delete(asTable(collection))
     .where(target(collection, id, scope))
-    .returning();
+    .returning()
 }

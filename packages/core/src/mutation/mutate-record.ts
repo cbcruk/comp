@@ -1,27 +1,24 @@
-import type { RecordScope } from "../auth/auth-adapter.types.js";
-import type { Collection } from "../collection/define-collection.types.js";
-import { changedFields, historyLabel } from "../history/changed-fields.js";
-import type {
-  HistoryAction,
-  HistoryStore,
-} from "../history/history.types.js";
-import type { SqliteDb } from "../query/build-list-query.js";
-import { buildGetByIdQuery } from "../query/build-get-query.js";
+import type { RecordScope } from '../auth/auth-adapter.types.js'
+import type { Collection } from '../collection/define-collection.types.js'
+import { changedFields, historyLabel } from '../history/changed-fields.js'
+import type { HistoryAction, HistoryStore } from '../history/history.types.js'
+import type { SqliteDb } from '../query/build-list-query.js'
+import { buildGetByIdQuery } from '../query/build-get-query.js'
 import {
   buildDeleteQuery,
   buildInsertQuery,
   buildUpdateQuery,
-} from "./build-mutations.js";
+} from './build-mutations.js'
 
 export interface MutationContext {
-  db: SqliteDb;
-  collection: Collection;
+  db: SqliteDb
+  collection: Collection
   /** Where to log the change; omit and nothing is recorded. */
-  history?: HistoryStore | undefined;
+  history?: HistoryStore | undefined
   /** Who is making the change. */
-  actor?: string | null;
+  actor?: string | null
   /** The instant recorded on the entry; defaults to now. */
-  now?: Date | undefined;
+  now?: Date | undefined
   /**
    * Which rows the caller may write. Enforced inside the UPDATE and DELETE
    * statements themselves, so a write that reaches past it matches no row and
@@ -31,15 +28,15 @@ export interface MutationContext {
    * transport has to remember is a rule that holds until somebody adds a
    * transport.
    */
-  scope?: RecordScope | undefined;
+  scope?: RecordScope | undefined
   /**
    * The row as it was, when the caller already read it (to check per-record
    * permission, say). Passing it spares the extra read history would make.
    */
-  before?: Row | undefined;
+  before?: Row | undefined
 }
 
-type Row = Record<string, unknown>;
+type Row = Record<string, unknown>
 
 async function log(
   context: MutationContext,
@@ -48,7 +45,7 @@ async function log(
   label: string,
   fields: string[],
 ): Promise<void> {
-  if (!context.history) return;
+  if (!context.history) return
   await context.history.record({
     collection: context.collection.slug,
     recordId,
@@ -57,13 +54,13 @@ async function log(
     fields,
     actor: context.actor ?? null,
     at: context.now ?? new Date(),
-  });
+  })
 }
 
 function idOf(collection: Collection, row: Row | undefined): string {
-  const key = collection.primaryKey;
-  const value = key ? row?.[key] : undefined;
-  return value === undefined || value === null ? "" : String(value);
+  const key = collection.primaryKey
+  const value = key ? row?.[key] : undefined
+  return value === undefined || value === null ? '' : String(value)
 }
 
 /**
@@ -79,19 +76,19 @@ export async function createRecord(
   context: MutationContext,
   values: Row,
 ): Promise<Row | undefined> {
-  const rows = await buildInsertQuery(context.db, context.collection, values);
-  const row = rows[0] as Row | undefined;
-  if (!row) return undefined;
+  const rows = await buildInsertQuery(context.db, context.collection, values)
+  const row = rows[0] as Row | undefined
+  if (!row) return undefined
 
-  const recordId = idOf(context.collection, row);
+  const recordId = idOf(context.collection, row)
   await log(
     context,
-    "create",
+    'create',
     recordId,
     historyLabel(context.collection, row, recordId),
     [],
-  );
-  return row;
+  )
+  return row
 }
 
 /**
@@ -117,7 +114,7 @@ export async function updateRecord(
             context.scope,
           ).all()
         )[0] as Row | undefined)
-      : undefined);
+      : undefined)
 
   const rows = await buildUpdateQuery(
     context.db,
@@ -125,19 +122,19 @@ export async function updateRecord(
     id,
     values,
     context.scope,
-  );
-  const row = rows[0] as Row | undefined;
-  if (!row) return undefined;
+  )
+  const row = rows[0] as Row | undefined
+  if (!row) return undefined
 
-  const recordId = idOf(context.collection, row);
+  const recordId = idOf(context.collection, row)
   await log(
     context,
-    "update",
+    'update',
     recordId,
     historyLabel(context.collection, row, recordId),
     before ? changedFields(before, row) : [],
-  );
-  return row;
+  )
+  return row
 }
 
 /** Delete a record, keeping an entry that says what it was. */
@@ -150,17 +147,17 @@ export async function deleteRecord(
     context.collection,
     id,
     context.scope,
-  );
-  const row = rows[0] as Row | undefined;
-  if (!row) return undefined;
+  )
+  const row = rows[0] as Row | undefined
+  if (!row) return undefined
 
-  const recordId = idOf(context.collection, row);
+  const recordId = idOf(context.collection, row)
   await log(
     context,
-    "delete",
+    'delete',
     recordId,
     historyLabel(context.collection, row, recordId),
     [],
-  );
-  return row;
+  )
+  return row
 }

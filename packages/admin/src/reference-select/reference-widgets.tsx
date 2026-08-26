@@ -1,8 +1,8 @@
-import type { OutboundRelation } from "@comp/core";
-import type { ReactNode } from "react";
-import type { CompClient } from "../client/create-client.types.js";
-import type { FieldControl } from "../collection-form/collection-form.types.js";
-import { ReferenceSelect } from "./reference-select.js";
+import type { OutboundRelation } from '@comp/core'
+import type { ReactNode } from 'react'
+import type { CompClient } from '../client/create-client.types.js'
+import type { FieldControl } from '../collection-form/collection-form.types.js'
+import { ReferenceSelect } from './reference-select.js'
 
 /**
  * Build a `fieldWidgets` map that renders a {@link ReferenceSelect} for every
@@ -16,10 +16,10 @@ export function referenceWidgets(
   relations: readonly OutboundRelation[],
   pageSize?: number,
 ): Record<string, (control: FieldControl) => ReactNode> {
-  const widgets: Record<string, (control: FieldControl) => ReactNode> = {};
+  const widgets: Record<string, (control: FieldControl) => ReactNode> = {}
   for (const relation of relations) {
-    if (!relation.labelField) continue;
-    const { field, collection, labelField, targetField } = relation;
+    if (!relation.labelField) continue
+    const { field, collection, labelField, targetField } = relation
     widgets[field] = (control) => (
       <ReferenceSelect
         client={client}
@@ -29,7 +29,7 @@ export function referenceWidgets(
         control={control}
         {...(pageSize === undefined ? {} : { pageSize })}
       />
-    );
+    )
   }
-  return widgets;
+  return widgets
 }

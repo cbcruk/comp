@@ -1,17 +1,17 @@
 import type {
   Collection,
   CollectionOperation,
-} from "../collection/define-collection.types.js";
+} from '../collection/define-collection.types.js'
 import type {
   AuthAdapter,
   Identity,
   RecordScope,
-} from "./auth-adapter.types.js";
+} from './auth-adapter.types.js'
 
 export interface AccessArgs {
-  identity: Identity | null;
-  collection: Collection;
-  operation: CollectionOperation;
+  identity: Identity | null
+  collection: Collection
+  operation: CollectionOperation
 }
 
 /**
@@ -21,8 +21,9 @@ export interface AccessArgs {
  */
 export function checksRecords(auth: AuthAdapter): boolean {
   return (
-    typeof auth.authorizeRecord === "function" || typeof auth.scope === "function"
-  );
+    typeof auth.authorizeRecord === 'function' ||
+    typeof auth.scope === 'function'
+  )
 }
 
 /**
@@ -35,9 +36,9 @@ export async function resolveScope(
   identity: Identity | null,
   collection: Collection,
 ): Promise<RecordScope | undefined> {
-  if (!auth.scope) return undefined;
-  const scope = await auth.scope({ identity, collection });
-  return scope ?? undefined;
+  if (!auth.scope) return undefined
+  const scope = await auth.scope({ identity, collection })
+  return scope ?? undefined
 }
 
 /** May this identity perform this operation on this collection at all? */
@@ -45,7 +46,7 @@ export async function authorizeOperation(
   auth: AuthAdapter,
   args: AccessArgs,
 ): Promise<boolean> {
-  return Boolean(await auth.authorize(args));
+  return Boolean(await auth.authorize(args))
 }
 
 /**
@@ -59,7 +60,7 @@ export async function authorizeRecordAccess(
   auth: AuthAdapter,
   args: AccessArgs & { record: Record<string, unknown> },
 ): Promise<boolean> {
-  if (!(await authorizeOperation(auth, args))) return false;
-  if (!auth.authorizeRecord) return true;
-  return Boolean(await auth.authorizeRecord(args));
+  if (!(await authorizeOperation(auth, args))) return false
+  if (!auth.authorizeRecord) return true
+  return Boolean(await auth.authorizeRecord(args))
 }

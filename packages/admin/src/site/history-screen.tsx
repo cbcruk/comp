@@ -1,6 +1,6 @@
-import { describeHistory, type HistoryEntry } from "@comp/core";
-import { useEffect, useState, type JSX } from "react";
-import type { HistoryScreenProps } from "./admin-site.types.js";
+import { describeHistory, type HistoryEntry } from '@comp/core'
+import { useEffect, useState, type JSX } from 'react'
+import type { HistoryScreenProps } from './admin-site.types.js'
 
 /**
  * A record's history — Django's per-object history view.
@@ -15,27 +15,27 @@ export function HistoryScreen({
   id,
   navigate,
 }: HistoryScreenProps): JSX.Element {
-  const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const [entries, setEntries] = useState<HistoryEntry[] | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    let cancelled = false;
-    setEntries(null);
-    setError(null);
+    let cancelled = false
+    setEntries(null)
+    setError(null)
     client
       .history(collection.slug, id)
       .then((result) => {
-        if (!cancelled) setEntries(result);
+        if (!cancelled) setEntries(result)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err : new Error(String(err)));
+          setError(err instanceof Error ? err : new Error(String(err)))
         }
-      });
+      })
     return () => {
-      cancelled = true;
-    };
-  }, [client, collection.slug, id]);
+      cancelled = true
+    }
+  }, [client, collection.slug, id])
 
   return (
     <section>
@@ -44,14 +44,16 @@ export function HistoryScreen({
       </h2>
       <button
         type="button"
-        onClick={() => navigate({ view: "change", slug: collection.slug, id })}
+        onClick={() => navigate({ view: 'change', slug: collection.slug, id })}
       >
         Back to the record
       </button>
 
       {error && <p role="alert">{error.message}</p>}
       {!entries && !error && <p>Loading…</p>}
-      {entries?.length === 0 && <p>Nothing has been recorded for this record.</p>}
+      {entries?.length === 0 && (
+        <p>Nothing has been recorded for this record.</p>
+      )}
 
       {entries && entries.length > 0 && (
         <table>
@@ -70,7 +72,7 @@ export function HistoryScreen({
                     {new Date(entry.at).toLocaleString()}
                   </time>
                 </td>
-                <td>{entry.actor ?? "—"}</td>
+                <td>{entry.actor ?? '—'}</td>
                 <td>{describeHistory(entry)}</td>
               </tr>
             ))}
@@ -78,5 +80,5 @@ export function HistoryScreen({
         </table>
       )}
     </section>
-  );
+  )
 }

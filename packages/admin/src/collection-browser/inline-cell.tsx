@@ -1,17 +1,17 @@
-import type { FieldMeta } from "@comp/core";
-import type { JSX } from "react";
+import type { FieldMeta } from '@comp/core'
+import type { JSX } from 'react'
 import {
   inputTypeFor,
   optionsFor,
-} from "../collection-form/collection-form.utils.js";
+} from '../collection-form/collection-form.utils.js'
 
 export interface InlineInputProps {
-  field: FieldMeta;
-  value: string;
-  busy: boolean;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-  onCancel: () => void;
+  field: FieldMeta
+  value: string
+  busy: boolean
+  onChange: (value: string) => void
+  onCommit: () => void
+  onCancel: () => void
 }
 
 /**
@@ -26,20 +26,20 @@ export function InlineInput({
   onCommit,
   onCancel,
 }: InlineInputProps): JSX.Element {
-  const type = inputTypeFor(field);
+  const type = inputTypeFor(field)
 
   function onKeyDown(e: { key: string; preventDefault: () => void }): void {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      onCommit();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onCancel();
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onCommit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      onCancel()
     }
   }
 
-  if (type === "select") {
-    const options = optionsFor(field) ?? [];
+  if (type === 'select') {
+    const options = optionsFor(field) ?? []
     return (
       <select
         autoFocus
@@ -47,7 +47,7 @@ export function InlineInput({
         disabled={busy}
         value={value}
         onChange={(e) => {
-          onChange(e.target.value);
+          onChange(e.target.value)
         }}
         onBlur={onCommit}
         onKeyDown={onKeyDown}
@@ -59,22 +59,22 @@ export function InlineInput({
           </option>
         ))}
       </select>
-    );
+    )
   }
 
-  if (type === "checkbox") {
+  if (type === 'checkbox') {
     return (
       <input
         type="checkbox"
         autoFocus
         aria-label={field.name}
         disabled={busy}
-        checked={value === "true"}
-        onChange={(e) => onChange(e.target.checked ? "true" : "")}
+        checked={value === 'true'}
+        onChange={(e) => onChange(e.target.checked ? 'true' : '')}
         onBlur={onCommit}
         onKeyDown={onKeyDown}
       />
-    );
+    )
   }
 
   return (
@@ -88,5 +88,5 @@ export function InlineInput({
       onBlur={onCommit}
       onKeyDown={onKeyDown}
     />
-  );
+  )
 }

@@ -1,10 +1,10 @@
-import { useState, type JSX } from "react";
-import type { PasskeyClient } from "./passkey-client.types.js";
+import { useState, type JSX } from 'react'
+import type { PasskeyClient } from './passkey-client.types.js'
 
 export interface PasskeyLoginProps {
-  client: PasskeyClient;
+  client: PasskeyClient
   /** Called after a successful sign-in. */
-  onAuthenticated?: () => void;
+  onAuthenticated?: () => void
 }
 
 /**
@@ -15,25 +15,25 @@ export function PasskeyLogin({
   client,
   onAuthenticated,
 }: PasskeyLoginProps): JSX.Element {
-  const [userId, setUserId] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [userId, setUserId] = useState('')
+  const [status, setStatus] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   async function run(
     action: () => Promise<void>,
     success: string,
     authenticated: boolean,
   ): Promise<void> {
-    setBusy(true);
-    setStatus(null);
+    setBusy(true)
+    setStatus(null)
     try {
-      await action();
-      setStatus(success);
-      if (authenticated) onAuthenticated?.();
+      await action()
+      setStatus(success)
+      if (authenticated) onAuthenticated?.()
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus(error instanceof Error ? error.message : String(error))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
@@ -49,19 +49,25 @@ export function PasskeyLogin({
       </label>
       <button
         type="button"
-        disabled={busy || userId === ""}
-        onClick={() => run(() => client.register(userId, userId), "Passkey registered", false)}
+        disabled={busy || userId === ''}
+        onClick={() =>
+          run(
+            () => client.register(userId, userId),
+            'Passkey registered',
+            false,
+          )
+        }
       >
         Register passkey
       </button>
       <button
         type="button"
-        disabled={busy || userId === ""}
-        onClick={() => run(() => client.login(userId), "Signed in", true)}
+        disabled={busy || userId === ''}
+        onClick={() => run(() => client.login(userId), 'Signed in', true)}
       >
         Sign in
       </button>
       {status && <p role="status">{status}</p>}
     </form>
-  );
+  )
 }

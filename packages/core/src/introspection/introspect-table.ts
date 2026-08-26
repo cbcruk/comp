@@ -4,15 +4,15 @@ import {
   is,
   type Column,
   type Table,
-} from "drizzle-orm";
-import { SQLiteTable, getTableConfig } from "drizzle-orm/sqlite-core";
+} from 'drizzle-orm'
+import { SQLiteTable, getTableConfig } from 'drizzle-orm/sqlite-core'
 import type {
   FieldMap,
   FieldMeta,
   ReferentialAction,
   TableIntrospection,
   TableRelation,
-} from "./introspect-table.types.js";
+} from './introspect-table.types.js'
 
 /**
  * Read the table's foreign keys. Drizzle exposes these per dialect, so this is
@@ -23,11 +23,11 @@ function tableRelations(
   table: Table,
   fieldNameByColumn: Map<string, string>,
 ): TableRelation[] {
-  if (!is(table, SQLiteTable)) return [];
+  if (!is(table, SQLiteTable)) return []
 
-  const relations: TableRelation[] = [];
+  const relations: TableRelation[] = []
   for (const foreignKey of getTableConfig(table).foreignKeys) {
-    const reference = foreignKey.reference();
+    const reference = foreignKey.reference()
     relations.push({
       fields: reference.columns.map(
         (column: Column) => fieldNameByColumn.get(column.name) ?? column.name,
@@ -40,9 +40,9 @@ function tableRelations(
       ...(foreignKey.onUpdate
         ? { onUpdate: foreignKey.onUpdate as ReferentialAction }
         : {}),
-    });
+    })
   }
-  return relations;
+  return relations
 }
 
 /**
@@ -56,13 +56,13 @@ function tableRelations(
  * a fact about the schema, so finding it is introspection's job.
  */
 export function introspectTable(table: Table): TableIntrospection {
-  const columns = getTableColumns(table);
-  const fields: FieldMap = {};
-  const fieldNameByColumn = new Map<string, string>();
-  let primaryKey: string | null = null;
+  const columns = getTableColumns(table)
+  const fields: FieldMap = {}
+  const fieldNameByColumn = new Map<string, string>()
+  let primaryKey: string | null = null
 
   for (const [name, column] of Object.entries(columns)) {
-    const enumValues = column.enumValues;
+    const enumValues = column.enumValues
     const meta: FieldMeta = {
       name,
       columnName: column.name,
@@ -72,31 +72,31 @@ export function introspectTable(table: Table): TableIntrospection {
       hasDefault: column.hasDefault,
       primaryKey: column.primary,
       ...(enumValues && enumValues.length > 0 ? { enumValues } : {}),
-    };
-    fields[name] = meta;
-    fieldNameByColumn.set(column.name, name);
+    }
+    fields[name] = meta
+    fieldNameByColumn.set(column.name, name)
     if (column.primary && primaryKey === null) {
-      primaryKey = name;
+      primaryKey = name
     }
   }
 
-  const relations = tableRelations(table, fieldNameByColumn);
+  const relations = tableRelations(table, fieldNameByColumn)
 
   // Hang single-column keys off their field so widgets and label resolution
   // can read them without walking the table's key list. Composite keys stay
   // table-level only — they have no single field to belong to.
   for (const relation of relations) {
-    const [field] = relation.fields;
-    const [column] = relation.columns;
-    if (relation.fields.length !== 1 || !field || !column) continue;
-    const meta = fields[field];
-    if (!meta) continue;
+    const [field] = relation.fields
+    const [column] = relation.columns
+    if (relation.fields.length !== 1 || !field || !column) continue
+    const meta = fields[field]
+    if (!meta) continue
     meta.relation = {
       table: relation.table,
       column,
       ...(relation.onDelete ? { onDelete: relation.onDelete } : {}),
       ...(relation.onUpdate ? { onUpdate: relation.onUpdate } : {}),
-    };
+    }
   }
 
   return {
@@ -104,5 +104,5 @@ export function introspectTable(table: Table): TableIntrospection {
     fields,
     primaryKey,
     relations,
-  };
+  }
 }

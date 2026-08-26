@@ -4,38 +4,33 @@
  * link one of them writes agree on where a record lives.
  */
 export type AdminView =
-  | "index"
-  | "list"
-  | "add"
-  | "change"
-  | "delete"
-  | "history";
+  'index' | 'list' | 'add' | 'change' | 'delete' | 'history'
 
 export type AdminRoute =
-  | { view: "index" }
-  | { view: "list"; slug: string }
-  | { view: "add"; slug: string }
-  | { view: "change"; slug: string; id: string }
-  | { view: "delete"; slug: string; id: string }
-  | { view: "history"; slug: string; id: string };
+  | { view: 'index' }
+  | { view: 'list'; slug: string }
+  | { view: 'add'; slug: string }
+  | { view: 'change'; slug: string; id: string }
+  | { view: 'delete'; slug: string; id: string }
+  | { view: 'history'; slug: string; id: string }
 
-export const INDEX_ROUTE: AdminRoute = { view: "index" };
+export const INDEX_ROUTE: AdminRoute = { view: 'index' }
 
 /** Where a route lives, as a path. */
 export function adminPath(route: AdminRoute): string {
   switch (route.view) {
-    case "index":
-      return "/";
-    case "list":
-      return `/${encodeURIComponent(route.slug)}`;
-    case "add":
-      return `/${encodeURIComponent(route.slug)}/add`;
-    case "change":
-      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}`;
-    case "delete":
-      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/delete`;
-    case "history":
-      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/history`;
+    case 'index':
+      return '/'
+    case 'list':
+      return `/${encodeURIComponent(route.slug)}`
+    case 'add':
+      return `/${encodeURIComponent(route.slug)}/add`
+    case 'change':
+      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}`
+    case 'delete':
+      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/delete`
+    case 'history':
+      return `/${encodeURIComponent(route.slug)}/${encodeURIComponent(route.id)}/history`
   }
 }
 
@@ -50,17 +45,17 @@ export function adminPath(route: AdminRoute): string {
  */
 export function parseAdminPath(path: string): AdminRoute {
   const segments = path
-    .split("?")[0]!
-    .split("/")
-    .filter((segment) => segment !== "")
-    .map(decodeURIComponent);
+    .split('?')[0]!
+    .split('/')
+    .filter((segment) => segment !== '')
+    .map(decodeURIComponent)
 
-  const [slug, second, third] = segments;
-  if (!slug || segments.length > 3) return INDEX_ROUTE;
-  if (second === undefined) return { view: "list", slug };
-  if (second === "add") return { view: "add", slug };
-  if (third === "delete") return { view: "delete", slug, id: second };
-  if (third === "history") return { view: "history", slug, id: second };
-  if (third === undefined) return { view: "change", slug, id: second };
-  return INDEX_ROUTE;
+  const [slug, second, third] = segments
+  if (!slug || segments.length > 3) return INDEX_ROUTE
+  if (second === undefined) return { view: 'list', slug }
+  if (second === 'add') return { view: 'add', slug }
+  if (third === 'delete') return { view: 'delete', slug, id: second }
+  if (third === 'history') return { view: 'history', slug, id: second }
+  if (third === undefined) return { view: 'change', slug, id: second }
+  return INDEX_ROUTE
 }

@@ -1,4 +1,4 @@
-import type { ResolvedForm } from "./form.types.js";
+import type { ResolvedForm } from './form.types.js'
 
 /**
  * Reduce text to a URL-safe slug: letters and digits, single dashes between
@@ -10,11 +10,11 @@ import type { ResolvedForm } from "./form.types.js";
  */
 export function slugify(text: string): string {
   return text
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 /** The slug a target field would get from its sources' current values. */
@@ -22,7 +22,7 @@ export function prepopulatedValue(
   sources: readonly string[],
   values: Record<string, string>,
 ): string {
-  return slugify(sources.map((source) => values[source] ?? "").join(" "));
+  return slugify(sources.map((source) => values[source] ?? '').join(' '))
 }
 
 /**
@@ -43,15 +43,15 @@ export function applyPrepopulation(
   changed: string,
   options: { adding: boolean; touched: ReadonlySet<string> },
 ): Record<string, string> {
-  if (!options.adding) return values;
+  if (!options.adding) return values
 
-  let next = values;
+  let next = values
   for (const [target, sources] of Object.entries(form.prepopulated)) {
-    if (target === changed) continue;
-    if (options.touched.has(target)) continue;
-    if (!sources.includes(changed)) continue;
-    if (next === values) next = { ...values };
-    next[target] = prepopulatedValue(sources, values);
+    if (target === changed) continue
+    if (options.touched.has(target)) continue
+    if (!sources.includes(changed)) continue
+    if (next === values) next = { ...values }
+    next[target] = prepopulatedValue(sources, values)
   }
-  return next;
+  return next
 }

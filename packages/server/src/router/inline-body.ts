@@ -1,21 +1,21 @@
-import type { InlineWritePayload, ManyToManyWrite } from "@comp/core";
+import type { InlineWritePayload, ManyToManyWrite } from '@comp/core'
 
 export interface SplitBody {
   /** The record's own fields. */
-  values: Record<string, unknown>;
+  values: Record<string, unknown>
   /** Inline changes, keyed by child collection slug; empty when none. */
-  inlines: InlineWritePayload;
+  inlines: InlineWritePayload
   /** Link sets, keyed by relationship name; empty when none. */
-  manyToMany: ManyToManyWrite;
+  manyToMany: ManyToManyWrite
 }
 
-const INLINES_KEY = "inlines";
-const M2M_KEY = "manyToMany";
+const INLINES_KEY = 'inlines'
+const M2M_KEY = 'manyToMany'
 
 function asObject(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
+  return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
-    : null;
+    : null
 }
 
 /**
@@ -28,18 +28,14 @@ function asObject(value: unknown): Record<string, unknown> | null {
  * name would collide, which is the documented cost of keeping one request.
  */
 export function splitInlineBody(body: unknown): SplitBody {
-  const record = asObject(body);
-  if (!record) return { values: {}, inlines: {}, manyToMany: {} };
+  const record = asObject(body)
+  if (!record) return { values: {}, inlines: {}, manyToMany: {} }
 
-  const {
-    [INLINES_KEY]: inlines,
-    [M2M_KEY]: manyToMany,
-    ...values
-  } = record;
+  const { [INLINES_KEY]: inlines, [M2M_KEY]: manyToMany, ...values } = record
 
   return {
     values,
     inlines: (asObject(inlines) ?? {}) as InlineWritePayload,
     manyToMany: (asObject(manyToMany) ?? {}) as ManyToManyWrite,
-  };
+  }
 }

@@ -1,8 +1,8 @@
-import type { FieldMap } from "@comp/core";
+import type { FieldMap } from '@comp/core'
 
 export interface EditingCell {
-  id: string;
-  field: string;
+  id: string
+  field: string
 }
 
 /** Whether the cell at (id, field) is the one currently being edited. */
@@ -11,7 +11,7 @@ export function isEditing(
   id: string,
   field: string,
 ): boolean {
-  return editing !== null && editing.id === id && editing.field === field;
+  return editing !== null && editing.id === id && editing.field === field
 }
 
 /**
@@ -23,5 +23,5 @@ export function canEditColumn(
   primaryKey: string | null,
   column: string,
 ): boolean {
-  return column in fields && column !== primaryKey;
+  return column in fields && column !== primaryKey
 }
