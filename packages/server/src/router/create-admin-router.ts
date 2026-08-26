@@ -25,6 +25,7 @@ import {
   resolveInlines,
   resolveRelations,
   resolveScope,
+  runEffect,
   runAction,
   unknownInline,
   validateInsert,
@@ -45,6 +46,7 @@ import {
   type RecordScope,
   type SqliteDb,
 } from '@comp/core'
+import { Effect } from 'effect'
 import { Hono, type Context } from 'hono'
 import { handleRouterError } from './error-response.js'
 import { splitInlineBody } from './inline-body.js'
@@ -425,7 +427,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const relations: DeleteRelation[] =
       deleteRelations.get(collection.slug) ?? []
     return c.json({
-      data: await collectDeleteImpact(db, collection, found.row, relations),
+      data: await runEffect(
+        collectDeleteImpact(db, collection, found.row, relations),
+      ),
     })
   })
 
@@ -467,22 +471,33 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       ...parseListParams(collection, c.req.query()),
       ...(scope ? { scope } : {}),
     }
-    const rows = await buildListQuery(db, collection, params).all()
-    const totals = await buildCountQuery(db, collection, params).all()
-    const total = totals[0]?.count ?? 0
+    // Four reads of one narrowed set, and none of them waits on another: the
+    // page of rows, its total, the drill-down counts, and what a distinct-value
+    // filter may be set to. Run in sequence this was four round trips deep on
+    // an edge request that needs all four before it can answer.
+    const [rows, totals, hierarchy, choices] = await runEffect(
+      Effect.all(
+        [
+          Effect.promise(() => buildListQuery(db, collection, params).all()),
+          Effect.promise(() => buildCountQuery(db, collection, params).all()),
+          // The strip belongs to the list it navigates, so it is resolved in
+          // the same request rather than left for a second round trip.
+          collectDateHierarchy(db, collection, params),
+          // Data-dependent, so it cannot travel with the static collection
+          // summary; costs nothing unless a `values` filter is declared.
+          collectFilterChoices(db, collection, scope),
+        ],
+        { concurrency: 'unbounded' },
+      ),
+    )
 
     return c.json({
       data: rows,
       page: params.page ?? 1,
       pageSize: params.pageSize ?? collection.pageSize,
-      total,
-      // The strip belongs to the list it navigates, so it is resolved in the
-      // same request rather than left for a second round trip.
-      hierarchy: await collectDateHierarchy(db, collection, params),
-      // What a distinct-value filter may be set to. Data-dependent, so it
-      // cannot travel with the static collection summary; costs nothing unless
-      // one is declared.
-      choices: await collectFilterChoices(db, collection, scope),
+      total: totals[0]?.count ?? 0,
+      hierarchy,
+      choices,
     })
   })
 
@@ -533,9 +548,8 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     // `create` grant plus validation — the same split Django makes, where
     // `has_add_permission` is the one that takes no object.
     const values = validateInsert(collection, body.values)
-    const row = await createRecord(
-      await mutationContext(c, collection, db),
-      values,
+    const row = await runEffect(
+      createRecord(await mutationContext(c, collection, db), values),
     )
     if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
@@ -591,14 +605,16 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     // UPDATE on the parent just to get at its inlines.
     const row =
       Object.keys(values).length > 0
-        ? await updateRecord(
-            {
-              ...(await mutationContext(c, collection, db)),
-              ...(scope ? { scope } : {}),
-              ...(before ? { before } : {}),
-            },
-            c.req.param('id'),
-            values,
+        ? await runEffect(
+            updateRecord(
+              {
+                ...(await mutationContext(c, collection, db)),
+                ...(scope ? { scope } : {}),
+                ...(before ? { before } : {}),
+              },
+              c.req.param('id'),
+              values,
+            ),
           )
         : (before ??
           ((
@@ -644,12 +660,14 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       if ('refusal' in found) return found.refusal
     }
 
-    const row = await deleteRecord(
-      {
-        ...(await mutationContext(c, collection, db)),
-        ...(scope ? { scope } : {}),
-      },
-      c.req.param('id'),
+    const row = await runEffect(
+      deleteRecord(
+        {
+          ...(await mutationContext(c, collection, db)),
+          ...(scope ? { scope } : {}),
+        },
+        c.req.param('id'),
+      ),
     )
     if (!row) return c.json({ error: 'Not found' }, 404)
     return c.json({ data: row })

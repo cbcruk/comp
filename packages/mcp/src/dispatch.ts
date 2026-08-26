@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import {
   allowAll,
   authorizeOperation,
@@ -18,6 +19,7 @@ import {
   readManyToMany,
   resolveScope,
   runAction,
+  runEffect,
   updateRecord,
   validateInsert,
   validateUpdate,
@@ -310,15 +312,26 @@ async function runTool(
   switch (binding.kind) {
     case 'list': {
       const params = { ...listParams(args), ...(scope ? { scope } : {}) }
-      const rows = await buildListQuery(db, collection, params).all()
-      const totals = await buildCountQuery(db, collection, params).all()
+      // The same four independent reads the HTTP list route makes, run the
+      // same way — a tool call is not a cheaper request than a page view.
+      const [rows, totals, hierarchy, choices] = await runEffect(
+        Effect.all(
+          [
+            Effect.promise(() => buildListQuery(db, collection, params).all()),
+            Effect.promise(() => buildCountQuery(db, collection, params).all()),
+            collectDateHierarchy(db, collection, params),
+            // The vocabulary of any distinct-value filter, so a model narrows
+            // the list with a value that exists instead of guessing one.
+            collectFilterChoices(db, collection, scope),
+          ],
+          { concurrency: 'unbounded' },
+        ),
+      )
       return text({
         data: rows,
         total: totals[0]?.count ?? 0,
-        hierarchy: await collectDateHierarchy(db, collection, params),
-        // The vocabulary of any distinct-value filter, so a model narrows the
-        // list with a value that exists instead of guessing one.
-        choices: await collectFilterChoices(db, collection, scope),
+        hierarchy,
+        choices,
       })
     }
     case 'get': {
@@ -333,7 +346,9 @@ async function runTool(
       // Nothing to narrow to and nothing to decide about: a row that does not
       // exist yet is governed by the collection's `create` grant alone.
       const values = validateInsert(collection, rest)
-      const row = await createRecord(mutationContext(ctx, collection), values)
+      const row = await runEffect(
+        createRecord(mutationContext(ctx, collection), values),
+      )
       if (!row)
         return { ...text({ error: 'Insert returned no row' }), isError: true }
       await applyInlines(db, binding.inlines, row, inlines)
@@ -356,13 +371,15 @@ async function runTool(
       // UPDATE on the parent just to reach them.
       const row =
         Object.keys(values).length > 0
-          ? await updateRecord(
-              {
-                ...mutationContext(ctx, collection, scope),
-                ...(before ? { before } : {}),
-              },
-              id,
-              values,
+          ? await runEffect(
+              updateRecord(
+                {
+                  ...mutationContext(ctx, collection, scope),
+                  ...(before ? { before } : {}),
+                },
+                id,
+                values,
+              ),
             )
           : (before ??
             ((await buildGetByIdQuery(db, collection, id, scope).all())[0] as
@@ -378,11 +395,13 @@ async function runTool(
       const found = await recordFor(ctx, collection, args.id, 'delete', scope)
       if ('error' in found) return found.error
       return text(
-        await collectDeleteImpact(
-          db,
-          collection,
-          found.row,
-          binding.deleteRelations ?? [],
+        await runEffect(
+          collectDeleteImpact(
+            db,
+            collection,
+            found.row,
+            binding.deleteRelations ?? [],
+          ),
         ),
       )
     }
@@ -391,9 +410,8 @@ async function runTool(
         const found = await recordFor(ctx, collection, args.id, 'delete', scope)
         if ('error' in found) return found.error
       }
-      const row = await deleteRecord(
-        mutationContext(ctx, collection, scope),
-        args.id,
+      const row = await runEffect(
+        deleteRecord(mutationContext(ctx, collection, scope), args.id),
       )
       if (!row) return { ...text({ error: 'Not found' }), isError: true }
       return text(row)

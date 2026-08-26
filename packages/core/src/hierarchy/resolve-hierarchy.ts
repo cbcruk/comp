@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { SqliteDb } from '../query/build-list-query.js'
 import {
@@ -51,19 +52,78 @@ function pathString(path: DatePath): string {
  * top level, where which *years* to offer depends on the data rather than the
  * calendar.
  */
-export async function collectDateHierarchy(
+export function collectDateHierarchy(
   db: SqliteDb,
   collection: Collection,
   params: ListParams = {},
-): Promise<DateHierarchy | null> {
-  if (!collection.dateHierarchy) return null
+): Effect.Effect<DateHierarchy | null> {
+  return Effect.gen(function* () {
+    if (!collection.dateHierarchy) return null
 
-  const column = hierarchyColumn(collection)
-  const path = params.datePath ?? {}
-  const level = levelOf(path)
+    const column = hierarchyColumn(collection)
+    const path = params.datePath ?? {}
+    const level = levelOf(path)
 
-  // Drilled all the way in: the list itself is the answer.
-  if (level === 'record') {
+    // Drilled all the way in: the list itself is the answer.
+    if (level === 'record') {
+      return {
+        field: collection.dateHierarchy,
+        path: pathString(path),
+        level,
+        breadcrumb: breadcrumbFor(path).map((crumb) => ({
+          ...crumb,
+          path: pathString(crumb.path),
+        })),
+        choices: [],
+      }
+    }
+
+    let span: { min: Date; max: Date } | null = null
+    if (level === 'year') {
+      // Two independent reads of the same narrowed set; nothing orders them.
+      const [[first], [last]] = yield* Effect.all(
+        [
+          Effect.promise(() =>
+            buildDateBoundQuery(db, collection, params, column, 'min').all(),
+          ),
+          Effect.promise(() =>
+            buildDateBoundQuery(db, collection, params, column, 'max').all(),
+          ),
+        ],
+        { concurrency: 2 },
+      )
+      const min = (first as Record<string, unknown> | undefined)?.[
+        collection.dateHierarchy
+      ]
+      const max = (last as Record<string, unknown> | undefined)?.[
+        collection.dateHierarchy
+      ]
+      if (min instanceof Date && max instanceof Date) span = { min, max }
+    }
+
+    const buckets = bucketsFor(path, span)
+    const choices: HierarchyChoice[] = []
+
+    if (buckets.length > 0) {
+      const [counts] = yield* Effect.promise(() =>
+        buildBucketCountQuery(db, collection, params, column, buckets).all(),
+      )
+      buckets.forEach((bucket, index) => {
+        const count = Number(
+          (counts as Record<string, unknown> | undefined)?.[bucketKey(index)] ??
+            0,
+        )
+        // A period with nothing in it is not a place to go.
+        if (count > 0) {
+          choices.push({
+            label: bucket.label,
+            path: pathString(bucket.path),
+            count,
+          })
+        }
+      })
+    }
+
     return {
       field: collection.dateHierarchy,
       path: pathString(path),
@@ -72,70 +132,7 @@ export async function collectDateHierarchy(
         ...crumb,
         path: pathString(crumb.path),
       })),
-      choices: [],
+      choices,
     }
-  }
-
-  let span: { min: Date; max: Date } | null = null
-  if (level === 'year') {
-    const [first] = await buildDateBoundQuery(
-      db,
-      collection,
-      params,
-      column,
-      'min',
-    ).all()
-    const [last] = await buildDateBoundQuery(
-      db,
-      collection,
-      params,
-      column,
-      'max',
-    ).all()
-    const min = (first as Record<string, unknown> | undefined)?.[
-      collection.dateHierarchy
-    ]
-    const max = (last as Record<string, unknown> | undefined)?.[
-      collection.dateHierarchy
-    ]
-    if (min instanceof Date && max instanceof Date) span = { min, max }
-  }
-
-  const buckets = bucketsFor(path, span)
-  const choices: HierarchyChoice[] = []
-
-  if (buckets.length > 0) {
-    const [counts] = await buildBucketCountQuery(
-      db,
-      collection,
-      params,
-      column,
-      buckets,
-    ).all()
-    buckets.forEach((bucket, index) => {
-      const count = Number(
-        (counts as Record<string, unknown> | undefined)?.[bucketKey(index)] ??
-          0,
-      )
-      // A period with nothing in it is not a place to go.
-      if (count > 0) {
-        choices.push({
-          label: bucket.label,
-          path: pathString(bucket.path),
-          count,
-        })
-      }
-    })
-  }
-
-  return {
-    field: collection.dateHierarchy,
-    path: pathString(path),
-    level,
-    breadcrumb: breadcrumbFor(path).map((crumb) => ({
-      ...crumb,
-      path: pathString(crumb.path),
-    })),
-    choices,
-  }
+  })
 }
