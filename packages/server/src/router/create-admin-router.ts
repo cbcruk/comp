@@ -6,6 +6,7 @@ import {
   allowAll,
   authorizeRecordAccess,
   bindManyToMany,
+  checkLinkTargets,
   checksRecords,
   collectDateHierarchy,
   collectFilterChoices,
@@ -17,6 +18,7 @@ import {
   Forbidden,
   inlineOperations,
   inlineSummary,
+  prepareInlines,
   manyToManySummary,
   readInlines,
   readManyToMany,
@@ -589,12 +591,19 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     // `create` grant plus validation — the same split Django makes, where
     // `has_add_permission` is the one that takes no object.
     const values = validateInsert(collection, body.values)
+    // The whole nested payload is checked before anything is written. A child
+    // row that cannot be inserted used to be discovered after the parent
+    // already existed, and D1 has no transaction to undo that with.
+    const inlines = await runEffect(
+      prepareInlines(specsFor(collection), body.inlines),
+    )
+    await runEffect(checkLinkTargets(db, linksFor(collection), body.manyToMany))
     const row = await runEffect(
       createRecord(await mutationContext(c, collection, db), values),
     )
     if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
-    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(writeInlines(db, specsFor(collection), row, inlines))
     await runEffect(
       writeManyToMany(db, linksFor(collection), row, body.manyToMany),
     )
@@ -644,6 +653,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
 
     const values = validateUpdate(collection, body.values)
+    const inlines = await runEffect(
+      prepareInlines(specsFor(collection), body.inlines),
+    )
     // Editing only the child rows is a real edit; don't force an empty
     // UPDATE on the parent just to get at its inlines.
     const row =
@@ -670,7 +682,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
           )[0] as Record<string, unknown> | undefined))
     if (!row) return c.json({ error: 'Not found' }, 404)
 
-    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(writeInlines(db, specsFor(collection), row, inlines))
     await runEffect(
       writeManyToMany(db, linksFor(collection), row, body.manyToMany),
     )

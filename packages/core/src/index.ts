@@ -141,6 +141,7 @@ export {
 export { inlineSummary, resolveInlines } from './inline/resolve-inlines.js'
 export {
   inlineOperations,
+  prepareInlines,
   prepareInlineWrite,
   readInlines,
   writeInlines,
@@ -199,6 +200,7 @@ export {
   resolveManyToMany,
 } from './m2m/resolve-m2m.js'
 export {
+  checkLinkTargets,
   manyToManyNames,
   readLinks,
   readManyToMany,

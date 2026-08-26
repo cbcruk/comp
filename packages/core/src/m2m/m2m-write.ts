@@ -18,6 +18,57 @@ function keyOf(value: unknown): string {
   return String(value)
 }
 
+/**
+ * Refuse ids that name no record. An unknown id is rejected rather than
+ * dropped: a save that silently linked less than it was asked to is a save
+ * that looks like it worked.
+ */
+function assertTargetsExist(
+  db: SqliteDb,
+  spec: ManyToManySpec,
+  ids: readonly unknown[],
+): Effect.Effect<void, ValidationError> {
+  return Effect.gen(function* () {
+    const rows = (yield* Effect.promise(() =>
+      buildTargetExistsQuery(db, spec.target, spec.targetKey, ids).all(),
+    )) as { value: unknown }[]
+    const found = new Set(rows.map((row) => keyOf(row.value)))
+    const missing = ids.filter((id) => !found.has(keyOf(id)))
+    if (missing.length === 0) return
+    const issues: FieldIssue[] = missing.map((id) => ({
+      path: ['manyToMany', spec.name],
+      message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
+    }))
+    return yield* new ValidationError({ issues })
+  })
+}
+
+/**
+ * Check a payload's ids before a parent row is written.
+ *
+ * Only a create needs this: it is the one path where refusing after the write
+ * leaves behind a row that should never have existed. An update's parent was
+ * already there, so a refused link does not change whether it should be.
+ *
+ * Every id the payload names is checked, not only those that would end up
+ * newly linked — the record does not exist yet, so it has nothing linked and
+ * the two sets are the same.
+ */
+export function checkLinkTargets(
+  db: SqliteDb,
+  specs: ManyToManySpec[],
+  payload: ManyToManyWrite,
+): Effect.Effect<void, ValidationError> {
+  const byName = new Map(specs.map((spec) => [spec.name, spec]))
+  return Effect.gen(function* () {
+    for (const [name, ids] of Object.entries(payload)) {
+      const spec = byName.get(name)
+      if (!spec || !Array.isArray(ids) || ids.length === 0) continue
+      yield* assertTargetsExist(db, spec, ids)
+    }
+  })
+}
+
 /** The ids currently linked to this record. */
 export async function readLinks(
   db: SqliteDb,
@@ -85,20 +136,7 @@ export function writeLinks(
       .map(([, id]) => id)
     const toUnlink = current.filter((id) => !wanted.has(keyOf(id)))
 
-    if (toLink.length > 0) {
-      const rows = (yield* Effect.promise(() =>
-        buildTargetExistsQuery(db, spec.target, spec.targetKey, toLink).all(),
-      )) as { value: unknown }[]
-      const found = new Set(rows.map((row) => keyOf(row.value)))
-      const missing = toLink.filter((id) => !found.has(keyOf(id)))
-      if (missing.length > 0) {
-        const issues: FieldIssue[] = missing.map((id) => ({
-          path: ['manyToMany', spec.name],
-          message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
-        }))
-        return yield* new ValidationError({ issues })
-      }
-    }
+    if (toLink.length > 0) yield* assertTargetsExist(db, spec, toLink)
 
     // Unlink first: a set that swaps one member for another stays within any
     // uniqueness the join table declares while it is being applied.

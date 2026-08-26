@@ -56,11 +56,23 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   at startup (`resolveInlines`); the record's children are read with it and
   written in the same request, over HTTP, MCP, and the React `InlineEditor`.
   Rules worth keeping: every child update/delete is scoped to the parent **in
-  SQL**, the parent key is set on create and stripped from update (no
-  re-parenting), issue paths carry `inlines.<slug>.<index>.<field>`, and an
-  inline never grants more than the child collection's own manifest does.
+  SQL**, the parent key is set by the write and never taken from the payload
+  (no re-parenting — it is left out of the child's schema entirely), issue
+  paths carry `inlines.<slug>.<index>.<field>`, and an inline never grants more
+  than the child collection's own manifest does.
   Writes apply delete → update → create sequentially; D1 has no interactive
   transactions, so `writeInlines` is the seam where a batch lands when it can.
+  **A nested write is two phases**: `prepareInlines` validates the whole
+  payload, then the parent is written, then `writeInlines` applies it. That
+  order is why a bad child row no longer leaves a parent behind — and it is not
+  something a batch could fix instead, because the child rows need the id the
+  parent's INSERT generates and a batch prepares every statement up front.
+  `checkLinkTargets` does the same for many-to-many, on create only: an
+  update's parent already existed, so a refused link does not leave anything
+  that should not be there. What remains un-atomic is a _driver_ failure
+  part-way through applying a checked payload; that needs `db.batch`, which is
+  on the D1 and libSQL drivers but not on `BaseSQLiteDatabase`, so it would
+  have to be a runtime-detected optional capability.
 - **An admin site, not just components** — `AdminSite` renders the index, list,
   add, change, and delete confirmation for whatever collections the server
   reports, so an app stops assembling a screen per collection. The screens are
