@@ -43,8 +43,9 @@ export const orderCollection = defineCollection({
   ],
   // The same column, navigated instead of selected: year → month → day.
   dateHierarchy: 'placedAt',
-  // Find an order by its reference, or by who placed it.
-  search: ['^reference', 'customerId__name', 'customerId__email'],
+  // Find an order by its reference, by who placed it, or by a tag it carries
+  // — the last one crosses the join table, which a plain column cannot.
+  search: ['^reference', 'customerId__name', 'customerId__email', 'tags__name'],
   ordering: [{ field: 'placedAt', direction: 'desc' }],
   fieldsets: [
     { title: 'Order', fields: [['reference', 'customerId'], 'channel'] },

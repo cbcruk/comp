@@ -3,9 +3,10 @@ import type { CollectionSummary } from '../client/create-client.types.js'
 
 /** How one search field reads to a person: `name`, `name (starts with)`. */
 export function describeSearchField(spec: ResolvedSearch): string {
-  const name = spec.through
-    ? `${spec.field} → ${spec.through.field}`
-    : spec.field
+  // A traversal reads the same whether it follows a foreign key or crosses a
+  // join table — from the box, both are "this field, over there".
+  const far = spec.through?.field ?? spec.link?.field
+  const name = far ? `${spec.field} → ${far}` : spec.field
   switch (spec.lookup) {
     case 'startswith':
       return `${name} (starts with)`

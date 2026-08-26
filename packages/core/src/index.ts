@@ -16,6 +16,8 @@ export { READ_CONCURRENCY, runEffect } from './effect/run-effect.js'
 
 export type { Table } from 'drizzle-orm'
 export { introspectTable } from './introspection/introspect-table.js'
+export { foreignTableFor } from './introspection/foreign-table.js'
+export type { ForeignTable } from './introspection/foreign-table.js'
 export type {
   FieldDataType,
   FieldMap,
@@ -130,6 +132,7 @@ export { resolveSearch, splitSearchTerms } from './search/resolve-search.js'
 export type {
   ResolvedSearch,
   SearchConfig,
+  SearchLink,
   SearchLookup,
   SearchTraversal,
 } from './search/search.types.js'
