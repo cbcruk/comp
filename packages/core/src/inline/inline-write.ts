@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { CollectionOperation } from '../collection/define-collection.types.js'
 import {
   NotGranted,
@@ -131,52 +132,58 @@ export function prepareInlineWrite(
  * seam where a driver-level batch or transaction drops in, and no caller has to
  * change when it does.
  */
-export async function writeInlines(
+export function writeInlines(
   db: SqliteDb,
   specs: InlineSpec[],
   parentRow: Record<string, unknown>,
   payload: InlineWritePayload,
-): Promise<InlineWriteResult[]> {
+): Effect.Effect<InlineWriteResult[], ValidationError | NotGranted> {
   const bySlug = new Map(specs.map((spec) => [spec.collection.slug, spec]))
-  const results: InlineWriteResult[] = []
 
-  for (const [slug, write] of Object.entries(payload)) {
-    const spec = bySlug.get(slug)
-    if (!spec) {
-      throw unknownInline(slug)
+  return Effect.gen(function* () {
+    const results: InlineWriteResult[] = []
+
+    for (const [slug, write] of Object.entries(payload)) {
+      const spec = bySlug.get(slug)
+      if (!spec) return yield* unknownInline(slug)
+
+      const parentId = parentRow[spec.targetField]
+      // Preparation is pure and refuses by throwing; this is where that
+      // becomes the declared failure the signature promises.
+      const prepared = yield* Effect.try({
+        try: () => prepareInlineWrite(spec, write, parentId),
+        catch: (error) => error as ValidationError | NotGranted,
+      })
+
+      const deleted: Record<string, unknown>[] = []
+      for (const id of prepared.delete) {
+        const rows = yield* Effect.promise(() =>
+          buildInlineDeleteQuery(db, spec, parentId, id),
+        )
+        if (rows[0]) deleted.push(rows[0] as Record<string, unknown>)
+      }
+
+      const updated: Record<string, unknown>[] = []
+      for (const row of prepared.update) {
+        const rows = yield* Effect.promise(() =>
+          buildInlineUpdateQuery(db, spec, parentId, row.id, row.values),
+        )
+        if (rows[0]) updated.push(rows[0] as Record<string, unknown>)
+      }
+
+      const created: Record<string, unknown>[] = []
+      for (const values of prepared.create) {
+        const rows = yield* Effect.promise(() =>
+          buildInsertQuery(db, spec.collection, values),
+        )
+        if (rows[0]) created.push(rows[0] as Record<string, unknown>)
+      }
+
+      results.push({ collection: slug, created, updated, deleted })
     }
 
-    const parentId = parentRow[spec.targetField]
-    const prepared = prepareInlineWrite(spec, write, parentId)
-
-    const deleted: Record<string, unknown>[] = []
-    for (const id of prepared.delete) {
-      const rows = await buildInlineDeleteQuery(db, spec, parentId, id)
-      if (rows[0]) deleted.push(rows[0] as Record<string, unknown>)
-    }
-
-    const updated: Record<string, unknown>[] = []
-    for (const row of prepared.update) {
-      const rows = await buildInlineUpdateQuery(
-        db,
-        spec,
-        parentId,
-        row.id,
-        row.values,
-      )
-      if (rows[0]) updated.push(rows[0] as Record<string, unknown>)
-    }
-
-    const created: Record<string, unknown>[] = []
-    for (const values of prepared.create) {
-      const rows = await buildInsertQuery(db, spec.collection, values)
-      if (rows[0]) created.push(rows[0] as Record<string, unknown>)
-    }
-
-    results.push({ collection: slug, created, updated, deleted })
-  }
-
-  return results
+    return results
+  })
 }
 
 /** Read every inline's rows for one parent record. */

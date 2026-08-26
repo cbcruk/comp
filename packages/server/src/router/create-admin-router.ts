@@ -553,8 +553,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
-    await writeInlines(db, specsFor(collection), row, body.inlines)
-    await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
+    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(
+      writeManyToMany(db, linksFor(collection), row, body.manyToMany),
+    )
     return c.json(
       {
         data: row,
@@ -627,8 +629,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
           )[0] as Record<string, unknown> | undefined))
     if (!row) return c.json({ error: 'Not found' }, 404)
 
-    await writeInlines(db, specsFor(collection), row, body.inlines)
-    await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
+    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(
+      writeManyToMany(db, linksFor(collection), row, body.manyToMany),
+    )
     return c.json({
       data: row,
       inlines: await inlineRows(c, collection, row, db),

@@ -201,7 +201,7 @@ async function applyLinks(
   payload: unknown,
 ): Promise<void> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
-  await writeManyToMany(db, links, row, payload as ManyToManyWrite)
+  await runEffect(writeManyToMany(db, links, row, payload as ManyToManyWrite))
 }
 
 /** Apply the tool call's inline changes, if it made any. */
@@ -212,7 +212,7 @@ async function applyInlines(
   payload: unknown,
 ): Promise<void> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
-  await writeInlines(db, specs, row, payload as InlineWritePayload)
+  await runEffect(writeInlines(db, specs, row, payload as InlineWritePayload))
 }
 
 function parseOrdering(sort: unknown): ListParams['ordering'] {
