@@ -122,12 +122,44 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     actionsBySlug.set(action.collection, list)
   }
 
+  /**
+   * Who is calling, resolved at most once for a request.
+   *
+   * `authenticate` is a pure function of the request, so asking again can only
+   * produce the same answer — at the cost of verifying the session signature
+   * again, which for the passkey adapter is a `crypto.subtle.verify` each
+   * time. Five helpers here ask, and those helpers are called throughout a
+   * request. Keyed on the request object and held weakly, so an entry cannot
+   * outlive the request it belongs to; the promise itself is cached, so
+   * concurrent askers share one in-flight authentication rather than starting
+   * a second.
+   */
+  const identities = new WeakMap<Request, Promise<Identity | null>>()
+  function identityOf(c: Context): Promise<Identity | null> {
+    const request = c.req.raw
+    const cached = identities.get(request)
+    if (cached) return cached
+    const pending = Promise.resolve(auth.authenticate(request))
+    identities.set(request, pending)
+    return pending
+  }
+
+  /**
+   * The same, for the scope. Core already says a scope resolved twice is a
+   * scope that can disagree with itself; this makes that structurally true
+   * within a request rather than a rule each call site follows.
+   */
+  const scopes = new WeakMap<
+    Request,
+    Map<string, Promise<RecordScope | undefined>>
+  >()
+
   async function authorized(
     c: Context,
     collection: Collection,
     operation: CollectionOperation,
   ): Promise<boolean> {
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     return Boolean(await auth.authorize({ identity, collection, operation }))
   }
 
@@ -137,12 +169,21 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
    * total, its filter choices, and the row a write reaches all agree about
    * what is there.
    */
-  async function scopeFor(
+  function scopeFor(
     c: Context,
     collection: Collection,
   ): Promise<RecordScope | undefined> {
-    const identity = await auth.authenticate(c.req.raw)
-    return resolveScope(auth, identity, collection)
+    const perCollection =
+      scopes.get(c.req.raw) ??
+      new Map<string, Promise<RecordScope | undefined>>()
+    scopes.set(c.req.raw, perCollection)
+    const cached = perCollection.get(collection.slug)
+    if (cached) return cached
+    const pending = identityOf(c).then((identity) =>
+      resolveScope(auth, identity, collection),
+    )
+    perCollection.set(collection.slug, pending)
+    return pending
   }
 
   /**
@@ -167,7 +208,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const row = rows[0] as Record<string, unknown> | undefined
     if (!row) return { refusal: c.json({ error: 'Not found' }, 404) }
 
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     const allowed = await authorizeRecordAccess(auth, {
       identity,
       collection,
@@ -200,7 +241,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       await scopeFor(c, collection),
     ).all()) as Record<string, unknown>[]
 
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     const key = collection.primaryKey
     if (!key) return []
 
@@ -328,7 +369,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   /** Who is making this request, for the history entry. */
   async function actorOf(c: Context): Promise<string | null> {
     if (!config.history) return null
-    const identity: Identity | null = await auth.authenticate(c.req.raw)
+    const identity: Identity | null = await identityOf(c)
     return identity?.subject ?? null
   }
 
