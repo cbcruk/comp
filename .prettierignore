@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.wrangler/
+.turbo/
+django-main/
+pnpm-lock.yaml
+*.tsbuildinfo

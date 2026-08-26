@@ -29,7 +29,7 @@ class PostAdmin(admin.ModelAdmin): defineCollection({
 parity backlog below end to end — relations, inlines, many-to-many, filter and
 search lookups, the date drill-down, form layout, history, per-object
 permissions, and a generated site. Read it as the record of what each feature
-*means* here, and take new work from what the admin still cannot do rather than
+_means_ here, and take new work from what the admin still cannot do rather than
 from polishing what it can.
 
 ## Django admin parity — the backlog
@@ -82,7 +82,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   silently. The teeth are on the write side: `stripReadonly` runs inside
   `validateInsert`/`validateUpdate`, so readonly is enforced on every transport
   rather than only hidden in the UI, and MCP's write tools omit those fields.
-- **`list_filter` with real lookups** — a filter is a *spec*, not a bare
+- **`list_filter` with real lookups** — a filter is a _spec_, not a bare
   value. `resolveFilters` reads each declared column's kind off the schema
   (enum → its values, boolean → yes/no, date → named windows, FK → the records
   it points at) and whether it is nullable; a value states its operation on the
@@ -115,11 +115,11 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   the list. `dateHierarchy: "placedAt"` narrows the list to the same half-open
   `[from, to)` window the date filter already uses, so a drilled-in list is a
   shareable `?date=2026-07-16` link and the total keeps meaning what it says.
-  The strip offers only periods that *have* records, counted **within whatever
+  The strip offers only periods that _have_ records, counted **within whatever
   else is narrowing the list** — a month a filter emptied is not a link worth
   having. That count comes from the database, so it is bounded: one query with
   a summed `CASE` per bucket rather than one per bucket, plus two `order by …
-  limit 1` reads at the top level, where which *years* to offer depends on the
+limit 1` reads at the top level, where which _years_ to offer depends on the
   data rather than the calendar. Boundaries are computed in JS and compared
   with `gte`/`lt` so they pass through the column's mapper — a Drizzle
   timestamp reports the same type whether it stores seconds or milliseconds,
@@ -137,8 +137,8 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   a one-way door — you could clear it but not change it), and a column with
   empty rows offers an entry for them. Each filter carries a `limit`
   (`DEFAULT_VALUES_LIMIT`); the query asks for one row over it, so a capped
-  list *says* it is a prefix instead of silently ending. Values sort `nulls
-  last` so an empty never takes a slot a value needed, and the column itself is
+  list _says_ it is a prefix instead of silently ending. Values sort `nulls
+last` so an empty never takes a slot a value needed, and the column itself is
   selected (not cast) so its mapper decides the option's text and it
   round-trips through the same coercion an exact filter uses. A date or a
   foreign key is refused at declaration time — both already answer better, with
@@ -148,17 +148,17 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   does the adapter now. `authorize` keeps answering per collection; `scope`
   reproduces `get_queryset(request)` (which rows exist for you) and
   `authorizeRecord` reproduces `has_change_permission(request, obj)` (may you
-  do this to *this* row). Both are **optional methods**, so a transport can ask
+  do this to _this_ row). Both are **optional methods**, so a transport can ask
   `checksRecords(auth)` and skip the read a per-record decision needs — the
   same pay-for-what-you-use rule history follows.
   A `RecordScope` is column conditions in the filter vocabulary
-  (`{ status: "published" }`, `in:`, `isnull:`), and it is applied *in SQL* on
+  (`{ status: "published" }`, `in:`, `isnull:`), and it is applied _in SQL_ on
   every path: list, count, hierarchy, the distinct-value choices, get-by-id,
   and inside the UPDATE/DELETE statements themselves (`MutationContext.scope`)
   — a read that says "yes" and a write that trusts it are two moments a row can
   change between. Two rules keep it honest: an out-of-scope row is **404, not
   403** (a refusal would confirm it exists), and a scope naming a column the
-  table lacks **throws** — dropping it, which is what an unknown *filter* does,
+  table lacks **throws** — dropping it, which is what an unknown _filter_ does,
   would silently return every row. Bulk actions get their ids narrowed before
   the handler runs, because an id is not a permission. Create is deliberately
   untouched: there is no row yet to narrow to, which is why Django's
@@ -168,7 +168,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   re-checks when called by name.
 
 - **Many-to-many** — Django puts a `ManyToManyField` on the model and generates
-  the join table. Drizzle has no such field: the join table *is* the
+  the join table. Drizzle has no such field: the join table _is_ the
   declaration, so `manyToMany: [{ collection: "tags", through: orderTags }]`
   names the table and the far side, and which key is whose is read off the
   join table's own foreign keys. `through` is the one structural thing that has
@@ -176,7 +176,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
   it. Resolution splits the way relations do: `resolveManyToMany` decides the
   keys at declaration time (a join table that misses a side, or reaches one
   twice without being told which key, throws), and `bindManyToMany` binds the
-  far *collection* over the registry. The write is Django's `.set()` — the
+  far _collection_ over the registry. The write is Django's `.set()` — the
   payload is the whole membership, because a multi-select can only report what
   is selected now, and the diff happens server-side; an unknown id is refused
   rather than dropped, an omitted relationship is left alone (a form that does
@@ -290,7 +290,7 @@ truth.
 - **Structure is introspected, not re-declared.** If a fact is already in the
   Drizzle schema — a column's type, its nullability, a foreign key — read it;
   do not make the app repeat it in a config or a UI prop. A declaration names
-  *what* to expose (`filters: ["status"]`); the schema decides what that means. Facts that span
+  _what_ to expose (`filters: ["status"]`); the schema decides what that means. Facts that span
   tables (which collection owns a referenced table, what points back at this
   one) belong to the registry, so resolve them once over the collection array
   (`resolveRelations`) rather than per component.
@@ -321,7 +321,7 @@ truth.
   child writes are scoped to their parent in SQL.
 - **Optional capability, visible at runtime.** When a feature costs something
   (a per-record decision costs reading the record), express it as an optional
-  *method* rather than an extra argument, so a call site can ask whether anyone
+  _method_ rather than an extra argument, so a call site can ask whether anyone
   is listening (`checksRecords`) and skip the cost otherwise.
 - **Edge-first, scale-to-zero.** No long-lived process, local FS, or warm cache
   assumed. No Node-only APIs in `core`/`server`/`mcp` hot paths unless guarded.
@@ -419,15 +419,16 @@ pnpm install
 pnpm test          # vitest run (pure-logic unit tests across packages)
 pnpm typecheck     # pnpm -r typecheck (tsc --noEmit per package)
 pnpm lint          # eslint (flat config)
+pnpm format        # prettier --write . (check-only: pnpm format:check)
 pnpm build         # pnpm -r build (tsc emit to dist)
 pnpm dev           # run the blog-d1 example (wrangler; needs D1 + .dev.vars)
 # in examples/blog-d1: pnpm build:client  (vite build the React SPA → dist/client)
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck → lint → test → build → example
-SPA build on push/PR. When adding a package, wire it into the workspace, give it
-`build`/`typecheck` scripts and a `publishConfig`, so the root scripts and CI
-stay complete.
+SPA build on push/PR. When adding a package, wire it into the
+workspace, give it `build`/`typecheck` scripts and a `publishConfig`, so the
+root scripts and CI stay complete.
 
 ## Working agreements for Claude Code
 
