@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { describe, expect, it } from 'vitest'
+import { Either, Schema } from 'effect'
 import { bulkDeleteAction, defineAction } from './action/define-action.js'
 import {
   CapabilityError,
@@ -181,23 +182,24 @@ describe('buildCountQuery', () => {
 
 describe('deriveInsertSchema', () => {
   const schema = deriveInsertSchema(postCollection)
+  const accepts = (input: unknown, of = schema): boolean =>
+    Either.isRight(Schema.decodeUnknownEither(of)(input))
 
   it('requires not-null columns without a default', () => {
-    expect(schema.safeParse({}).success).toBe(false)
-    expect(schema.safeParse({ title: 'Hello' }).success).toBe(true)
+    expect(accepts({})).toBe(false)
+    expect(accepts({ title: 'Hello' })).toBe(true)
   })
 
   it('treats primary keys and defaulted columns as optional', () => {
-    const result = schema.safeParse({ title: 'Hello' })
-    expect(result.success).toBe(true)
+    expect(accepts({ title: 'Hello' })).toBe(true)
   })
 
   it('allows null for nullable columns', () => {
-    expect(schema.safeParse({ title: 'Hello', body: null }).success).toBe(true)
+    expect(accepts({ title: 'Hello', body: null })).toBe(true)
   })
 
   it('makes every field optional for updates', () => {
-    expect(deriveUpdateSchema(postCollection).safeParse({}).success).toBe(true)
+    expect(accepts({}, deriveUpdateSchema(postCollection))).toBe(true)
   })
 })
 

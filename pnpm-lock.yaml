@@ -193,9 +193,6 @@ importers:
       effect:
         specifier: ^3.22.1
         version: 3.22.1
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
 
   packages/mcp:
     dependencies:
@@ -2525,9 +2522,6 @@ packages:
   zod@3.22.3:
     resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
 snapshots:
 
   '@babel/code-frame@7.29.7':
@@ -4472,5 +4466,3 @@ snapshots:
       stacktracey: 2.2.0
 
   zod@3.22.3: {}
-
-  zod@3.25.76: {}

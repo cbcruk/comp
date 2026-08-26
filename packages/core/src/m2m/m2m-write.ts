@@ -1,4 +1,3 @@
-import type { ZodIssue } from 'zod'
 import {
   buildLinkDelete,
   buildLinkInsert,
@@ -6,7 +5,7 @@ import {
   buildTargetExistsQuery,
 } from '../query/build-m2m-query.js'
 import type { SqliteDb } from '../query/build-list-query.js'
-import { ValidationError } from '../errors/comp-error.js'
+import { ValidationError, type FieldIssue } from '../errors/comp-error.js'
 import type {
   ManyToManyResult,
   ManyToManySpec,
@@ -94,11 +93,10 @@ export async function writeLinks(
     const found = new Set(rows.map((row) => keyOf(row.value)))
     const missing = toLink.filter((id) => !found.has(keyOf(id)))
     if (missing.length > 0) {
-      const issues: ZodIssue[] = missing.map((id) => ({
-        code: 'custom',
+      const issues: FieldIssue[] = missing.map((id) => ({
         path: ['manyToMany', spec.name],
         message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
-      })) as ZodIssue[]
+      }))
       throw new ValidationError({ issues })
     }
   }
