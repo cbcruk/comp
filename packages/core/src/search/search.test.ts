@@ -11,6 +11,11 @@ const authors = sqliteTable('authors', {
   name: text('name').notNull(),
 })
 
+const tags = sqliteTable('tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+})
+
 const posts = sqliteTable('posts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
@@ -19,11 +24,20 @@ const posts = sqliteTable('posts', {
   authorId: integer('author_id').references(() => authors.id),
 })
 
+const postTags = sqliteTable('post_tags', {
+  postId: integer('post_id')
+    .notNull()
+    .references(() => posts.id),
+  tagId: integer('tag_id')
+    .notNull()
+    .references(() => tags.id),
+})
+
 const fields = introspectTable(posts).fields
 const db = drizzle(async () => ({ rows: [] }))
 
 const search = (configs: string[]): ReturnType<typeof resolveSearch> =>
-  resolveSearch('posts', fields, configs)
+  resolveSearch('posts', posts, fields, [], configs)
 
 function sqlFor(
   configs: string[],
@@ -71,9 +85,19 @@ describe('resolveSearch', () => {
   })
 
   it('throws rather than quietly searching one field fewer', () => {
-    expect(() => search(['nope'])).toThrow(/is not a column/)
-    expect(() => search(['nope__name'])).toThrow(/is not a column/)
+    expect(() => search(['nope'])).toThrow(
+      /neither a column nor a relationship/,
+    )
+    expect(() => search(['nope__name'])).toThrow(
+      /neither a column nor a relationship/,
+    )
     expect(() => search(['title__name'])).toThrow(/is not a foreign key/)
+  })
+
+  // Landing on a column the far table lacks used to compile to nothing, which
+  // looks exactly like a search that matched no records.
+  it('throws when a traversal lands on a column that is not there', () => {
+    expect(() => search(['authorId__nope'])).toThrow(/is not a column there/)
   })
 
   it('is resolved onto the collection', () => {
@@ -84,6 +108,72 @@ describe('resolveSearch', () => {
     })
     expect(collection.search).toHaveLength(2)
     expect(collection.search[1]?.through?.table).toBe('authors')
+  })
+})
+
+describe('searching across a join table', () => {
+  const linked = (configs: string[]) =>
+    defineCollection({
+      model: posts,
+      listDisplay: ['title'],
+      manyToMany: [{ collection: 'tags', through: postTags }],
+      search: configs,
+    })
+
+  it('resolves a relationship name the way it resolves a column', () => {
+    expect(linked(['tags__name']).search).toEqual([
+      {
+        field: 'tags',
+        lookup: 'contains',
+        link: { relationship: 'tags', field: 'name' },
+      },
+    ])
+  })
+
+  it('takes a lookup prefix like any other field', () => {
+    expect(linked(['^tags__name']).search[0]?.lookup).toBe('startswith')
+  })
+
+  it('refuses a field the far collection does not have', () => {
+    expect(() => linked(['tags__nope'])).toThrow(/is not a column there/)
+  })
+
+  // A relationship has no column on this table, so searching it bare cannot
+  // mean anything; say which field instead of matching nothing.
+  it('refuses a relationship named without a field', () => {
+    expect(() => linked(['tags'])).toThrow(/name a field on it/)
+  })
+
+  it('matches through two subqueries, never a join', () => {
+    const { sql, params } = buildListQuery(db, linked(['tags__name']), {
+      search: 'ceramic',
+    }).toSQL()
+    expect(sql).not.toMatch(/\bjoin\b/i)
+    expect(sql).not.toMatch(/distinct/i)
+    // posts.id in (select post_id from post_tags where tag_id in (select id
+    // from tags where name like ?))
+    expect(sql).toContain('"post_tags"')
+    expect(sql).toContain('"tags"')
+    // The pagination limit rides along after the search term.
+    expect(params[0]).toBe('%ceramic%')
+  })
+
+  // A join would multiply a record by its links and the total would stop
+  // matching the rows; the count has to narrow exactly the way the list does.
+  it('counts the same rows it lists', () => {
+    const collection = linked(['tags__name'])
+    const list = buildListQuery(db, collection, { search: 'x' }).toSQL()
+    const count = buildCountQuery(db, collection, { search: 'x' }).toSQL()
+    expect(count.sql).not.toMatch(/\bjoin\b|distinct/i)
+    expect(count.params).toEqual(['%x%'])
+    expect(list.params.slice(0, 1)).toEqual(count.params)
+  })
+
+  it('still ORs a link with a plain column, so a term can match either', () => {
+    const { sql } = buildListQuery(db, linked(['title', 'tags__name']), {
+      search: 'x',
+    }).toSQL()
+    expect(sql).toMatch(/or/i)
   })
 })
 

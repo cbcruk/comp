@@ -53,3 +53,25 @@ describe('searchPlaceholder', () => {
     expect(searchPlaceholder(summary([]))).toBe('Search Posts')
   })
 })
+
+describe('a search that crosses a join table', () => {
+  it('reads like any other traversal', () => {
+    expect(
+      describeSearchField({
+        field: 'tags',
+        lookup: 'contains',
+        link: { relationship: 'tags', field: 'name' },
+      }),
+    ).toBe('tags → name')
+  })
+
+  it('keeps its lookup', () => {
+    expect(
+      describeSearchField({
+        field: 'tags',
+        lookup: 'startswith',
+        link: { relationship: 'tags', field: 'name' },
+      }),
+    ).toBe('tags → name (starts with)')
+  })
+})

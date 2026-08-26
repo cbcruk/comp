@@ -106,11 +106,14 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 - **`search_fields` with lookups** — the box splits into terms, and every term
   must match at least one field, so a second word narrows instead of finding
   nothing. A prefix picks the lookup (`^` start, `=` whole value, bare
-  anywhere-inside) and `field__other` follows the foreign key in `field`. A
-  traversal compiles to a subquery, not a join, so the row set stays
-  one-per-record: no `DISTINCT`, and the count matches the rows. A name that is
-  not a column, or a traversal through something that is not a key, throws at
-  declaration time.
+  anywhere-inside) and `field__other` follows the foreign key in `field`, or
+  the join table when `field` names a declared many-to-many. A traversal
+  compiles to a subquery, not a join, so the row set stays one-per-record: no
+  `DISTINCT`, and the count matches the rows. A name that is neither a column
+  nor a relationship, a traversal through something that is not a key, and a
+  traversal onto a column the far table does not have all throw at declaration
+  time — the last one used to compile to nothing, which looks exactly like a
+  search that matched no records.
 - **History** — who changed what, when, and which fields. The hook is in the
   mutation layer (`createRecord`/`updateRecord`/`deleteRecord`), not in each
   transport: an HTTP write and an MCP write are the same change, and a history
@@ -197,15 +200,19 @@ last` so an empty never takes a slot a value needed, and the column itself is
   record by its links, and then the total stops matching the rows. It is
   declared on the relationship (`filter: true`) rather than in `filters`,
   because `filters` is checked against the columns at authoring time and a
-  relationship has none. Still open: search traversal through a join table
-  (`tags__name`), which follows a column today.
+  relationship has none. **Search crosses it too**: `tags__name` in
+  `search_fields` names the relationship where a traversal usually names a
+  foreign key, and it needs no registry for the same reason the write does not
+  — nothing points at a join table, but the join table points at both sides, so
+  the far table is reachable from its own keys. It compiles to two nested
+  subqueries, never a join: a record carrying two matching tags must come back
+  once, and the total must still agree with the rows.
 
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what
-  the admin still cannot do (a two-pane `filter_horizontal` widget, search
-  through a join table, `list_display` over a relationship) rather than
-  polishing what is built.
+  the admin still cannot do (a two-pane `filter_horizontal` widget,
+  `list_display` over a relationship) rather than polishing what is built.
 
 When you implement one, say in the commit which Django _behavior_ you
 reproduced and confirm it was re-derived, not copied.
