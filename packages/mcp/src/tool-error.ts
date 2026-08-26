@@ -1,5 +1,5 @@
 import { isCompError, type CompError } from '@comp/core'
-import { Match } from 'effect'
+import { Cause, Effect, Match } from 'effect'
 
 export interface ToolResult {
   content: { type: 'text'; text: string }[]
@@ -45,11 +45,18 @@ export function compErrorResult(error: CompError): ToolResult {
 }
 
 /**
- * Map anything a tool call threw. A defect stays a bare message: it is a bug
- * here, not a refusal the caller can do anything about.
+ * Map anything a tool call threw. A defect stays a bare message to the caller:
+ * it is a bug here, not a refusal they can do anything about. It is logged for
+ * the same reason the HTTP router logs one — the client's copy of the message
+ * is not where anyone debugs it.
  */
-export function toolError(error: unknown): ToolResult {
+export function toolError(error: unknown, tool?: string): ToolResult {
   if (isCompError(error)) return compErrorResult(error)
+  Effect.runSync(
+    Effect.logError(Cause.die(error)).pipe(
+      Effect.annotateLogs({ source: 'comp/mcp', tool: tool ?? 'unknown' }),
+    ),
+  )
   return {
     content: [
       {

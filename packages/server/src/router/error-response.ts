@@ -1,5 +1,5 @@
 import { isCompError, type CompError } from '@comp/core'
-import { Match } from 'effect'
+import { Cause, Effect, Match } from 'effect'
 import type { Context } from 'hono'
 
 /**
@@ -34,12 +34,22 @@ export function compErrorResponse(c: Context, error: CompError): Response {
  * `try`, so a failure from any of the others reached Hono's default handler as
  * a bodyless 500.
  *
- * Anything that is not a deliberate failure stays opaque on purpose. A
- * declaration bug that escaped to a request is not something the caller can
- * act on, and its message can name internals.
+ * Anything that is not a deliberate failure stays opaque to the caller on
+ * purpose — a declaration bug that escaped to a request is not something they
+ * can act on, and its message can name internals. It is not opaque to the
+ * operator: it is logged with the request that produced it, because "an error
+ * happened somewhere" is not a thing anyone can debug.
  */
 export function handleRouterError(error: unknown, c: Context): Response {
   if (isCompError(error)) return compErrorResponse(c, error)
-  console.error('comp: unhandled error', error)
+  Effect.runSync(
+    Effect.logError(Cause.die(error)).pipe(
+      Effect.annotateLogs({
+        source: 'comp/server',
+        method: c.req.method,
+        path: c.req.path,
+      }),
+    ),
+  )
   return c.json({ error: 'Internal error' }, 500)
 }

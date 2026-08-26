@@ -525,7 +525,7 @@ export async function handleRpc(
       try {
         return ok(id, await runTool(binding, params.arguments ?? {}, ctx))
       } catch (error) {
-        return ok(id, toolError(error))
+        return ok(id, toolError(error, params.name))
       }
     }
 
