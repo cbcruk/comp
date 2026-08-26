@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { RecordScope } from '../auth/auth-adapter.types.js'
 import type { Collection } from '../collection/define-collection.types.js'
 import { buildDistinctValuesQuery } from '../query/build-choices-query.js'
@@ -37,46 +38,52 @@ function optionFor(value: unknown): FilterOption | null {
  * collection that declares none pays nothing: this returns without touching
  * the database.
  */
-export async function collectFilterChoices(
+export function collectFilterChoices(
   db: SqliteDb,
   collection: Collection,
   scope?: RecordScope,
-): Promise<FilterChoices[]> {
+): Effect.Effect<FilterChoices[]> {
   const filters = collection.filters.filter(
     (filter) => filter.kind === 'values',
   )
-  if (filters.length === 0) return []
+  if (filters.length === 0) return Effect.succeed([])
 
-  return Promise.all(
-    filters.map(async (filter): Promise<FilterChoices> => {
-      const limit = filter.limit ?? DEFAULT_VALUES_LIMIT
-      const rows = (await buildDistinctValuesQuery(
-        db,
-        collection,
-        filter.field,
-        limit,
-        scope,
-      ).all()) as { value: unknown }[]
+  // One query per declared filter, and they do not depend on each other.
+  return Effect.forEach(
+    filters,
+    (filter) =>
+      Effect.gen(function* () {
+        const limit = filter.limit ?? DEFAULT_VALUES_LIMIT
+        const rows = (yield* Effect.promise(() =>
+          buildDistinctValuesQuery(
+            db,
+            collection,
+            filter.field,
+            limit,
+            scope,
+          ).all(),
+        )) as { value: unknown }[]
 
-      const present = rows.filter((row) => row.value !== null)
-      const truncated = present.length > limit
-      const options = present
-        .slice(0, limit)
-        .map((row) => optionFor(row.value))
-        .filter((option): option is FilterOption => option !== null)
+        const present = rows.filter((row) => row.value !== null)
+        const truncated = present.length > limit
+        const options = present
+          .slice(0, limit)
+          .map((row) => optionFor(row.value))
+          .filter((option): option is FilterOption => option !== null)
 
-      // Nulls sort last, so their absence is only proof of anything when the
-      // whole column fit in the answer; past that, fall back to what the
-      // schema says the column allows.
-      const hasNull = truncated
-        ? filter.nullable
-        : rows.some((row) => row.value === null)
+        // Nulls sort last, so their absence is only proof of anything when the
+        // whole column fit in the answer; past that, fall back to what the
+        // schema says the column allows.
+        const hasNull = truncated
+          ? filter.nullable
+          : rows.some((row) => row.value === null)
 
-      return {
-        field: filter.field,
-        options: hasNull ? [...options, EMPTY_OPTION] : options,
-        truncated,
-      }
-    }),
+        return {
+          field: filter.field,
+          options: hasNull ? [...options, EMPTY_OPTION] : options,
+          truncated,
+        } satisfies FilterChoices
+      }),
+    { concurrency: 'unbounded' },
   )
 }

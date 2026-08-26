@@ -4,6 +4,7 @@
   "description": "Expose Comp collections and actions over the Model Context Protocol",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -35,10 +36,13 @@
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.36.0",
+    "effect": "^3.22.1",
     "hono": "^4.0.0"
   },
   "devDependencies": {
+    "@comp/server": "workspace:*",
     "drizzle-orm": "^0.44.2",
+    "effect": "^3.22.1",
     "hono": "^4.6.14"
   }
 }

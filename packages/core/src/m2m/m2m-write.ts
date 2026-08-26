@@ -1,4 +1,4 @@
-import type { ZodIssue } from 'zod'
+import { Effect } from 'effect'
 import {
   buildLinkDelete,
   buildLinkInsert,
@@ -6,7 +6,7 @@ import {
   buildTargetExistsQuery,
 } from '../query/build-m2m-query.js'
 import type { SqliteDb } from '../query/build-list-query.js'
-import { ValidationError } from '../validation/validation-error.js'
+import { ValidationError, type FieldIssue } from '../errors/comp-error.js'
 import type {
   ManyToManyResult,
   ManyToManySpec,
@@ -65,54 +65,52 @@ export async function readManyToMany(
  * there is not a link, and silently discarding half a selection is the kind of
  * save that looks like it worked.
  */
-export async function writeLinks(
+export function writeLinks(
   db: SqliteDb,
   spec: ManyToManySpec,
   parentId: unknown,
   desired: readonly unknown[],
-): Promise<ManyToManyResult> {
-  const current = await readLinks(db, spec, parentId)
-  const currentKeys = new Set(current.map(keyOf))
+): Effect.Effect<ManyToManyResult, ValidationError> {
+  return Effect.gen(function* () {
+    const current = yield* Effect.promise(() => readLinks(db, spec, parentId))
+    const currentKeys = new Set(current.map(keyOf))
 
-  // Deduplicated: selecting the same record twice is still one link, and the
-  // join table would refuse the second row anyway.
-  const wanted = new Map<string, unknown>()
-  for (const id of desired) wanted.set(keyOf(id), id)
+    // Deduplicated: selecting the same record twice is still one link, and the
+    // join table would refuse the second row anyway.
+    const wanted = new Map<string, unknown>()
+    for (const id of desired) wanted.set(keyOf(id), id)
 
-  const toLink = [...wanted.entries()]
-    .filter(([key]) => !currentKeys.has(key))
-    .map(([, id]) => id)
-  const toUnlink = current.filter((id) => !wanted.has(keyOf(id)))
+    const toLink = [...wanted.entries()]
+      .filter(([key]) => !currentKeys.has(key))
+      .map(([, id]) => id)
+    const toUnlink = current.filter((id) => !wanted.has(keyOf(id)))
 
-  if (toLink.length > 0) {
-    const rows = (await buildTargetExistsQuery(
-      db,
-      spec.target,
-      spec.targetKey,
-      toLink,
-    ).all()) as { value: unknown }[]
-    const found = new Set(rows.map((row) => keyOf(row.value)))
-    const missing = toLink.filter((id) => !found.has(keyOf(id)))
-    if (missing.length > 0) {
-      const issues: ZodIssue[] = missing.map((id) => ({
-        code: 'custom',
-        path: ['manyToMany', spec.name],
-        message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
-      })) as ZodIssue[]
-      throw new ValidationError(issues)
+    if (toLink.length > 0) {
+      const rows = (yield* Effect.promise(() =>
+        buildTargetExistsQuery(db, spec.target, spec.targetKey, toLink).all(),
+      )) as { value: unknown }[]
+      const found = new Set(rows.map((row) => keyOf(row.value)))
+      const missing = toLink.filter((id) => !found.has(keyOf(id)))
+      if (missing.length > 0) {
+        const issues: FieldIssue[] = missing.map((id) => ({
+          path: ['manyToMany', spec.name],
+          message: `No ${spec.target.label} with ${spec.targetKey} ${String(id)}`,
+        }))
+        return yield* new ValidationError({ issues })
+      }
     }
-  }
 
-  // Unlink first: a set that swaps one member for another stays within any
-  // uniqueness the join table declares while it is being applied.
-  if (toUnlink.length > 0) {
-    await buildLinkDelete(db, spec, parentId, toUnlink)
-  }
-  if (toLink.length > 0) {
-    await buildLinkInsert(db, spec, parentId, toLink)
-  }
+    // Unlink first: a set that swaps one member for another stays within any
+    // uniqueness the join table declares while it is being applied.
+    if (toUnlink.length > 0) {
+      yield* Effect.promise(() => buildLinkDelete(db, spec, parentId, toUnlink))
+    }
+    if (toLink.length > 0) {
+      yield* Effect.promise(() => buildLinkInsert(db, spec, parentId, toLink))
+    }
 
-  return { name: spec.name, linked: toLink, unlinked: toUnlink }
+    return { name: spec.name, linked: toLink, unlinked: toUnlink }
+  })
 }
 
 /**
@@ -121,21 +119,23 @@ export async function writeLinks(
  * Only the relationships the payload names are touched: a form that does not
  * render a relationship must not be able to clear it by omission.
  */
-export async function writeManyToMany(
+export function writeManyToMany(
   db: SqliteDb,
   specs: ManyToManySpec[],
   row: Record<string, unknown>,
   payload: ManyToManyWrite,
-): Promise<ManyToManyResult[]> {
+): Effect.Effect<ManyToManyResult[], ValidationError> {
   const byName = new Map(specs.map((spec) => [spec.name, spec]))
-  const results: ManyToManyResult[] = []
 
-  for (const [name, ids] of Object.entries(payload)) {
-    const spec = byName.get(name)
-    if (!spec || !Array.isArray(ids)) continue
-    results.push(await writeLinks(db, spec, row[spec.parentKey], ids))
-  }
-  return results
+  return Effect.gen(function* () {
+    const results: ManyToManyResult[] = []
+    for (const [name, ids] of Object.entries(payload)) {
+      const spec = byName.get(name)
+      if (!spec || !Array.isArray(ids)) continue
+      results.push(yield* writeLinks(db, spec, row[spec.parentKey], ids))
+    }
+    return results
+  })
 }
 
 /** Which relationships a payload asks to change, for permission checks. */

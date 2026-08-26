@@ -4,6 +4,7 @@
   "description": "Scaffolding, codegen, and deploy helpers for Comp",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "bin": {
     "comp": "./src/bin.ts"
   },

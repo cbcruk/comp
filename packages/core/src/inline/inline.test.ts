@@ -7,12 +7,8 @@ import {
   buildInlineListQuery,
   buildInlineUpdateQuery,
 } from '../query/build-inline-query.js'
-import { ValidationError } from '../validation/validation-error.js'
-import {
-  InlineError,
-  inlineOperations,
-  prepareInlineWrite,
-} from './inline-write.js'
+import { NotGranted, ValidationError } from '../errors/comp-error.js'
+import { inlineOperations, prepareInlineWrite } from './inline-write.js'
 import { inlineSummary, resolveInlines } from './resolve-inlines.js'
 
 const orders = sqliteTable('orders', {
@@ -212,7 +208,7 @@ describe('prepareInlineWrite', () => {
     ]).get('orders')?.[0]
     expect(() =>
       prepareInlineWrite(readOnly!, { create: [{ product: 'Cup' }] }, 7),
-    ).toThrow(InlineError)
+    ).toThrow(NotGranted)
   })
 
   it('refuses deletes when the inline declares canDelete: false', () => {

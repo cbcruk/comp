@@ -12,6 +12,8 @@ export type {
 
 export { resolveLabelField } from './collection/label-field.js'
 
+export { runEffect } from './effect/run-effect.js'
+
 export type { Table } from 'drizzle-orm'
 export { introspectTable } from './introspection/introspect-table.js'
 export type {
@@ -138,7 +140,6 @@ export {
 
 export { inlineSummary, resolveInlines } from './inline/resolve-inlines.js'
 export {
-  InlineError,
   inlineOperations,
   prepareInlineWrite,
   readInlines,
@@ -246,7 +247,6 @@ export type {
   ActionResult,
 } from './action/define-action.types.js'
 export {
-  CapabilityError,
   createCapabilityDb,
   inProcessExecutor,
   runAction,
@@ -266,4 +266,13 @@ export {
   validateInsert,
   validateUpdate,
 } from './validation/derive-schema.js'
-export { ValidationError } from './validation/validation-error.js'
+export {
+  CapabilityError,
+  Forbidden,
+  isCompError,
+  NotFound,
+  NotGranted,
+  unknownInline,
+  ValidationError,
+} from './errors/comp-error.js'
+export type { CompError, FieldIssue } from './errors/comp-error.js'

@@ -39,7 +39,7 @@ This is the feature list Comp exists to reproduce. Pick from here by default.
 **Done**
 
 - `list_display`, ordering, pagination.
-- Change/add form derived from the schema, with Zod validation surfaced
+- Change/add form derived from the schema, with validation surfaced
   field-by-field.
 - `list_editable`-style inline cell editing in the list.
 - Admin `actions` (bulk + custom), declared with a capability manifest.
@@ -224,7 +224,8 @@ pnpm monorepo. Brand is **Comp**; everything publishes under `@comp`.
 
 ```
 packages/
-  core/    → @comp/core    introspection (columns + relations), defineCollection,
+  core/    → @comp/core    the CompError vocabulary + runEffect boundary,
+                           introspection (columns + relations), defineCollection,
                            the relation graph, filters and search (kind + lookup
                            resolution), history (the write-side hook + store),
                            the form layout (+ readonly enforcement, prepopulation),
@@ -279,8 +280,23 @@ truth.
   other dialects. Other dialects get their own builder behind the same
   signature when needed.
 - **Admin UI:** React 19 + Vite. API via Hono.
-- **Validation:** Zod, derived from the Drizzle schema (`deriveInsertSchema` /
-  `deriveUpdateSchema`).
+- **Validation:** Effect `Schema`, derived from the Drizzle schema
+  (`deriveInsertSchema` / `deriveUpdateSchema`). What crosses the wire is
+  core's own `FieldIssue` (`{path, message}`), never the library's issue type
+  — that is what lets the validator underneath move without the UI noticing.
+- **Effect:** used **server-side only** — core, server, mcp, auth. It is a
+  peerDependency there, not a dependency: Effect identifies `Context`/`Layer`
+  tags by module instance, so two copies disagree silently, and a peer makes
+  the app pin one. `@comp/admin` does not use it and the browser bundle must
+  not contain it; `pnpm check:bundle` enforces that, since only tree-shaking
+  keeps a barrel re-export from dragging it in.
+  Returning `Effect` today: the mutation layer, the three collectors
+  (`collectFilterChoices`, `collectDateHierarchy`, `collectDeleteImpact`) and
+  the nested writes (`writeInlines`, `writeManyToMany`). Everything else is
+  still Promise- or plain-valued, deliberately — the query builders are pure
+  SQL construction and gain nothing, and conversions are worth doing where a
+  function refuses for a reason a caller can act on, or where independent work
+  can then run concurrently.
 
 ## Core design principles (these held; keep them)
 
@@ -375,10 +391,32 @@ truth.
   (`readonlyFields` today) has to be applied on the write path, not only left
   out of the UI — a request that names the field anyway must not win. Put the
   rule in core so every transport inherits it.
-- **Errors:** plain throws + typed error objects (`ValidationError` carrying Zod
-  issues, `CapabilityError`, `CompClientError`). **No `Result`/`neverthrow`
-  channel** until concrete pain accumulates. Surface `ValidationError.issues`
-  field-by-field in the UI; don't swallow them.
+- **Errors: one vocabulary, matched exhaustively.** Every way a request can
+  fail on purpose is a member of `CompError` in `@comp/core/src/errors`, built
+  on `Data.TaggedError` — `ValidationError`, `NotFound`, `Forbidden`,
+  `NotGranted`, `CapabilityError`. Each transport maps that union with
+  `Match.exhaustive`, so adding a member stops compiling until every wire says
+  what it looks like. This replaced the earlier "plain throws, no Result
+  channel" rule, which held until it didn't: the throws grew a second, untyped
+  channel of hand-written `c.json({error}, 404)` returns beside them, the two
+  disagreed, and MCP reported as an opaque string what HTTP called a 405.
+  - **A refusal is typed; a defect is not.** The union holds only what the
+    caller can act on. A driver failure stays a defect — its message can name
+    the schema, so it is logged and answered opaquely, never put in a body.
+  - **A declaration error is not in the union either.** Config typos throw at
+    module load from `defineCollection`/`resolve*`, where they belong; routing
+    them through a failure channel would make every caller handle something
+    that cannot happen at runtime.
+  - Surface `ValidationError.issues` field-by-field in the UI; don't swallow
+    them.
+- **`await` on an Effect compiles and does nothing.** An Effect is not a
+  thenable, so `await writeInlines(...)` type-checks and silently never runs —
+  the compiler only notices if the result is used. Run Effects at the transport
+  boundary with `runEffect`, which rejects with the original error object so
+  the `instanceof` checks in the error mappers keep matching.
+  `@typescript-eslint/await-thenable` is enabled over package sources for
+  exactly this; when converting a function, enumerate its call sites rather
+  than trusting the build.
 - **TypeScript `strict`** with `noUncheckedIndexedAccess`. No `any` in public API
   surface; flow the Drizzle table type through `CollectionConfig` so field names
   are checked at authoring time.
@@ -420,6 +458,7 @@ pnpm test          # vitest run (pure-logic unit tests across packages)
 pnpm typecheck     # pnpm -r typecheck (tsc --noEmit per package)
 pnpm lint          # eslint (flat config)
 pnpm format        # prettier --write . (check-only: pnpm format:check)
+pnpm check:bundle  # fail if Effect reached a browser bundle (build:client first)
 pnpm build         # pnpm -r build (tsc emit to dist)
 pnpm dev           # run the blog-d1 example (wrangler; needs D1 + .dev.vars)
 # in examples/blog-d1: pnpm build:client  (vite build the React SPA → dist/client)

@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { RecordScope } from '../auth/auth-adapter.types.js'
 import type { Collection } from '../collection/define-collection.types.js'
 import { changedFields, historyLabel } from '../history/changed-fields.js'
@@ -38,23 +39,26 @@ export interface MutationContext {
 
 type Row = Record<string, unknown>
 
-async function log(
+function log(
   context: MutationContext,
   action: HistoryAction,
   recordId: string,
   label: string,
   fields: string[],
-): Promise<void> {
-  if (!context.history) return
-  await context.history.record({
-    collection: context.collection.slug,
-    recordId,
-    action,
-    label,
-    fields,
-    actor: context.actor ?? null,
-    at: context.now ?? new Date(),
-  })
+): Effect.Effect<void> {
+  const store = context.history
+  if (!store) return Effect.void
+  return Effect.promise(() =>
+    store.record({
+      collection: context.collection.slug,
+      recordId,
+      action,
+      label,
+      fields,
+      actor: context.actor ?? null,
+      at: context.now ?? new Date(),
+    }),
+  )
 }
 
 function idOf(collection: Collection, row: Row | undefined): string {
@@ -71,24 +75,33 @@ function idOf(collection: Collection, row: Row | undefined): string {
  * same change, and a history that only knows about one of them is worse than
  * none. Putting the hook in the mutation layer is what makes "who changed this"
  * true rather than mostly true.
+ *
+ * The error channel is empty on purpose. A driver failure is a defect, not a
+ * refusal a caller can act on, and its message can name the schema — so it
+ * stays something the transport reports opaquely rather than something every
+ * call site is asked to handle.
  */
-export async function createRecord(
+export function createRecord(
   context: MutationContext,
   values: Row,
-): Promise<Row | undefined> {
-  const rows = await buildInsertQuery(context.db, context.collection, values)
-  const row = rows[0] as Row | undefined
-  if (!row) return undefined
+): Effect.Effect<Row | undefined> {
+  return Effect.gen(function* () {
+    const rows = yield* Effect.promise(() =>
+      buildInsertQuery(context.db, context.collection, values),
+    )
+    const row = rows[0] as Row | undefined
+    if (!row) return undefined
 
-  const recordId = idOf(context.collection, row)
-  await log(
-    context,
-    'create',
-    recordId,
-    historyLabel(context.collection, row, recordId),
-    [],
-  )
-  return row
+    const recordId = idOf(context.collection, row)
+    yield* log(
+      context,
+      'create',
+      recordId,
+      historyLabel(context.collection, row, recordId),
+      [],
+    )
+    return row
+  })
 }
 
 /**
@@ -98,66 +111,69 @@ export async function createRecord(
  * the write to know what changed. That read is skipped entirely when no store
  * is configured, so the cost lands only where the feature is used.
  */
-export async function updateRecord(
+export function updateRecord(
   context: MutationContext,
   id: unknown,
   values: Row,
-): Promise<Row | undefined> {
-  const before =
-    context.before ??
-    (context.history
-      ? ((
-          await buildGetByIdQuery(
-            context.db,
-            context.collection,
-            id,
-            context.scope,
-          ).all()
-        )[0] as Row | undefined)
-      : undefined)
+): Effect.Effect<Row | undefined> {
+  return Effect.gen(function* () {
+    const before =
+      context.before ??
+      (context.history
+        ? ((yield* Effect.promise(() =>
+            buildGetByIdQuery(
+              context.db,
+              context.collection,
+              id,
+              context.scope,
+            ).all(),
+          ))[0] as Row | undefined)
+        : undefined)
 
-  const rows = await buildUpdateQuery(
-    context.db,
-    context.collection,
-    id,
-    values,
-    context.scope,
-  )
-  const row = rows[0] as Row | undefined
-  if (!row) return undefined
+    const rows = yield* Effect.promise(() =>
+      buildUpdateQuery(
+        context.db,
+        context.collection,
+        id,
+        values,
+        context.scope,
+      ),
+    )
+    const row = rows[0] as Row | undefined
+    if (!row) return undefined
 
-  const recordId = idOf(context.collection, row)
-  await log(
-    context,
-    'update',
-    recordId,
-    historyLabel(context.collection, row, recordId),
-    before ? changedFields(before, row) : [],
-  )
-  return row
+    const recordId = idOf(context.collection, row)
+    yield* log(
+      context,
+      'update',
+      recordId,
+      historyLabel(context.collection, row, recordId),
+      before ? changedFields(before, row) : [],
+    )
+    return row
+  })
 }
 
 /** Delete a record, keeping an entry that says what it was. */
-export async function deleteRecord(
+export function deleteRecord(
   context: MutationContext,
   id: unknown,
-): Promise<Row | undefined> {
-  const rows = await buildDeleteQuery(
-    context.db,
-    context.collection,
-    id,
-    context.scope,
-  )
-  const row = rows[0] as Row | undefined
-  if (!row) return undefined
+): Effect.Effect<Row | undefined> {
+  return Effect.gen(function* () {
+    const rows = yield* Effect.promise(() =>
+      buildDeleteQuery(context.db, context.collection, id, context.scope),
+    )
+    const row = rows[0] as Row | undefined
+    if (!row) return undefined
 
-  const recordId = idOf(context.collection, row)
-  await log(
-    context,
-    'delete',
-    recordId,
-    historyLabel(context.collection, row, recordId),
-    [],
-  )
-  return row
+    const recordId = idOf(context.collection, row)
+    yield* log(
+      context,
+      'delete',
+      recordId,
+      historyLabel(context.collection, row, recordId),
+      [],
+    )
+    return row
+  })
 }

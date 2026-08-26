@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { ReferentialAction } from '../introspection/introspect-table.types.js'
 import type { SqliteDb } from '../query/build-list-query.js'
@@ -92,43 +93,54 @@ export function resolveDeleteRelations(
  * relation graph says who points here, and the key itself says what happens to
  * them — so the confirmation is derived rather than written per collection.
  */
-export async function collectDeleteImpact(
+export function collectDeleteImpact(
   db: SqliteDb,
   collection: Collection,
   record: Record<string, unknown>,
   relations: DeleteRelation[],
-): Promise<DeleteImpact> {
-  const related: DeleteImpactEntry[] = []
-  let cascades = 0
-  let blocked = false
+): Effect.Effect<DeleteImpact> {
+  return Effect.gen(function* () {
+    const related: DeleteImpactEntry[] = []
+    let cascades = 0
+    let blocked = false
 
-  for (const relation of relations) {
-    const rows = await buildReferenceCountQuery(
-      db,
-      relation.collection,
-      relation.field,
-      record[relation.targetField],
-    ).all()
-    const count = rows[0]?.count ?? 0
-    if (count === 0) continue
+    // One count per inbound relation, none of them ordered against another.
+    const counts = yield* Effect.forEach(
+      relations,
+      (relation) =>
+        Effect.promise(() =>
+          buildReferenceCountQuery(
+            db,
+            relation.collection,
+            relation.field,
+            record[relation.targetField],
+          ).all(),
+        ),
+      { concurrency: 'unbounded' },
+    )
 
-    const effect = effectOf(relation.onDelete)
-    if (effect === 'cascade') cascades += count
-    if (effect === 'block') blocked = true
+    relations.forEach((relation, index) => {
+      const count = counts[index]?.[0]?.count ?? 0
+      if (count === 0) return
 
-    related.push({
-      collection: relation.collection.slug,
-      field: relation.field,
-      count,
-      effect,
+      const effect = effectOf(relation.onDelete)
+      if (effect === 'cascade') cascades += count
+      if (effect === 'block') blocked = true
+
+      related.push({
+        collection: relation.collection.slug,
+        field: relation.field,
+        count,
+        effect,
+      })
     })
-  }
 
-  return {
-    collection: collection.slug,
-    id: collection.primaryKey ? record[collection.primaryKey] : null,
-    related,
-    cascades,
-    blocked,
-  }
+    return {
+      collection: collection.slug,
+      id: collection.primaryKey ? record[collection.primaryKey] : null,
+      related,
+      cascades,
+      blocked,
+    }
+  })
 }

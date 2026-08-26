@@ -14,20 +14,22 @@ import {
   updateRecord,
   collectDeleteImpact,
   filterSummaries,
-  InlineError,
+  Forbidden,
   inlineOperations,
   inlineSummary,
   manyToManySummary,
   readInlines,
   readManyToMany,
   resolveDeleteRelations,
+  NotGranted,
   resolveInlines,
   resolveRelations,
   resolveScope,
+  runEffect,
   runAction,
+  unknownInline,
   validateInsert,
   validateUpdate,
-  ValidationError,
   writeInlines,
   writeManyToMany,
   type ActionDefinition,
@@ -44,7 +46,9 @@ import {
   type RecordScope,
   type SqliteDb,
 } from '@comp/core'
+import { Effect } from 'effect'
 import { Hono, type Context } from 'hono'
+import { handleRouterError } from './error-response.js'
 import { splitInlineBody } from './inline-body.js'
 import { parseListParams } from './list-params.js'
 
@@ -78,22 +82,6 @@ function withinCapabilities(
   return action.operations.every((op) => allows(collection, op))
 }
 
-/**
- * Map a write failure to a response. Validation issues carry the row and field
- * they came from (`inlines.<slug>.<index>.<field>`), so they reach the form
- * unchanged; an inline asking for an ungranted operation is a 405 like any
- * other disallowed write.
- */
-function inlineAwareError(c: Context, error: unknown): Response {
-  if (error instanceof ValidationError) {
-    return c.json({ error: error.message, issues: error.issues }, 400)
-  }
-  if (error instanceof InlineError) {
-    return c.json({ error: error.message }, 405)
-  }
-  throw error
-}
-
 async function parseJsonBody(c: Context): Promise<unknown> {
   try {
     return await c.req.json()
@@ -110,6 +98,10 @@ async function parseJsonBody(c: Context): Promise<unknown> {
  */
 export function createAdminRouter(config: AdminRouterConfig): Hono {
   const app = new Hono()
+  // Registered once, so a route can throw a core failure instead of each one
+  // remembering to catch. A rule every route has to remember is a rule that
+  // holds until somebody adds a route.
+  app.onError(handleRouterError)
   const auth = config.auth ?? allowAll
   const bySlug = new Map(config.collections.map((c) => [c.slug, c]))
   // The relation graph is a property of the whole registry, so it is resolved
@@ -130,12 +122,44 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     actionsBySlug.set(action.collection, list)
   }
 
+  /**
+   * Who is calling, resolved at most once for a request.
+   *
+   * `authenticate` is a pure function of the request, so asking again can only
+   * produce the same answer — at the cost of verifying the session signature
+   * again, which for the passkey adapter is a `crypto.subtle.verify` each
+   * time. Five helpers here ask, and those helpers are called throughout a
+   * request. Keyed on the request object and held weakly, so an entry cannot
+   * outlive the request it belongs to; the promise itself is cached, so
+   * concurrent askers share one in-flight authentication rather than starting
+   * a second.
+   */
+  const identities = new WeakMap<Request, Promise<Identity | null>>()
+  function identityOf(c: Context): Promise<Identity | null> {
+    const request = c.req.raw
+    const cached = identities.get(request)
+    if (cached) return cached
+    const pending = Promise.resolve(auth.authenticate(request))
+    identities.set(request, pending)
+    return pending
+  }
+
+  /**
+   * The same, for the scope. Core already says a scope resolved twice is a
+   * scope that can disagree with itself; this makes that structurally true
+   * within a request rather than a rule each call site follows.
+   */
+  const scopes = new WeakMap<
+    Request,
+    Map<string, Promise<RecordScope | undefined>>
+  >()
+
   async function authorized(
     c: Context,
     collection: Collection,
     operation: CollectionOperation,
   ): Promise<boolean> {
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     return Boolean(await auth.authorize({ identity, collection, operation }))
   }
 
@@ -145,12 +169,21 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
    * total, its filter choices, and the row a write reaches all agree about
    * what is there.
    */
-  async function scopeFor(
+  function scopeFor(
     c: Context,
     collection: Collection,
   ): Promise<RecordScope | undefined> {
-    const identity = await auth.authenticate(c.req.raw)
-    return resolveScope(auth, identity, collection)
+    const perCollection =
+      scopes.get(c.req.raw) ??
+      new Map<string, Promise<RecordScope | undefined>>()
+    scopes.set(c.req.raw, perCollection)
+    const cached = perCollection.get(collection.slug)
+    if (cached) return cached
+    const pending = identityOf(c).then((identity) =>
+      resolveScope(auth, identity, collection),
+    )
+    perCollection.set(collection.slug, pending)
+    return pending
   }
 
   /**
@@ -175,7 +208,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const row = rows[0] as Record<string, unknown> | undefined
     if (!row) return { refusal: c.json({ error: 'Not found' }, 404) }
 
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     const allowed = await authorizeRecordAccess(auth, {
       identity,
       collection,
@@ -208,7 +241,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       await scopeFor(c, collection),
     ).all()) as Record<string, unknown>[]
 
-    const identity = await auth.authenticate(c.req.raw)
+    const identity = await identityOf(c)
     const key = collection.primaryKey
     if (!key) return []
 
@@ -313,18 +346,20 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     for (const [slug, write] of Object.entries(payload)) {
       const spec = bySlug.get(slug)
-      if (!spec) {
-        return c.json(
-          { error: `"${slug}" is not an inline of this collection` },
-          400,
-        )
-      }
+      // Refused in the shared vocabulary, not in prose invented here: the
+      // write refuses the same conditions itself, and a pre-check that words
+      // them differently makes one transport disagree with another.
+      if (!spec) throw unknownInline(slug)
       for (const operation of inlineOperations(write)) {
         if (!allows(spec.collection, operation)) {
-          return c.json({ error: `${operation} not allowed on "${slug}"` }, 405)
+          throw new NotGranted({
+            collection: slug,
+            operation,
+            reason: 'the collection does not allow it',
+          })
         }
         if (!(await authorized(c, spec.collection, operation))) {
-          return c.json({ error: 'Forbidden' }, 403)
+          throw new Forbidden({ collection: slug, operation })
         }
       }
     }
@@ -334,7 +369,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   /** Who is making this request, for the history entry. */
   async function actorOf(c: Context): Promise<string | null> {
     if (!config.history) return null
-    const identity: Identity | null = await auth.authenticate(c.req.raw)
+    const identity: Identity | null = await identityOf(c)
     return identity?.subject ?? null
   }
 
@@ -433,7 +468,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const relations: DeleteRelation[] =
       deleteRelations.get(collection.slug) ?? []
     return c.json({
-      data: await collectDeleteImpact(db, collection, found.row, relations),
+      data: await runEffect(
+        collectDeleteImpact(db, collection, found.row, relations),
+      ),
     })
   })
 
@@ -475,22 +512,33 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       ...parseListParams(collection, c.req.query()),
       ...(scope ? { scope } : {}),
     }
-    const rows = await buildListQuery(db, collection, params).all()
-    const totals = await buildCountQuery(db, collection, params).all()
-    const total = totals[0]?.count ?? 0
+    // Four reads of one narrowed set, and none of them waits on another: the
+    // page of rows, its total, the drill-down counts, and what a distinct-value
+    // filter may be set to. Run in sequence this was four round trips deep on
+    // an edge request that needs all four before it can answer.
+    const [rows, totals, hierarchy, choices] = await runEffect(
+      Effect.all(
+        [
+          Effect.promise(() => buildListQuery(db, collection, params).all()),
+          Effect.promise(() => buildCountQuery(db, collection, params).all()),
+          // The strip belongs to the list it navigates, so it is resolved in
+          // the same request rather than left for a second round trip.
+          collectDateHierarchy(db, collection, params),
+          // Data-dependent, so it cannot travel with the static collection
+          // summary; costs nothing unless a `values` filter is declared.
+          collectFilterChoices(db, collection, scope),
+        ],
+        { concurrency: 'unbounded' },
+      ),
+    )
 
     return c.json({
       data: rows,
       page: params.page ?? 1,
       pageSize: params.pageSize ?? collection.pageSize,
-      total,
-      // The strip belongs to the list it navigates, so it is resolved in the
-      // same request rather than left for a second round trip.
-      hierarchy: await collectDateHierarchy(db, collection, params),
-      // What a distinct-value filter may be set to. Data-dependent, so it
-      // cannot travel with the static collection summary; costs nothing unless
-      // one is declared.
-      choices: await collectFilterChoices(db, collection, scope),
+      total: totals[0]?.count ?? 0,
+      hierarchy,
+      choices,
     })
   })
 
@@ -536,31 +584,28 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     if (refusal) return refusal
 
     const db = config.getDb(c)
-    try {
-      // No scope here, and no per-record check: there is no record yet to
-      // narrow to or to decide about. What may be created is the collection's
-      // `create` grant plus validation — the same split Django makes, where
-      // `has_add_permission` is the one that takes no object.
-      const values = validateInsert(collection, body.values)
-      const row = await createRecord(
-        await mutationContext(c, collection, db),
-        values,
-      )
-      if (!row) return c.json({ error: 'Insert returned no row' }, 500)
+    // No scope here, and no per-record check: there is no record yet to
+    // narrow to or to decide about. What may be created is the collection's
+    // `create` grant plus validation — the same split Django makes, where
+    // `has_add_permission` is the one that takes no object.
+    const values = validateInsert(collection, body.values)
+    const row = await runEffect(
+      createRecord(await mutationContext(c, collection, db), values),
+    )
+    if (!row) return c.json({ error: 'Insert returned no row' }, 500)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines)
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
-      return c.json(
-        {
-          data: row,
-          inlines: await inlineRows(c, collection, row, db),
-          manyToMany: await linkedIds(c, collection, row, db),
-        },
-        201,
-      )
-    } catch (error) {
-      return inlineAwareError(c, error)
-    }
+    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(
+      writeManyToMany(db, linksFor(collection), row, body.manyToMany),
+    )
+    return c.json(
+      {
+        data: row,
+        inlines: await inlineRows(c, collection, row, db),
+        manyToMany: await linkedIds(c, collection, row, db),
+      },
+      201,
+    )
   })
 
   app.patch('/collections/:slug/:id', async (c) => {
@@ -598,13 +643,13 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       before = found.row
     }
 
-    try {
-      const values = validateUpdate(collection, body.values)
-      // Editing only the child rows is a real edit; don't force an empty
-      // UPDATE on the parent just to get at its inlines.
-      const row =
-        Object.keys(values).length > 0
-          ? await updateRecord(
+    const values = validateUpdate(collection, body.values)
+    // Editing only the child rows is a real edit; don't force an empty
+    // UPDATE on the parent just to get at its inlines.
+    const row =
+      Object.keys(values).length > 0
+        ? await runEffect(
+            updateRecord(
               {
                 ...(await mutationContext(c, collection, db)),
                 ...(scope ? { scope } : {}),
@@ -612,28 +657,28 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
               },
               c.req.param('id'),
               values,
-            )
-          : (before ??
-            ((
-              await buildGetByIdQuery(
-                db,
-                collection,
-                c.req.param('id'),
-                scope,
-              ).all()
-            )[0] as Record<string, unknown> | undefined))
-      if (!row) return c.json({ error: 'Not found' }, 404)
+            ),
+          )
+        : (before ??
+          ((
+            await buildGetByIdQuery(
+              db,
+              collection,
+              c.req.param('id'),
+              scope,
+            ).all()
+          )[0] as Record<string, unknown> | undefined))
+    if (!row) return c.json({ error: 'Not found' }, 404)
 
-      await writeInlines(db, specsFor(collection), row, body.inlines)
-      await writeManyToMany(db, linksFor(collection), row, body.manyToMany)
-      return c.json({
-        data: row,
-        inlines: await inlineRows(c, collection, row, db),
-        manyToMany: await linkedIds(c, collection, row, db),
-      })
-    } catch (error) {
-      return inlineAwareError(c, error)
-    }
+    await runEffect(writeInlines(db, specsFor(collection), row, body.inlines))
+    await runEffect(
+      writeManyToMany(db, linksFor(collection), row, body.manyToMany),
+    )
+    return c.json({
+      data: row,
+      inlines: await inlineRows(c, collection, row, db),
+      manyToMany: await linkedIds(c, collection, row, db),
+    })
   })
 
   app.delete('/collections/:slug/:id', async (c) => {
@@ -660,12 +705,14 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       if ('refusal' in found) return found.refusal
     }
 
-    const row = await deleteRecord(
-      {
-        ...(await mutationContext(c, collection, db)),
-        ...(scope ? { scope } : {}),
-      },
-      c.req.param('id'),
+    const row = await runEffect(
+      deleteRecord(
+        {
+          ...(await mutationContext(c, collection, db)),
+          ...(scope ? { scope } : {}),
+        },
+        c.req.param('id'),
+      ),
     )
     if (!row) return c.json({ error: 'Not found' }, 404)
     return c.json({ data: row })

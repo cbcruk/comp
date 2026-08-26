@@ -1,5 +1,11 @@
-import type { ZodIssue } from 'zod'
+import { Effect } from 'effect'
 import type { CollectionOperation } from '../collection/define-collection.types.js'
+import {
+  NotGranted,
+  unknownInline,
+  ValidationError,
+  type FieldIssue,
+} from '../errors/comp-error.js'
 import {
   buildInlineDeleteQuery,
   buildInlineListQuery,
@@ -8,7 +14,6 @@ import {
 import { buildInsertQuery } from '../mutation/build-mutations.js'
 import type { SqliteDb } from '../query/build-list-query.js'
 import { validateInsert, validateUpdate } from '../validation/derive-schema.js'
-import { ValidationError } from '../validation/validation-error.js'
 import type {
   InlineSpec,
   InlineWrite,
@@ -16,23 +21,6 @@ import type {
   InlineWriteResult,
   PreparedInlineWrite,
 } from './inline.types.js'
-
-/** Thrown when an inline write asks for something the inline never granted. */
-export class InlineError extends Error {
-  readonly collection: string
-  readonly operation: CollectionOperation
-
-  constructor(
-    collection: string,
-    operation: CollectionOperation,
-    reason: string,
-  ) {
-    super(`Inline "${collection}" cannot "${operation}": ${reason}`)
-    this.name = 'InlineError'
-    this.collection = collection
-    this.operation = operation
-  }
-}
 
 /**
  * Which operations a write needs on the child collection. The caller checks
@@ -47,7 +35,11 @@ export function inlineOperations(write: InlineWrite): CollectionOperation[] {
   return operations
 }
 
-function prefixed(slug: string, index: number, issues: ZodIssue[]): ZodIssue[] {
+function prefixed(
+  slug: string,
+  index: number,
+  issues: readonly FieldIssue[],
+): FieldIssue[] {
   return issues.map((issue) => ({
     ...issue,
     path: ['inlines', slug, index, ...issue.path],
@@ -59,14 +51,18 @@ function assertGranted(spec: InlineSpec, write: InlineWrite): void {
   const granted = spec.collection.manifest.operations
   for (const operation of inlineOperations(write)) {
     if (!granted.includes(operation)) {
-      throw new InlineError(slug, operation, 'the collection does not allow it')
+      throw new NotGranted({
+        collection: slug,
+        operation,
+        reason: 'the collection does not allow it',
+      })
     }
     if (operation === 'delete' && !spec.canDelete) {
-      throw new InlineError(
-        slug,
+      throw new NotGranted({
+        collection: slug,
         operation,
-        'the inline declares canDelete: false',
-      )
+        reason: 'the inline declares canDelete: false',
+      })
     }
   }
 }
@@ -89,7 +85,7 @@ export function prepareInlineWrite(
   assertGranted(spec, write)
   const child = spec.collection
   const slug = child.slug
-  const issues: ZodIssue[] = []
+  const issues: FieldIssue[] = []
 
   const create: Record<string, unknown>[] = []
   ;(write.create ?? []).forEach((values, index) => {
@@ -117,7 +113,7 @@ export function prepareInlineWrite(
     }
   })
 
-  if (issues.length > 0) throw new ValidationError(issues)
+  if (issues.length > 0) throw new ValidationError({ issues })
 
   return { create, update, delete: write.delete ?? [] }
 }
@@ -136,52 +132,58 @@ export function prepareInlineWrite(
  * seam where a driver-level batch or transaction drops in, and no caller has to
  * change when it does.
  */
-export async function writeInlines(
+export function writeInlines(
   db: SqliteDb,
   specs: InlineSpec[],
   parentRow: Record<string, unknown>,
   payload: InlineWritePayload,
-): Promise<InlineWriteResult[]> {
+): Effect.Effect<InlineWriteResult[], ValidationError | NotGranted> {
   const bySlug = new Map(specs.map((spec) => [spec.collection.slug, spec]))
-  const results: InlineWriteResult[] = []
 
-  for (const [slug, write] of Object.entries(payload)) {
-    const spec = bySlug.get(slug)
-    if (!spec) {
-      throw new Error(`Unknown inline "${slug}" for this collection`)
+  return Effect.gen(function* () {
+    const results: InlineWriteResult[] = []
+
+    for (const [slug, write] of Object.entries(payload)) {
+      const spec = bySlug.get(slug)
+      if (!spec) return yield* unknownInline(slug)
+
+      const parentId = parentRow[spec.targetField]
+      // Preparation is pure and refuses by throwing; this is where that
+      // becomes the declared failure the signature promises.
+      const prepared = yield* Effect.try({
+        try: () => prepareInlineWrite(spec, write, parentId),
+        catch: (error) => error as ValidationError | NotGranted,
+      })
+
+      const deleted: Record<string, unknown>[] = []
+      for (const id of prepared.delete) {
+        const rows = yield* Effect.promise(() =>
+          buildInlineDeleteQuery(db, spec, parentId, id),
+        )
+        if (rows[0]) deleted.push(rows[0] as Record<string, unknown>)
+      }
+
+      const updated: Record<string, unknown>[] = []
+      for (const row of prepared.update) {
+        const rows = yield* Effect.promise(() =>
+          buildInlineUpdateQuery(db, spec, parentId, row.id, row.values),
+        )
+        if (rows[0]) updated.push(rows[0] as Record<string, unknown>)
+      }
+
+      const created: Record<string, unknown>[] = []
+      for (const values of prepared.create) {
+        const rows = yield* Effect.promise(() =>
+          buildInsertQuery(db, spec.collection, values),
+        )
+        if (rows[0]) created.push(rows[0] as Record<string, unknown>)
+      }
+
+      results.push({ collection: slug, created, updated, deleted })
     }
 
-    const parentId = parentRow[spec.targetField]
-    const prepared = prepareInlineWrite(spec, write, parentId)
-
-    const deleted: Record<string, unknown>[] = []
-    for (const id of prepared.delete) {
-      const rows = await buildInlineDeleteQuery(db, spec, parentId, id)
-      if (rows[0]) deleted.push(rows[0] as Record<string, unknown>)
-    }
-
-    const updated: Record<string, unknown>[] = []
-    for (const row of prepared.update) {
-      const rows = await buildInlineUpdateQuery(
-        db,
-        spec,
-        parentId,
-        row.id,
-        row.values,
-      )
-      if (rows[0]) updated.push(rows[0] as Record<string, unknown>)
-    }
-
-    const created: Record<string, unknown>[] = []
-    for (const values of prepared.create) {
-      const rows = await buildInsertQuery(db, spec.collection, values)
-      if (rows[0]) created.push(rows[0] as Record<string, unknown>)
-    }
-
-    results.push({ collection: slug, created, updated, deleted })
-  }
-
-  return results
+    return results
+  })
 }
 
 /** Read every inline's rows for one parent record. */
