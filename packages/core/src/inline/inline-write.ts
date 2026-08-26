@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { READ_CONCURRENCY } from '../effect/run-effect.js'
 import type { CollectionOperation } from '../collection/define-collection.types.js'
 import {
   NotGranted,
@@ -220,23 +221,39 @@ export function writeInlines(
 }
 
 /** Read every inline's rows for one parent record. */
-export async function readInlines(
+export function readInlines(
   db: SqliteDb,
   specs: InlineSpec[],
   parentRow: Record<string, unknown>,
   allowed?: (spec: InlineSpec) => boolean | Promise<boolean>,
-): Promise<Record<string, Record<string, unknown>[]>> {
-  const inlines: Record<string, Record<string, unknown>[]> = {}
-
-  for (const spec of specs) {
-    if (allowed && !(await allowed(spec))) continue
-    const rows = await buildInlineListQuery(
-      db,
-      spec,
-      parentRow[spec.targetField],
-    ).all()
-    inlines[spec.collection.slug] = rows as Record<string, unknown>[]
-  }
-
-  return inlines
+): Effect.Effect<Record<string, Record<string, unknown>[]>> {
+  // One query per inline, and no inline waits on another. The results are
+  // collected in declaration order afterwards rather than as they arrive, so
+  // concurrency cannot reorder the keys a client reads.
+  return Effect.forEach(
+    specs,
+    (spec) =>
+      Effect.gen(function* () {
+        const permitted = allowed
+          ? yield* Effect.promise(async () => allowed(spec))
+          : true
+        if (!permitted) return null
+        const rows = yield* Effect.promise(() =>
+          buildInlineListQuery(db, spec, parentRow[spec.targetField]).all(),
+        )
+        return {
+          slug: spec.collection.slug,
+          rows: rows as Record<string, unknown>[],
+        }
+      }),
+    { concurrency: READ_CONCURRENCY },
+  ).pipe(
+    Effect.map((entries) => {
+      const inlines: Record<string, Record<string, unknown>[]> = {}
+      for (const entry of entries) {
+        if (entry) inlines[entry.slug] = entry.rows
+      }
+      return inlines
+    }),
+  )
 }

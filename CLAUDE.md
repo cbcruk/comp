@@ -384,6 +384,17 @@ truth.
   schema already says. When a screen needs different behavior, add the prop that
   names the behavior (`onOpenRecord`) rather than making the caller replace the
   whole renderer — an override that costs you the derived behavior is a trap.
+- **Independent work in a request goes together, but bounded.** Anything a
+  request needs and nothing orders — the reads a list assembles, a permission
+  asked per collection per operation, one query per inline — runs as one
+  `Effect.forEach` with `concurrency: READ_CONCURRENCY` rather than a `for`
+  loop of awaits. Bounded rather than unbounded because this is Workers: a
+  fan-out sized by how many collections an app declared is one that grows past
+  the subrequest ceiling without anyone choosing to. Two rules: collect results
+  positionally, never as they arrive (concurrency must not reorder a list a UI
+  renders or an array read by index), and assert the overlap by counting
+  in-flight calls, not by timing — a clock makes a flaky test out of a property
+  that can be observed directly.
 - **Time is an argument, never ambient.** Anything relative — a date window,
   an expiry — takes the instant it resolves against (`ListParams.now`), so the
   same inputs give the same query and a test does not race the clock. Resolve it

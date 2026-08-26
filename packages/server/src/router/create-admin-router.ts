@@ -26,6 +26,7 @@ import {
   NotGranted,
   resolveInlines,
   resolveRelations,
+  READ_CONCURRENCY,
   resolveScope,
   runEffect,
   runAction,
@@ -247,21 +248,30 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const key = collection.primaryKey
     if (!key) return []
 
-    const allowed: unknown[] = []
-    for (const row of rows) {
-      const permitted = await Promise.all(
-        operations.map((operation) =>
-          authorizeRecordAccess(auth, {
-            identity,
-            collection,
-            operation,
-            record: row,
+    // A row's decision never depends on another row's, so the rows go
+    // together too — this used to run every row's checks in turn, and a bulk
+    // action is exactly the case where there are many of them.
+    const decisions = await runEffect(
+      Effect.forEach(
+        rows,
+        (row) =>
+          Effect.promise(async () => {
+            const permitted = await Promise.all(
+              operations.map((operation) =>
+                authorizeRecordAccess(auth, {
+                  identity,
+                  collection,
+                  operation,
+                  record: row,
+                }),
+              ),
+            )
+            return permitted.every(Boolean)
           }),
-        ),
-      )
-      if (permitted.every(Boolean)) allowed.push(row[key])
-    }
-    return allowed
+        { concurrency: READ_CONCURRENCY },
+      ),
+    )
+    return rows.filter((_, index) => decisions[index]).map((row) => row[key])
   }
 
   function specsFor(collection: Collection): InlineSpec[] {
@@ -283,10 +293,12 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     row: Record<string, unknown>,
     db: SqliteDb,
   ): Promise<Record<string, unknown[]> | undefined> {
-    return readManyToMany(db, linksFor(collection), row, async (spec) => {
-      if (!allows(spec.target, 'list')) return false
-      return authorized(c, spec.target, 'list')
-    })
+    return runEffect(
+      readManyToMany(db, linksFor(collection), row, async (spec) => {
+        if (!allows(spec.target, 'list')) return false
+        return authorized(c, spec.target, 'list')
+      }),
+    )
   }
 
   /**
@@ -327,10 +339,12 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   ): Promise<Record<string, Record<string, unknown>[]> | undefined> {
     const specs = specsFor(collection)
     if (specs.length === 0) return undefined
-    return readInlines(db, specs, row, async (spec) => {
-      if (!allows(spec.collection, 'list')) return false
-      return authorized(c, spec.collection, 'list')
-    })
+    return runEffect(
+      readInlines(db, specs, row, async (spec) => {
+        if (!allows(spec.collection, 'list')) return false
+        return authorized(c, spec.collection, 'list')
+      }),
+    )
   }
 
   /**
@@ -393,16 +407,27 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     }
   }
 
-  /** The operations this caller may actually perform on a collection. */
+  /**
+   * The operations this caller may actually perform on a collection.
+   *
+   * The adapter is asked about every operation at once. Nothing orders one
+   * question after another, and the index below asks this of every collection
+   * — run in sequence the site index was a queue whose length was the app's
+   * declaration size times the manifest's.
+   */
   async function permittedOperations(
     c: Context,
     collection: Collection,
   ): Promise<CollectionOperation[]> {
-    const permitted: CollectionOperation[] = []
-    for (const operation of collection.manifest.operations) {
-      if (await authorized(c, collection, operation)) permitted.push(operation)
-    }
-    return permitted
+    const decisions = await runEffect(
+      Effect.forEach(
+        collection.manifest.operations,
+        (operation) =>
+          Effect.promise(() => authorized(c, collection, operation)),
+        { concurrency: READ_CONCURRENCY },
+      ),
+    )
+    return collection.manifest.operations.filter((_, i) => decisions[i])
   }
 
   /**
@@ -411,9 +436,18 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
    * are not allowed to open is worse than no index.
    */
   app.get('/collections', async (c) => {
+    const permissions = await runEffect(
+      Effect.forEach(
+        config.collections,
+        (collection) =>
+          Effect.promise(() => permittedOperations(c, collection)),
+        { concurrency: READ_CONCURRENCY },
+      ),
+    )
+
     const summaries = []
-    for (const collection of config.collections) {
-      const permitted = await permittedOperations(c, collection)
+    for (const [index, collection] of config.collections.entries()) {
+      const permitted = permissions[index] ?? []
       if (!permitted.includes('list')) continue
       summaries.push({
         slug: collection.slug,
@@ -484,10 +518,17 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
   app.get('/history', async (c) => {
     if (!config.history) return c.json({ error: 'History is not enabled' }, 404)
 
-    const visible: string[] = []
-    for (const collection of config.collections) {
-      if (await authorized(c, collection, 'list')) visible.push(collection.slug)
-    }
+    // One question per collection, none of them ordered against another.
+    const listable = await runEffect(
+      Effect.forEach(
+        config.collections,
+        (collection) => Effect.promise(() => authorized(c, collection, 'list')),
+        { concurrency: READ_CONCURRENCY },
+      ),
+    )
+    const visible = config.collections
+      .filter((_, index) => listable[index])
+      .map((collection) => collection.slug)
 
     const limit = Number.parseInt(c.req.query('limit') ?? '', 10)
     return c.json({
@@ -562,10 +603,15 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     if ('refusal' in found) return found.refusal
 
+    // Two reads of the same record's neighbours; neither waits on the other.
+    const [nestedInlines, nestedLinks] = await Promise.all([
+      inlineRows(c, collection, found.row, db),
+      linkedIds(c, collection, found.row, db),
+    ])
     return c.json({
       data: found.row,
-      inlines: await inlineRows(c, collection, found.row, db),
-      manyToMany: await linkedIds(c, collection, found.row, db),
+      inlines: nestedInlines,
+      manyToMany: nestedLinks,
     })
   })
 
@@ -607,12 +653,12 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     await runEffect(
       writeManyToMany(db, linksFor(collection), row, body.manyToMany),
     )
+    const [nestedInlines, nestedLinks] = await Promise.all([
+      inlineRows(c, collection, row, db),
+      linkedIds(c, collection, row, db),
+    ])
     return c.json(
-      {
-        data: row,
-        inlines: await inlineRows(c, collection, row, db),
-        manyToMany: await linkedIds(c, collection, row, db),
-      },
+      { data: row, inlines: nestedInlines, manyToMany: nestedLinks },
       201,
     )
   })
@@ -686,10 +732,14 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     await runEffect(
       writeManyToMany(db, linksFor(collection), row, body.manyToMany),
     )
+    const [nestedInlines, nestedLinks] = await Promise.all([
+      inlineRows(c, collection, row, db),
+      linkedIds(c, collection, row, db),
+    ])
     return c.json({
       data: row,
-      inlines: await inlineRows(c, collection, row, db),
-      manyToMany: await linkedIds(c, collection, row, db),
+      inlines: nestedInlines,
+      manyToMany: nestedLinks,
     })
   })
 

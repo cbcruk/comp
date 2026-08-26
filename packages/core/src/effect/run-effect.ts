@@ -17,3 +17,14 @@ export async function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
   if (Exit.isSuccess(exit)) return exit.value
   throw Cause.squash(exit.cause)
 }
+
+/**
+ * How many independent database reads a single request will run at once.
+ *
+ * Bounded rather than unbounded because this runs on Workers: a request has a
+ * subrequest ceiling, and a fan-out sized by how many inlines or collections
+ * an app happened to declare is a fan-out that grows past it without anyone
+ * choosing to. Small enough to stay polite, large enough that the round trips
+ * a screen needs stop being a queue.
+ */
+export const READ_CONCURRENCY = 8
