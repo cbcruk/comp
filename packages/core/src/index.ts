@@ -208,11 +208,13 @@ export {
   checkLinkTargets,
   manyToManyNames,
   readLinks,
+  readLinkedRecords,
   readManyToMany,
   writeLinks,
   writeManyToMany,
 } from './m2m/m2m-write.js'
 export type {
+  LinkedRecord,
   ManyToManyConfig,
   ManyToManyMeta,
   ManyToManyResult,
@@ -224,6 +226,7 @@ export {
   buildLinkDelete,
   buildLinkInsert,
   buildLinkedIdsQuery,
+  buildLinkedRecordsQuery,
   manyToManyCondition,
 } from './query/build-m2m-query.js'
 

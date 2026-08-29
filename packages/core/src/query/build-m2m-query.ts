@@ -4,6 +4,7 @@ import {
   getTableColumns,
   inArray,
   notInArray,
+  sql,
   type Column,
   type SQL,
   type Table,
@@ -12,7 +13,7 @@ import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { FilterValue } from '../filters/filter.types.js'
 import { coerceFilterOperand } from '../filters/filter-value.js'
-import type { ManyToManyMeta } from '../m2m/m2m.types.js'
+import type { ManyToManyMeta, ManyToManySpec } from '../m2m/m2m.types.js'
 import type { SqliteDb } from './build-list-query.js'
 
 function columnsOf(table: Table): Record<string, Column> {
@@ -44,6 +45,45 @@ export function buildLinkedIdsQuery(
     .select({ value: selectable(target) })
     .from(meta.through as unknown as SQLiteTable)
     .where(eq(joinColumn(meta, meta.field), parentId))
+}
+
+/**
+ * The linked records with what each one looks like — the read-side counterpart
+ * of {@link buildLinkedIdsQuery}.
+ *
+ * Joining the far table costs more than reading the join table alone, which is
+ * why the two are separate: a write diffs keys against keys and has no use for
+ * a label, so it keeps paying the cheaper query.
+ *
+ * The label is aliased explicitly and keeps its own column's decoding, for the
+ * reason a `list_display` traversal does: a driver that keys rows by column
+ * name would otherwise collide the far table's column with one of ours.
+ */
+export function buildLinkedRecordsQuery(
+  db: SqliteDb,
+  spec: ManyToManySpec,
+  parentId: unknown,
+) {
+  const targetColumns = columnsOf(spec.target.model)
+  const key = targetColumns[spec.targetKey]
+  if (!key) {
+    throw new Error(`"${spec.target.slug}" has no column "${spec.targetKey}"`)
+  }
+  const label = spec.target.labelField
+    ? targetColumns[spec.target.labelField]
+    : undefined
+  const linkTarget = joinColumn(spec, spec.targetField)
+
+  return db
+    .select({
+      value: sql`${linkTarget}`.mapWith(linkTarget).as('value'),
+      ...(label
+        ? { label: sql`${label}`.mapWith(label).as('label') }
+        : {}),
+    })
+    .from(spec.through as unknown as SQLiteTable)
+    .innerJoin(spec.target.model as unknown as SQLiteTable, eq(linkTarget, key))
+    .where(eq(joinColumn(spec, spec.field), parentId))
 }
 
 /**

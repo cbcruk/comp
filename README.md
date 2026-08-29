@@ -103,6 +103,11 @@ v0.1 in progress. Implemented end-to-end:
   request (`inlines: ["order_items"]`), resolved against the relation graph and
   scoped to the parent in SQL. Exposed over HTTP, MCP, and the React
   `InlineEditor`.
+- Reference widgets search rather than enumerate: the term goes to the far
+  collection's own `search`, the query asks for one row over the limit so a
+  capped list says it is a prefix, and a record read returns its links with
+  their labels — so a linked record outside the current results still shows,
+  and can still be unlinked.
 - Many-to-many: `manyToMany: [{ collection: "tags", through: orderTags }]`
   names the join table and the far side; which key is whose comes from the
   schema. The widget checks off the related records, a save sets the whole

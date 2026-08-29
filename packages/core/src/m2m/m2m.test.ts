@@ -1,8 +1,13 @@
 import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
 import { describe, expect, it } from 'vitest'
-import { defineCollection } from '../collection/define-collection.js'
+import {
+  buildLinkedIdsQuery,
+  buildLinkedRecordsQuery,
+} from '../query/build-m2m-query.js'
 import { buildListQuery } from '../query/build-list-query.js'
+import { defineCollection } from '../collection/define-collection.js'
+import { readLinkedRecords } from './m2m-write.js'
 import { bindManyToMany, manyToManySummary } from './resolve-m2m.js'
 
 const posts = sqliteTable('posts', {
@@ -180,3 +185,44 @@ describe('filtering by a many-to-many', () => {
     expect(sqlFor({ op: 'isnull', value: false }).sql).toContain(' in (')
   })
 })
+
+describe('reading a many-to-many', () => {
+  const spec = bindManyToMany([postCollection, tagCollection]).get('posts')![0]!
+
+  it('joins the far table so a linked record can say its name', () => {
+    // Without the label the form has only keys, and its options are a search:
+    // a linked record outside the current results would render as nothing —
+    // invisible, and so impossible to unlink.
+    const { sql } = buildLinkedRecordsQuery(db, spec, 1).toSQL()
+    expect(sql).toContain('join')
+    expect(sql).toContain('"tags"')
+    // Aliased explicitly, because a driver that keys rows by column name would
+    // otherwise collide the far table's column with the join table's.
+    expect(sql).toContain('"label"')
+    expect(sql).toContain('"value"')
+  })
+
+  it('leaves the write path on the cheaper query', () => {
+    // A write diffs keys against keys and has no use for a label, so it must
+    // not start paying for the join that a read needs.
+    const { sql } = buildLinkedIdsQuery(db, spec, 1).toSQL()
+    expect(sql).not.toContain('join')
+  })
+
+  it('reports each link as a key and a label', async () => {
+    const rows = drizzle(async () => ({ rows: [[7, 'rush']] }))
+    expect(await readLinkedRecords(rows, spec, 1)).toEqual([
+      { value: 7, label: 'rush' },
+    ])
+  })
+
+  it('says a link has no label rather than inventing one', async () => {
+    // The far collection may declare no `labelField`; a key rendered as its own
+    // name is still better than a blank row.
+    const rows = drizzle(async () => ({ rows: [[7, null]] }))
+    expect(await readLinkedRecords(rows, spec, 1)).toEqual([
+      { value: 7, label: null },
+    ])
+  })
+})
+

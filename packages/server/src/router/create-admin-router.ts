@@ -45,6 +45,7 @@ import {
   type Identity,
   type InlineSpec,
   type InlineWritePayload,
+  type LinkedRecord,
   type ManyToManySpec,
   type ManyToManyWrite,
   type RecordScope,
@@ -55,6 +56,49 @@ import { Hono, type Context } from 'hono'
 import { handleRouterError } from './error-response.js'
 import { splitInlineBody } from './inline-body.js'
 import { parseListParams } from './list-params.js'
+
+/**
+ * The keys a write sends back, exactly as it must send them.
+ *
+ * Read and write keep the same shape under `manyToMany` — the whole membership
+ * as keys — and the labels travel beside it rather than inside it, so a client
+ * can echo what it read without stripping anything out of it first.
+ */
+function linkKeys(
+  links: Record<string, LinkedRecord[]> | undefined,
+): Record<string, unknown[]> | undefined {
+  if (!links) return undefined
+  return Object.fromEntries(
+    Object.entries(links).map(([name, records]) => [
+      name,
+      records.map((record) => record.value),
+    ]),
+  )
+}
+
+/**
+ * What each linked record looks like, keyed by its stringified key.
+ *
+ * The form needs this because its options are a search over the far
+ * collection, not the whole of it: a record linked but outside the current
+ * results has no other way to say its name, and one that renders as nothing
+ * cannot be unlinked.
+ */
+function linkLabels(
+  links: Record<string, LinkedRecord[]> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!links) return undefined
+  return Object.fromEntries(
+    Object.entries(links).map(([name, records]) => [
+      name,
+      Object.fromEntries(
+        records
+          .filter((record) => record.label !== null)
+          .map((record) => [String(record.value), record.label as string]),
+      ),
+    ]),
+  )
+}
 
 export interface AdminRouterConfig {
   collections: Collection[]
@@ -297,12 +341,12 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
    * reaching its records sideways must not grant more than reaching them
    * directly would.
    */
-  async function linkedIds(
+  async function linkedRecords(
     c: Context,
     collection: Collection,
     row: Record<string, unknown>,
     db: SqliteDb,
-  ): Promise<Record<string, unknown[]> | undefined> {
+  ): Promise<Record<string, LinkedRecord[]> | undefined> {
     return runEffect(
       readManyToMany(db, linksFor(collection), row, async (spec) => {
         if (!allows(spec.target, 'list')) return false
@@ -616,12 +660,13 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     // Two reads of the same record's neighbours; neither waits on the other.
     const [nestedInlines, nestedLinks] = await Promise.all([
       inlineRows(c, collection, found.row, db),
-      linkedIds(c, collection, found.row, db),
+      linkedRecords(c, collection, found.row, db),
     ])
     return c.json({
       data: found.row,
       inlines: nestedInlines,
-      manyToMany: nestedLinks,
+      manyToMany: linkKeys(nestedLinks),
+      manyToManyLabels: linkLabels(nestedLinks),
     })
   })
 
@@ -665,10 +710,15 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     const [nestedInlines, nestedLinks] = await Promise.all([
       inlineRows(c, collection, row, db),
-      linkedIds(c, collection, row, db),
+      linkedRecords(c, collection, row, db),
     ])
     return c.json(
-      { data: row, inlines: nestedInlines, manyToMany: nestedLinks },
+      {
+        data: row,
+        inlines: nestedInlines,
+        manyToMany: linkKeys(nestedLinks),
+        manyToManyLabels: linkLabels(nestedLinks),
+      },
       201,
     )
   })
@@ -744,12 +794,13 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     )
     const [nestedInlines, nestedLinks] = await Promise.all([
       inlineRows(c, collection, row, db),
-      linkedIds(c, collection, row, db),
+      linkedRecords(c, collection, row, db),
     ])
     return c.json({
       data: row,
       inlines: nestedInlines,
-      manyToMany: nestedLinks,
+      manyToMany: linkKeys(nestedLinks),
+      manyToManyLabels: linkLabels(nestedLinks),
     })
   })
 

@@ -84,7 +84,14 @@ export {
   optionsFor as filterOptionsFor,
 } from './collection-browser/filter-controls.js'
 export type { FilterControl } from './collection-browser/filter-controls.js'
-export { useReferenceOptions } from './collection-browser/use-reference-options.js'
+export {
+  DEFAULT_REFERENCE_LIMIT,
+  useReferenceOptions,
+} from './collection-browser/use-reference-options.js'
+export type {
+  ReferenceOptionsQuery,
+  ReferenceOptionsResult,
+} from './collection-browser/use-reference-options.js'
 export type { ParsedSort } from './collection-browser/sorting.js'
 export {
   buildLabelMap,

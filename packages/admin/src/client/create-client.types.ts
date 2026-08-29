@@ -67,6 +67,12 @@ export interface RecordResult {
   inlines?: Record<string, Row[]>
   /** Ids linked through each many-to-many, keyed by relationship name. */
   manyToMany?: Record<string, unknown[]>
+  /**
+   * What each linked record looks like: relationship name → id → label. The
+   * widget's options are a search over the far collection, so a linked record
+   * outside the current results has no other way to say its name.
+   */
+  manyToManyLabels?: Record<string, Record<string, string>>
 }
 
 export interface ListResult {

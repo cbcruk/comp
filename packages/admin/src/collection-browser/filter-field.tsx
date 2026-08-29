@@ -31,12 +31,13 @@ export function FilterField({
   choices,
 }: FilterFieldProps): JSX.Element {
   const control = controlFor(filter)
-  const references = useReferenceOptions(
-    client,
-    control === 'reference' ? filter.collection : undefined,
-    filter.labelField ?? null,
-    filter.targetField,
-  )
+  const { options: references, truncated: moreReferences } =
+    useReferenceOptions(
+      client,
+      control === 'reference' ? filter.collection : undefined,
+      filter.labelField ?? null,
+      filter.targetField,
+    )
 
   if (control === 'text') {
     return (
@@ -78,6 +79,13 @@ export function FilterField({
       {choices?.truncated && (
         <span role="note">
           {`showing the first ${String(filter.limit ?? options.length)} values`}
+        </span>
+      )}
+      {/* Same rule for the records a foreign key points at: a filter offering
+          some of them, silently, hides the records it would have matched. */}
+      {moreReferences && (
+        <span role="note">
+          {`showing the first ${String(references.length)} ${filter.collection ?? 'records'}`}
         </span>
       )}
     </label>

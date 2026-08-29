@@ -11,6 +11,9 @@ export interface ReferenceSelectProps {
   labelField: string
   /** Row field used as the option value (the FK target). Defaults to "id". */
   valueField?: string
-  /** How many options to fetch. Defaults to 100. */
+  /**
+   * How many records to offer before the control says there are more.
+   * Defaults to {@link DEFAULT_REFERENCE_LIMIT}.
+   */
   pageSize?: number
 }

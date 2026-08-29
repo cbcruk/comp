@@ -34,11 +34,14 @@ export function RecordScreen({
   onNotify,
   fieldWidgets,
 }: RecordScreenProps): JSX.Element {
-  const { record, inlines, manyToMany, loading, error } = useRecord(
-    client,
-    collection.slug,
-    id,
-  )
+  const {
+    record,
+    inlines,
+    manyToMany,
+    manyToManyLabels,
+    loading,
+    error,
+  } = useRecord(client, collection.slug, id)
   const [rows, setRows] = useState<Record<string, InlineRow[]>>({})
   const [links, setLinks] = useState<Record<string, unknown[]>>({})
   const [rowErrors, setRowErrors] = useState<
@@ -190,6 +193,7 @@ export function RecordScreen({
             client={client}
             relation={relation}
             value={links[relation.name] ?? []}
+            labels={manyToManyLabels[relation.name]}
             onChange={(next) =>
               setLinks((prev) => ({ ...prev, [relation.name]: next }))
             }

@@ -7,6 +7,8 @@ export interface UseRecordResult {
   inlines: Record<string, Row[]>
   /** Ids linked through each many-to-many, keyed by relationship name. */
   manyToMany: Record<string, unknown[]>
+  /** Label per linked id, keyed by relationship name. */
+  manyToManyLabels: Record<string, Record<string, string>>
   loading: boolean
   error: Error | null
 }
@@ -23,6 +25,9 @@ export function useRecord(
   const [record, setRecord] = useState<Row | null>(null)
   const [inlines, setInlines] = useState<Record<string, Row[]>>({})
   const [manyToMany, setManyToMany] = useState<Record<string, unknown[]>>({})
+  const [manyToManyLabels, setManyToManyLabels] = useState<
+    Record<string, Record<string, string>>
+  >({})
   const [loading, setLoading] = useState(id !== null)
   const [error, setError] = useState<Error | null>(null)
 
@@ -31,6 +36,7 @@ export function useRecord(
       setRecord(null)
       setInlines({})
       setManyToMany({})
+      setManyToManyLabels({})
       setLoading(false)
       return
     }
@@ -45,6 +51,7 @@ export function useRecord(
         setRecord(result.data)
         setInlines(result.inlines ?? {})
         setManyToMany(result.manyToMany ?? {})
+        setManyToManyLabels(result.manyToManyLabels ?? {})
       })
       .catch((err: unknown) => {
         if (!cancelled)
@@ -59,5 +66,12 @@ export function useRecord(
     }
   }, [client, slug, id])
 
-  return { record, inlines, manyToMany, loading, error }
+  return {
+    record,
+    inlines,
+    manyToMany,
+    manyToManyLabels,
+    loading,
+    error,
+  }
 }

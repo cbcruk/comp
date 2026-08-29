@@ -216,6 +216,19 @@ last` so an empty never takes a slot a value needed, and the column itself is
   subqueries, never a join: a record carrying two matching tags must come back
   once, and the total must still agree with the rows.
 
+- **`autocomplete_fields`** — a reference widget **searches** the far
+  collection instead of listing its first page. The page-as-collection version
+  was wrong in a way that hid itself: past that page a record could not be
+  linked, and worse, one already linked rendered as nothing — invisible, so
+  impossible to unlink, and the form quietly disagreed with the database. Two
+  halves fix it. The term goes over as `q`, resolved by the far collection's own
+  `search`, and the query asks for one row more than it shows so a capped list
+  can say it is a prefix — the rule the `values` filter already follows. And a
+  record read returns its links **with their labels** (`manyToManyLabels`), so
+  what is linked never depends on what the search happened to return. The write
+  payload stays keys alone; the labels travel beside it. `readLinks` keeps the
+  cheaper join-table-only query, because a write diffs keys against keys.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what
