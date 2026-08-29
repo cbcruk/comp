@@ -57,6 +57,18 @@ export function defineCollection<TTable extends Table>(
     resolveManyToMany(slug, config.model, entry),
   )
 
+  const listColumns = resolveListDisplay(
+    slug,
+    config.model,
+    introspection.fields,
+    manyToMany,
+    config.listDisplay,
+  )
+  // The keys, not the declaration: a collected column is an object while
+  // authoring and a column name everywhere after, so every consumer — the sort
+  // check, the client's headers, the label guess — reads one kind of thing.
+  const listDisplay = listColumns.map((column) => column.key)
+
   const form = resolveForm(
     slug,
     introspection.fields,
@@ -75,10 +87,10 @@ export function defineCollection<TTable extends Table>(
       config.labelField ??
       resolveLabelField(
         introspection.fields,
-        config.listDisplay,
+        listDisplay,
         introspection.primaryKey,
       ),
-    listDisplay: config.listDisplay,
+    listDisplay,
     filters: resolveFilters(
       introspection.fields,
       [
@@ -89,13 +101,10 @@ export function defineCollection<TTable extends Table>(
       ],
       manyToMany,
     ),
-    listColumns: resolveListDisplay(
-      slug,
-      config.model,
-      introspection.fields,
-      manyToMany,
-      config.listDisplay,
-    ),
+    listColumns,
+    sortable: listColumns
+      .filter((column) => column.sortable)
+      .map((column) => column.key),
     search: resolveSearch(
       slug,
       config.model,

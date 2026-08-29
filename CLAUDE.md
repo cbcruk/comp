@@ -247,11 +247,32 @@ last` so an empty never takes a slot a value needed, and the column itself is
   is not. The hook is in the mutation layer, so an HTTP write and an MCP write
   sweep alike.
 
+- **`list_display` over a many-to-many** — Django reaches that cell with a
+  method on the model and pays a query per record for it. The traversal stays
+  refused, because a traversal is a join and a join through a join table
+  multiplies the record; `{ collect: "tags", field: "name" }` is an **aggregate**
+  instead, one correlated subquery per column, so the row set is untouched and
+  the total still agrees with it. Both of the subquery's tables are aliased and
+  every reference is qualified — Drizzle drops the table prefix when the outer
+  query has one table, so `where post_id = id` is ambiguous the moment the names
+  collide, and a relationship joining a table to itself is ambiguous even with
+  real table names. It carries `sortable: false` to the client, and the header
+  draws no sort button, because there is no column behind it to order by.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what
   the admin still cannot do (a two-pane `filter_horizontal` widget) rather than
   polishing what is built.
+- `useReferenceLabels` — the list's FK label map — still reads the far
+  collection's first page, the bug `autocomplete_fields` fixed everywhere else.
+  Its answer is different, though: resolve the labels for the ids **on the
+  page**, not a prefix of the collection.
+- Being consumed is not solved. The three things a linked consumer must
+  configure (build to `dist` because a bundler cannot follow NodeNext `.js`
+  specifiers into TypeScript source; a single `react`; a single `drizzle-orm`,
+  whose `Column` has a `protected` member and so is nominally distinct per copy)
+  are all silent failures if missed.
 
 When you implement one, say in the commit which Django _behavior_ you
 reproduced and confirm it was re-derived, not copied.

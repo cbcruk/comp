@@ -34,6 +34,8 @@ export interface CollectionSummary {
   /** What the caller may do here — the manifest narrowed by permission. */
   permitted: CollectionOperation[]
   listDisplay: string[]
+  /** The subset of `listDisplay` whose header may offer an order. */
+  sortable: string[]
   /** Filters with their kind, choices, and relation binding resolved. */
   filters: FilterSummary[]
   /** Search fields with their lookup and relation traversal resolved. */

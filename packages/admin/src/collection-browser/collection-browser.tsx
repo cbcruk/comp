@@ -221,6 +221,7 @@ export function CollectionBrowser({
 
       <CollectionList
         columns={collection.listDisplay}
+        sortable={collection.sortable}
         rows={rows}
         renderCell={cellRenderer}
         renderEmpty={() => <p>{loading ? 'Loading…' : 'No records'}</p>}

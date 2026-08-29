@@ -23,6 +23,7 @@ export function CollectionList({
   renderEmpty,
   selection,
   sort,
+  sortable,
   ...rest
 }: CollectionListProps): JSX.Element {
   if (rows.length === 0 && renderEmpty) {
@@ -31,7 +32,9 @@ export function CollectionList({
 
   function headerContent(column: string): JSX.Element | string {
     const label = renderHeader ? renderHeader(column) : column
-    if (!sort) return <>{label}</>
+    // A column the server cannot order by gets no button: a control that looks
+    // like it sorts and does nothing is worse than a plain heading.
+    if (!sort || (sortable && !sortable.includes(column))) return <>{label}</>
     const active = sort.field === column ? sort.direction : null
     return (
       <button type="button" onClick={() => sort.onSort(column)}>
@@ -63,7 +66,14 @@ export function CollectionList({
             </th>
           )}
           {columns.map((column) => (
-            <th key={column} aria-sort={sort ? ariaSort(column) : undefined}>
+            <th
+              key={column}
+              aria-sort={
+                sort && (!sortable || sortable.includes(column))
+                  ? ariaSort(column)
+                  : undefined
+              }
+            >
               {headerContent(column)}
             </th>
           ))}

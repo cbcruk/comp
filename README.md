@@ -112,6 +112,9 @@ v0.1 in progress. Implemented end-to-end:
   `FileStore` hold the bytes, an adapter like `HistoryStore`. The upload is its
   own request, so the write path stays JSON and a file can be chosen on the add
   form. Replaced and deleted files are swept after the write commits.
+- A many-to-many in the list: `{ collect: "tags", field: "name" }` gathers it
+  into one cell with a correlated aggregate — one statement for the page, and
+  the row set and its total are untouched.
 - Many-to-many: `manyToMany: [{ collection: "tags", through: orderTags }]`
   names the join table and the far side; which key is whose comes from the
   schema. The widget checks off the related records, a save sets the whole

@@ -544,6 +544,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         // What this caller may do: the manifest narrowed by permission.
         permitted,
         listDisplay: collection.listDisplay,
+        // Which of those a header may offer an order for: an aggregate has no
+        // column to sort on.
+        sortable: collection.sortable,
         filters: filterSummaries(
           collection.filters,
           relations.outbound[collection.slug] ?? [],
@@ -712,7 +715,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     const [rows, totals, hierarchy, choices] = await runEffect(
       Effect.all(
         [
-          Effect.promise(() => buildListQuery(db, collection, params).all()),
+          Effect.promise(() =>
+            buildListQuery(db, collection, params, linksFor(collection)).all(),
+          ),
           Effect.promise(() => buildCountQuery(db, collection, params).all()),
           // The strip belongs to the list it navigates, so it is resolved in
           // the same request rather than left for a second round trip.

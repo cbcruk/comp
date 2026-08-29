@@ -1,6 +1,7 @@
 import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
 import { describe, expect, it } from 'vitest'
+import { defineCollection } from '../collection/define-collection.js'
 import {
   buildLinkedIdsQuery,
   buildLinkedRecordsQuery,
@@ -226,3 +227,51 @@ describe('reading a many-to-many', () => {
   })
 })
 
+describe('a collected column', () => {
+  const posts = defineCollection({
+    model: postCollection.model,
+    listDisplay: ['title', { collect: 'tags', field: 'name' }],
+    manyToMany: [{ collection: 'tags', through: postTags }],
+  })
+  const specs = bindManyToMany([posts, tagCollection]).get('posts') ?? []
+  const { sql, params } = buildListQuery(db, posts, {}, specs).toSQL()
+
+  it('aggregates in a correlated subquery, never a join', () => {
+    // A join through the join table would list a post once per tag, and then
+    // the total would stop agreeing with the rows.
+    expect(sql).toContain('group_concat')
+    expect(sql).toContain('post_tags')
+    expect(sql).not.toContain('left join')
+    expect(sql).not.toContain('distinct')
+    expect(params).toContain(', ')
+  })
+
+  it('is selected under its own key, aliased', () => {
+    // Same rule a traversal follows: a driver keying rows by column name would
+    // otherwise collide the far table's column with one of ours.
+    expect(sql).toContain('"tags__name"')
+  })
+
+  /**
+   * Every column in the subquery is qualified, and both of its tables are
+   * aliased. Drizzle drops the table prefix when the outer query has one table,
+   * so an unqualified `where post_id = id` is ambiguous the moment the names
+   * collide — and a relationship joining a table to itself is ambiguous even
+   * with the real table names.
+   */
+  it('qualifies every reference so the subquery is not ambiguous', () => {
+    expect(sql).toContain('"post_tags" as "__collect_link"')
+    expect(sql).toContain('"tags" as "__collect_target"')
+    expect(sql).toContain('"__collect_link"."post_id" = "posts"."id"')
+    expect(sql).toContain('"__collect_target"."id" = "__collect_link"."tag_id"')
+    // Nothing in the subquery names a bare column.
+    const subquery = sql.slice(sql.indexOf('(select group_concat'))
+    expect(subquery).not.toMatch(/[\s(]"(id|name|post_id|tag_id)"/)
+  })
+
+  it('costs one aggregate per column, not one query per row', () => {
+    // Django reaches this cell with a method and pays per record; the whole
+    // page is one statement here.
+    expect(sql.match(/group_concat/g)).toHaveLength(1)
+  })
+})
