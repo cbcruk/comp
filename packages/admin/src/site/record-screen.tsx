@@ -11,6 +11,7 @@ import {
 } from '../inline-editor/inline-rows.js'
 import { changedLinks } from '../many-to-many/links.js'
 import { ManyToManySelect } from '../many-to-many/many-to-many-select.js'
+import { fileWidgets } from '../file-field/file-widgets.js'
 import { referenceWidgets } from '../reference-select/reference-widgets.js'
 import {
   extractIssues,
@@ -39,6 +40,7 @@ export function RecordScreen({
     inlines,
     manyToMany,
     manyToManyLabels,
+    fileUrls,
     loading,
     error,
   } = useRecord(client, collection.slug, id)
@@ -118,6 +120,7 @@ export function RecordScreen({
         submitLabel={editing ? 'Save' : 'Create'}
         fieldWidgets={{
           ...referenceWidgets(client, collection.relations),
+          ...fileWidgets(client, collection.slug, collection.files, fileUrls),
           ...fieldWidgets,
         }}
         onSubmit={async (values) => {

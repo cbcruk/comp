@@ -5,6 +5,8 @@ import type {
   CollectionOperation,
   DeleteImpact,
   FieldMap,
+  FileSummary,
+  StoredFile,
   DateHierarchy,
   FilterChoices,
   FilterSummary,
@@ -52,6 +54,8 @@ export interface CollectionSummary {
   inlines: InlineSummary[]
   /** Many-to-many relationships this collection edits. */
   manyToMany: ManyToManySummary[]
+  /** Columns holding a stored file's key; empty when no store is mounted. */
+  files: FileSummary[]
   manifest: CollectionManifest
   actions: ActionManifest[]
 }
@@ -73,6 +77,8 @@ export interface RecordResult {
    * outside the current results has no other way to say its name.
    */
   manyToManyLabels?: Record<string, Record<string, string>>
+  /** Where each stored file can be read, keyed by field. */
+  fileUrls?: Record<string, string>
 }
 
 export interface ListResult {
@@ -125,6 +131,11 @@ export interface CompClient {
     inlines?: InlineWritePayload,
     manyToMany?: ManyToManyWrite,
   ): Promise<Row>
+  /**
+   * Store one file for a field and get back the key the record should hold.
+   * Its own request, so a file can be chosen before the record exists.
+   */
+  uploadFile(slug: string, field: string, file: File): Promise<StoredFile>
   /** What deleting this record would reach, before doing it. */
   deletePreview(slug: string, id: Id): Promise<DeleteImpact>
   /** Who changed this record, newest first; empty when history is off. */

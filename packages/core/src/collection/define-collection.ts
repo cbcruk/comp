@@ -1,6 +1,7 @@
 import { getTableName, type Table } from 'drizzle-orm'
 import { introspectTable } from '../introspection/introspect-table.js'
 import { resolveFilters } from '../filters/resolve-filters.js'
+import { resolveFiles } from '../files/resolve-files.js'
 import { resolveForm } from '../form/resolve-form.js'
 import { resolveLabels } from '../site/labels.js'
 import { resolveSearch } from '../search/resolve-search.js'
@@ -56,6 +57,13 @@ export function defineCollection<TTable extends Table>(
     resolveManyToMany(slug, config.model, entry),
   )
 
+  const form = resolveForm(
+    slug,
+    introspection.fields,
+    introspection.primaryKey,
+    config,
+  )
+
   return {
     slug,
     ...labels,
@@ -98,14 +106,15 @@ export function defineCollection<TTable extends Table>(
     dateHierarchy: config.dateHierarchy ?? null,
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
-    form: resolveForm(
-      slug,
-      introspection.fields,
-      introspection.primaryKey,
-      config,
-    ),
+    form,
     inlines: config.inlines ?? [],
     manyToMany,
+    files: resolveFiles(
+      slug,
+      introspection.fields,
+      form.readonly,
+      config.files ?? [],
+    ),
     manifest: {
       collection: slug,
       operations,

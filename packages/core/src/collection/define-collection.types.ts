@@ -1,3 +1,4 @@
+import type { FileConfig, FileSummary } from '../files/file.types.js'
 import type { ListColumn } from './list-columns.js'
 import type { Table } from 'drizzle-orm'
 import type { FilterConfig, ResolvedFilter } from '../filters/filter.types.js'
@@ -96,6 +97,12 @@ export interface CollectionConfig<TTable extends Table> extends FormConfig<
    * the join table's own foreign keys.
    */
   manyToMany?: ManyToManyConfig[]
+  /**
+   * Columns that hold a file's key rather than text a person typed. The column
+   * stores whatever the {@link FileStore} named the file; the bytes never
+   * touch the row.
+   */
+  files?: FileConfig<ColumnKey<TTable>>[]
 }
 
 /**
@@ -140,5 +147,7 @@ export interface Collection {
    * collection over the registry.
    */
   manyToMany: ManyToManyMeta[]
+  /** Columns holding a stored file's key, resolved against the schema. */
+  files: FileSummary[]
   manifest: CollectionManifest
 }

@@ -9,6 +9,8 @@ export interface UseRecordResult {
   manyToMany: Record<string, unknown[]>
   /** Label per linked id, keyed by relationship name. */
   manyToManyLabels: Record<string, Record<string, string>>
+  /** Where each stored file can be read, keyed by field. */
+  fileUrls: Record<string, string>
   loading: boolean
   error: Error | null
 }
@@ -28,6 +30,7 @@ export function useRecord(
   const [manyToManyLabels, setManyToManyLabels] = useState<
     Record<string, Record<string, string>>
   >({})
+  const [fileUrls, setFileUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(id !== null)
   const [error, setError] = useState<Error | null>(null)
 
@@ -37,6 +40,7 @@ export function useRecord(
       setInlines({})
       setManyToMany({})
       setManyToManyLabels({})
+      setFileUrls({})
       setLoading(false)
       return
     }
@@ -52,6 +56,7 @@ export function useRecord(
         setInlines(result.inlines ?? {})
         setManyToMany(result.manyToMany ?? {})
         setManyToManyLabels(result.manyToManyLabels ?? {})
+        setFileUrls(result.fileUrls ?? {})
       })
       .catch((err: unknown) => {
         if (!cancelled)
@@ -71,6 +76,7 @@ export function useRecord(
     inlines,
     manyToMany,
     manyToManyLabels,
+    fileUrls,
     loading,
     error,
   }

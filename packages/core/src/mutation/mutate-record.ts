@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 import type { RecordScope } from '../auth/auth-adapter.types.js'
 import type { Collection } from '../collection/define-collection.types.js'
 import { changedFields, historyLabel } from '../history/changed-fields.js'
+import type { FileStore } from '../files/file.types.js'
 import type { HistoryAction, HistoryStore } from '../history/history.types.js'
 import type { SqliteDb } from '../query/build-list-query.js'
 import { buildGetByIdQuery } from '../query/build-get-query.js'
@@ -16,6 +17,12 @@ export interface MutationContext {
   collection: Collection
   /** Where to log the change; omit and nothing is recorded. */
   history?: HistoryStore | undefined
+  /**
+   * Where this collection's files live. Omit it and nothing is ever removed —
+   * the same opt-in history is, and for the same reason: knowing what a write
+   * replaced costs a read.
+   */
+  files?: FileStore | undefined
   /** Who is making the change. */
   actor?: string | null
   /** The instant recorded on the entry; defaults to now. */
@@ -61,6 +68,56 @@ function log(
   )
 }
 
+/**
+ * Forget the files a write left nothing pointing at.
+ *
+ * Called **after** the row is written, never before, and its failures are
+ * swallowed: a file the store could not delete is an orphan, while a file
+ * deleted before a write that then fails is a record pointing at nothing. Of
+ * the two only one loses something.
+ *
+ * Django stopped deleting on its own in 1.3, because a rollback could leave the
+ * row without its file. Comp can go the other way for a narrow reason: the key
+ * is the store's to invent, so two records cannot arrive at the same one, and
+ * the delete happens after the write has already committed. A store that would
+ * rather keep everything makes `remove` a no-op — the decision is its own.
+ */
+function sweep(
+  context: MutationContext,
+  keys: readonly unknown[],
+): Effect.Effect<void> {
+  const store = context.files
+  if (!store) return Effect.void
+  const removable = keys.filter(
+    (key): key is string => typeof key === 'string' && key !== '',
+  )
+  if (removable.length === 0) return Effect.void
+  return Effect.promise(async () => {
+    await Promise.all(
+      removable.map((key) => store.remove(key).catch(() => undefined)),
+    )
+  })
+}
+
+/** The keys an update left behind — the old value of every field it changed. */
+function replacedKeys(
+  collection: Collection,
+  before: Row | undefined,
+  after: Row,
+): unknown[] {
+  if (!before) return []
+  return collection.files.flatMap((file) => {
+    const was = before[file.field]
+    return was === after[file.field] ? [] : [was]
+  })
+}
+
+/** The keys a row holds for each declared file field. */
+function fileKeys(collection: Collection, row: Row | undefined): unknown[] {
+  if (!row) return []
+  return collection.files.map((file) => row[file.field])
+}
+
 function idOf(collection: Collection, row: Row | undefined): string {
   const key = collection.primaryKey
   const value = key ? row?.[key] : undefined
@@ -100,6 +157,8 @@ export function createRecord(
       historyLabel(context.collection, row, recordId),
       [],
     )
+    // The row is gone, so nothing points at its files any more.
+    yield* sweep(context, fileKeys(context.collection, row))
     return row
   })
 }
@@ -117,9 +176,12 @@ export function updateRecord(
   values: Row,
 ): Effect.Effect<Row | undefined> {
   return Effect.gen(function* () {
+    // The read is needed by history, and now also by a file field: without the
+    // old row there is no way to know which key the write replaced.
+    const sweeping = Boolean(context.files) && context.collection.files.length > 0
     const before =
       context.before ??
-      (context.history
+      (context.history || sweeping
         ? ((yield* Effect.promise(() =>
             buildGetByIdQuery(
               context.db,
@@ -150,6 +212,9 @@ export function updateRecord(
       historyLabel(context.collection, row, recordId),
       before ? changedFields(before, row) : [],
     )
+    // Only the keys the write actually moved away from; a field left untouched
+    // still points at its file.
+    yield* sweep(context, replacedKeys(context.collection, before, row))
     return row
   })
 }
@@ -174,6 +239,8 @@ export function deleteRecord(
       historyLabel(context.collection, row, recordId),
       [],
     )
+    // The row is gone, so nothing points at its files any more.
+    yield* sweep(context, fileKeys(context.collection, row))
     return row
   })
 }

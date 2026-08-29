@@ -229,6 +229,24 @@ last` so an empty never takes a slot a value needed, and the column itself is
   payload stays keys alone; the labels travel beside it. `readLinks` keeps the
   cheaper join-table-only query, because a write diffs keys against keys.
 
+- **`FileField`** — a column holds a file's key and a `FileStore` holds the
+  bytes, an adapter like `HistoryStore`. Django puts the upload and the column
+  in one field declaration; Drizzle has no such column type, so `files:
+  ["cover"]` names which text column carries a key and the store decides what a
+  key means. The upload is **its own request** (`POST
+  /collections/:slug/files/:field`), which is why the write path still takes
+  JSON and why a file can be chosen on the *add* form — there is no record yet,
+  so no id a key could be derived from, and the store naming the file is what
+  makes that possible. The cost is an abandoned form's orphan, which is a
+  store's to sweep.
+  Removal diverges from Django deliberately. Django stopped deleting on its own
+  in 1.3 because a rollback could leave a row without its file; Comp deletes
+  because the key is the store's own invention, so two records cannot reach the
+  same one, and because the delete runs **after** the write has committed. Its
+  failures are swallowed: an orphan is survivable, a record pointing at nothing
+  is not. The hook is in the mutation layer, so an HTTP write and an MCP write
+  sweep alike.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what

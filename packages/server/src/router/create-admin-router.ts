@@ -7,6 +7,7 @@ import {
   authorizeRecordAccess,
   bindManyToMany,
   checkLinkTargets,
+  checkUpload,
   checksRecords,
   collectDateHierarchy,
   collectFilterChoices,
@@ -44,6 +45,8 @@ import {
   type HistoryStore,
   type Identity,
   type InlineSpec,
+  type FileStore,
+  type FileSummary,
   type InlineWritePayload,
   type LinkedRecord,
   type ManyToManySpec,
@@ -100,6 +103,27 @@ function linkLabels(
   )
 }
 
+/**
+ * Where each of a record's stored files can be read, keyed by field.
+ *
+ * A display companion to the keys the row already holds, the way link labels
+ * are to link keys: what a key resolves to is the store's business, and the
+ * form cannot ask it directly from a browser.
+ */
+function fileUrls(
+  collection: Collection,
+  row: Record<string, unknown>,
+  store: FileStore | undefined,
+): Record<string, string> | undefined {
+  if (!store || collection.files.length === 0) return undefined
+  const urls: Record<string, string> = {}
+  for (const file of collection.files) {
+    const key = row[file.field]
+    if (typeof key === 'string' && key !== '') urls[file.field] = store.url(key)
+  }
+  return urls
+}
+
 export interface AdminRouterConfig {
   collections: Collection[]
   /** Bulk/custom actions, scoped to a collection by their `collection` slug. */
@@ -125,6 +149,12 @@ export interface AdminRouterConfig {
    * same limits rather than having to reimplement them.
    */
   executor?: ActionExecutor
+  /**
+   * Where uploads go. Omit it and the file routes are not mounted — a
+   * collection may declare file fields and still be served read-only, and a
+   * store that does not exist should refuse loudly rather than write nowhere.
+   */
+  files?: FileStore
 }
 
 function allows(collection: Collection, op: CollectionOperation): boolean {
@@ -451,12 +481,16 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
     db: SqliteDb
     collection: Collection
     history: HistoryStore | undefined
+    files: FileStore | undefined
     actor: string | null
   }> {
     return {
       db,
       collection,
       history: config.history,
+      // The same store the uploads went to: a write that replaces a key is the
+      // only thing that knows the old file is now unreferenced.
+      files: config.files,
       actor: await actorOf(c),
     }
   }
@@ -525,6 +559,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         inbound: relations.inbound[collection.slug] ?? [],
         inlines: (inlines.get(collection.slug) ?? []).map(inlineSummary),
         manyToMany: (links.get(collection.slug) ?? []).map(manyToManySummary),
+        // Only when a store is mounted: a picker with nowhere to put the bytes
+        // is a control that cannot do what it offers.
+        files: config.files ? collection.files : [],
         manifest: collection.manifest,
         actions: (actionsBySlug.get(collection.slug) ?? []).map(
           (action) => action.manifest,
@@ -532,6 +569,65 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       })
     }
     return c.json(summaries)
+  })
+
+  /**
+   * Take one file for one field and answer with the key that names it.
+   *
+   * Deliberately its own request rather than a multipart create/update. Two
+   * things fall out of that and both are why: the write path keeps taking
+   * JSON, so a file field is just the text column it always was; and a file
+   * can be chosen on the *add* form, where there is no record yet and so no id
+   * a key could be derived from.
+   *
+   * The cost is an upload whose form is then abandoned — bytes nothing points
+   * at. That is a store's problem to sweep, and the trade a record that cannot
+   * exist yet forces.
+   */
+  app.post('/collections/:slug/files/:field', async (c) => {
+    const store = config.files
+    if (!store) return c.json({ error: 'No file store' }, 404)
+
+    const collection = bySlug.get(c.req.param('slug'))
+    if (!collection) return c.json({ error: 'Unknown collection' }, 404)
+
+    const field = c.req.param('field')
+    const summary: FileSummary | undefined = collection.files.find(
+      (entry) => entry.field === field,
+    )
+    if (!summary) return c.json({ error: 'Unknown file field' }, 404)
+
+    // Storing a file is a write, and it happens before the record exists — so
+    // it answers to whichever write the caller could go on to make.
+    const mayWrite =
+      (await authorized(c, collection, 'create')) ||
+      (await authorized(c, collection, 'update'))
+    if (!mayWrite) return c.json({ error: 'Forbidden' }, 403)
+
+    let file: unknown
+    try {
+      const body = await c.req.parseBody()
+      file = body.file
+    } catch {
+      return c.json({ error: 'Expected a multipart body' }, 400)
+    }
+    if (!(file instanceof File)) {
+      return c.json({ error: 'Expected a file part named "file"' }, 400)
+    }
+
+    const refusal = checkUpload(summary, file.type, file.size)
+    if (refusal) {
+      return c.json({ error: refusal, issues: [{ path: [field], message: refusal }] }, 422)
+    }
+
+    const stored = await store.put({
+      collection: collection.slug,
+      field,
+      filename: file.name,
+      contentType: file.type,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    })
+    return c.json(stored, 201)
   })
 
   app.get('/collections/:slug/:id/delete-preview', async (c) => {
@@ -667,6 +763,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       inlines: nestedInlines,
       manyToMany: linkKeys(nestedLinks),
       manyToManyLabels: linkLabels(nestedLinks),
+      fileUrls: fileUrls(collection, found.row, config.files),
     })
   })
 
@@ -718,6 +815,7 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
         inlines: nestedInlines,
         manyToMany: linkKeys(nestedLinks),
         manyToManyLabels: linkLabels(nestedLinks),
+        fileUrls: fileUrls(collection, row, config.files),
       },
       201,
     )
@@ -801,6 +899,9 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
       inlines: nestedInlines,
       manyToMany: linkKeys(nestedLinks),
       manyToManyLabels: linkLabels(nestedLinks),
+      // The row the update produced, not the one it replaced: a changed key
+      // must not answer with the file it changed away from.
+      fileUrls: fileUrls(collection, row, config.files),
     })
   })
 

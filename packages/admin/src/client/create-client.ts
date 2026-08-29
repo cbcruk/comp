@@ -4,6 +4,7 @@ import type {
   HistoryEntry,
   InlineWritePayload,
   ManyToManyWrite,
+  StoredFile,
 } from '@comp/core'
 import { CompClientError } from './client-error.js'
 import type {
@@ -56,6 +57,23 @@ export function createClient(options: ClientOptions): CompClient {
     return body.data
   }
 
+  /**
+   * A multipart POST, which is why it does not go through `request`: that one
+   * sets `content-type: application/json`, and a multipart body has to be left
+   * to the browser so the boundary it generates is the one in the header.
+   */
+  async function upload(path: string, file: File): Promise<StoredFile> {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await fetchImpl(`${base}${path}`, {
+      method: 'POST',
+      body: form,
+    })
+    const body: unknown = await response.json().catch(() => undefined)
+    if (!response.ok) throw new CompClientError(response.status, body)
+    return body as StoredFile
+  }
+
   function getRecord(slug: string, id: string | number): Promise<RecordResult> {
     return request<RecordResult>(
       `/collections/${encodeURIComponent(slug)}/${encodeURIComponent(String(id))}`,
@@ -88,6 +106,12 @@ export function createClient(options: ClientOptions): CompClient {
       return unwrap(await getRecord(slug, id))
     },
     getRecord,
+    uploadFile(slug, field, file) {
+      return upload(
+        `/collections/${encodeURIComponent(slug)}/files/${encodeURIComponent(field)}`,
+        file,
+      )
+    },
     async create(slug, values, inlines, manyToMany) {
       const body = await request<{ data: Row }>(
         `/collections/${encodeURIComponent(slug)}`,

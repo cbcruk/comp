@@ -108,6 +108,10 @@ v0.1 in progress. Implemented end-to-end:
   capped list says it is a prefix, and a record read returns its links with
   their labels — so a linked record outside the current results still shows,
   and can still be unlinked.
+- File fields: `files: ["cover"]` makes a text column hold a key and a
+  `FileStore` hold the bytes, an adapter like `HistoryStore`. The upload is its
+  own request, so the write path stays JSON and a file can be chosen on the add
+  form. Replaced and deleted files are swept after the write commits.
 - Many-to-many: `manyToMany: [{ collection: "tags", through: orderTags }]`
   names the join table and the far side; which key is whose comes from the
   schema. The widget checks off the related records, a save sets the whole

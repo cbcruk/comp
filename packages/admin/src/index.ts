@@ -134,6 +134,10 @@ export {
 } from './inline-editor/inline-rows.js'
 export type { InlineRow } from './inline-editor/inline-rows.js'
 
+export { FileField } from './file-field/file-field.js'
+export type { FileFieldProps } from './file-field/file-field.js'
+export { fileWidgets } from './file-field/file-widgets.js'
+
 export { ManyToManySelect } from './many-to-many/many-to-many-select.js'
 export type { ManyToManySelectProps } from './many-to-many/many-to-many-select.js'
 export {
