@@ -1,3 +1,9 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { InlineWritePayload } from '@comp/core'
 import { useEffect, useState, type JSX } from 'react'
 import { CollectionForm } from '../collection-form/collection-form.js'
@@ -76,8 +82,8 @@ export function RecordScreen({
     setLinks(seeded)
   }, [manyToMany, collection])
 
-  if (id !== null && loading) return <p>Loading…</p>
-  if (error) return <p role="alert">{error.message}</p>
+  if (id !== null && loading) return <Spinner label="Loading…" />
+  if (error) return <Banner status="error" title={error.message} role="alert" />
 
   const editing = id !== null
   const title = editing
@@ -102,14 +108,15 @@ export function RecordScreen({
   }
 
   return (
-    <section>
-      <h2>{title}</h2>
-      <button
-        type="button"
-        onClick={() => navigate({ view: 'list', slug: collection.slug })}
-      >
-        Back to {collection.labelPlural.toLowerCase()}
-      </button>
+    <VStack as="section" gap={4}>
+      <HStack justify="between" align="center" gap={3}>
+        <Heading level={2}>{title}</Heading>
+        <Button
+          label={`Back to ${collection.labelPlural.toLowerCase()}`}
+          variant="secondary"
+          onClick={() => navigate({ view: 'list', slug: collection.slug })}
+        />
+      </HStack>
 
       <CollectionForm
         key={`${collection.slug}-${id ?? 'new'}`}
@@ -224,27 +231,26 @@ export function RecordScreen({
         })}
       </CollectionForm>
 
-      {editing && (
-        <button
-          type="button"
-          onClick={() =>
-            navigate({ view: 'history', slug: collection.slug, id })
-          }
-        >
-          History
-        </button>
-      )}
-
-      {editing && can(collection, 'delete') && (
-        <button
-          type="button"
-          onClick={() =>
-            navigate({ view: 'delete', slug: collection.slug, id })
-          }
-        >
-          Delete
-        </button>
-      )}
-    </section>
+      <HStack gap={2}>
+        {editing && (
+          <Button
+            label="History"
+            variant="ghost"
+            onClick={() =>
+              navigate({ view: 'history', slug: collection.slug, id })
+            }
+          />
+        )}
+        {editing && can(collection, 'delete') && (
+          <Button
+            label="Delete"
+            variant="destructive"
+            onClick={() =>
+              navigate({ view: 'delete', slug: collection.slug, id })
+            }
+          />
+        )}
+      </HStack>
+    </VStack>
   )
 }

@@ -1,3 +1,8 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { ComponentPropsWithoutRef, JSX } from 'react'
 import { CollectionBrowser } from '../collection-browser/collection-browser.js'
 import { mergeProps } from '../merge-props/merge-props.js'
@@ -6,6 +11,7 @@ import type { AdminSiteProps } from './admin-site.types.js'
 import { DeleteScreen } from './delete-screen.js'
 import { HistoryScreen } from './history-screen.js'
 import { RecordScreen } from './record-screen.js'
+import { AdminTheme } from '../theme/admin-theme.js'
 import { can } from './site.utils.js'
 
 /**
@@ -28,6 +34,8 @@ export function AdminSite({
   renderScreen,
   header,
   title = 'Admin',
+  theme,
+  mode,
   ...rest
 }: AdminSiteProps): JSX.Element {
   const collection =
@@ -41,14 +49,20 @@ export function AdminSite({
     }
     if (!collection) {
       return (
-        <section>
-          <p role="alert">
-            No collection named &quot;{route.slug}&quot; is available.
-          </p>
-          <button type="button" onClick={() => onNavigate({ view: 'index' })}>
-            Back to the index
-          </button>
-        </section>
+        <VStack as="section" gap={3}>
+          <Banner
+            status="error"
+            role="alert"
+            title={`No collection named “${route.slug}” is available.`}
+          />
+          <HStack>
+            <Button
+              label="Back to the index"
+              variant="secondary"
+              onClick={() => onNavigate({ view: 'index' })}
+            />
+          </HStack>
+        </VStack>
       )
     }
 
@@ -63,18 +77,19 @@ export function AdminSite({
     switch (route.view) {
       case 'list':
         return (
-          <section>
-            <h2>{collection.labelPlural}</h2>
-            {can(collection, 'create') && (
-              <button
-                type="button"
-                onClick={() =>
-                  onNavigate({ view: 'add', slug: collection.slug })
-                }
-              >
-                Add {collection.label.toLowerCase()}
-              </button>
-            )}
+          <VStack as="section" gap={4}>
+            <HStack justify="between" align="center" gap={3}>
+              <Heading level={2}>{collection.labelPlural}</Heading>
+              {can(collection, 'create') && (
+                <Button
+                  label={`Add ${collection.label.toLowerCase()}`}
+                  variant="primary"
+                  onClick={() =>
+                    onNavigate({ view: 'add', slug: collection.slug })
+                  }
+                />
+              )}
+            </HStack>
             <CollectionBrowser
               client={client}
               collection={collection}
@@ -86,7 +101,7 @@ export function AdminSite({
                   }
                 : {})}
             />
-          </section>
+          </VStack>
         )
       case 'add':
       case 'change':
@@ -126,14 +141,22 @@ export function AdminSite({
   }
 
   return (
-    <div {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
-      <header>
-        <button type="button" onClick={() => onNavigate({ view: 'index' })}>
-          {title}
-        </button>
-        {header}
-      </header>
-      {screen()}
-    </div>
+    <AdminTheme {...(theme ? { theme } : {})} {...(mode ? { mode } : {})}>
+      <VStack
+        gap={4}
+        padding={4}
+        {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}
+      >
+        <HStack as="header" justify="between" align="center" gap={3}>
+          <Button
+            label={title}
+            variant="ghost"
+            onClick={() => onNavigate({ view: 'index' })}
+          />
+          {header}
+        </HStack>
+        {screen()}
+      </VStack>
+    </AdminTheme>
   )
 }

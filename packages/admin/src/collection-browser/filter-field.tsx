@@ -1,4 +1,8 @@
 import type { FilterChoices, FilterSummary } from '@comp/core'
+import { Selector } from '@astryxdesign/core/Selector'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
+import { Text } from '@astryxdesign/core/Text'
 import type { JSX } from 'react'
 import type { CompClient } from '../client/create-client.types.js'
 import { useReferenceOptions } from './use-reference-options.js'
@@ -41,14 +45,12 @@ export function FilterField({
 
   if (control === 'text') {
     return (
-      <label>
-        {filter.field}
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </label>
+      <TextInput
+        label={filter.field}
+        value={value}
+        onChange={(next) => onChange(next)}
+        hasClear
+      />
     )
   }
 
@@ -60,34 +62,37 @@ export function FilterField({
         : optionsFor(filter)
 
   return (
-    <label>
-      {filter.field}
-      <select
-        value={value}
+    <VStack gap={1}>
+      <Selector
+        label={filter.field}
         aria-label={`Filter by ${filter.field}`}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">All</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        value={value}
+        onChange={(next) => onChange(next)}
+        placeholder="All"
+        // A long list of records is worth searching rather than scrolling.
+        hasSearch={control === 'reference' || options.length > 10}
+        options={[
+          { value: '', label: 'All' },
+          ...options.map((option) => ({
+            value: option.value,
+            label: option.label,
+          })),
+        ]}
+      />
       {/* A capped list says so: the column holds values this control is not
           offering, and a filter that hides that hides records with it. */}
       {choices?.truncated && (
-        <span role="note">
+        <Text size="sm" color="secondary" role="note">
           {`showing the first ${String(filter.limit ?? options.length)} values`}
-        </span>
+        </Text>
       )}
       {/* Same rule for the records a foreign key points at: a filter offering
           some of them, silently, hides the records it would have matched. */}
       {moreReferences && (
-        <span role="note">
+        <Text size="sm" color="secondary" role="note">
           {`showing the first ${String(references.length)} ${filter.collection ?? 'records'}`}
-        </span>
+        </Text>
       )}
-    </label>
+    </VStack>
   )
 }

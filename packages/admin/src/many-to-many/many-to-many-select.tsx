@@ -1,4 +1,10 @@
 import type { ManyToManySummary } from '@comp/core'
+import { Banner } from '@astryxdesign/core/Banner'
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { Text } from '@astryxdesign/core/Text'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
 import {
   useDeferredValue,
   useEffect,
@@ -92,61 +98,66 @@ export function ManyToManySelect({
   )
 
   return (
-    <fieldset {...mergeProps<ComponentPropsWithoutRef<'fieldset'>>({}, rest)}>
-      <legend>{legend ?? relation.name}</legend>
+    <VStack
+      as="fieldset"
+      gap={2}
+      {...mergeProps<ComponentPropsWithoutRef<'fieldset'>>({}, rest)}
+    >
+      <Text as="label" weight="medium">
+        {legend ?? relation.name}
+      </Text>
 
       {linkedKeys.length === 0 ? (
-        <p>Nothing linked yet.</p>
+        <Text size="sm" color="secondary">
+          Nothing linked yet.
+        </Text>
       ) : (
         linkedKeys.map((key) => (
-          <label key={key}>
-            <input
-              type="checkbox"
-              name={relation.name}
-              value={key}
-              checked
-              onChange={() => onChange(toggleLink(value, key))}
-            />
-            {labelFor(key)}
-          </label>
+          <CheckboxInput
+            key={key}
+            label={labelFor(key)}
+            htmlName={relation.name}
+            value
+            onChange={() => onChange(toggleLink(value, key))}
+          />
         ))
       )}
 
-      <input
-        type="search"
+      <TextInput
+        label={`Search ${relation.collection}`}
+        isLabelHidden
+        hasClear
         value={search}
-        aria-label={`Search ${relation.collection}`}
         placeholder={`Search ${relation.collection}…`}
-        onChange={(event) => setSearch(event.target.value)}
+        onChange={(next) => setSearch(next)}
       />
 
-      {error && <span role="alert">{error.message}</span>}
-      {loading && <p>Searching…</p>}
+      {error && <Banner status="error" title={error.message} role="alert" />}
+      {loading && <Spinner label="Searching…" />}
 
       {!loading && !error && unlinkedOptions.length === 0 && (
-        <p>
+        <Text size="sm" color="secondary">
           {search
             ? `No ${relation.collection} match “${search}”.`
             : `No more ${relation.collection} to link.`}
-        </p>
+        </Text>
       )}
 
       {unlinkedOptions.map((option) => (
-        <label key={option.value}>
-          <input
-            type="checkbox"
-            name={relation.name}
-            value={option.value}
-            checked={false}
-            onChange={() => onChange(toggleLink(value, option.value))}
-          />
-          {option.label}
-        </label>
+        <CheckboxInput
+          key={option.value}
+          label={option.label}
+          htmlName={relation.name}
+          value={false}
+          onChange={() => onChange(toggleLink(value, option.value))}
+        />
       ))}
 
       {truncated && (
-        <p>More {relation.collection} match than are shown — keep typing.</p>
+        <Text size="sm" color="secondary" role="note">
+          More {relation.collection} match than are shown — keep typing.
+        </Text>
       )}
-    </fieldset>
+    </VStack>
   )
 }

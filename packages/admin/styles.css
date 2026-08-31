@@ -1,0 +1,11 @@
+/*
+ * The admin's stylesheet: one import for a consumer, so an app does not end up
+ * copying an example sheet and scoping it by hand.
+ *
+ * Order is the layer cascade Astryx documents — reset, then component styles,
+ * then the theme's token overrides. Swap the last line for another
+ * `@astryxdesign/theme-*` to retheme without touching a component.
+ */
+@import '@astryxdesign/core/reset.css';
+@import '@astryxdesign/core/astryx.css';
+@import '@astryxdesign/theme-neutral/theme.css';

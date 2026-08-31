@@ -1,3 +1,6 @@
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
+import { Selector } from '@astryxdesign/core/Selector'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import type { FieldMeta } from '@comp/core'
 import type { JSX } from 'react'
 import {
@@ -41,50 +44,46 @@ export function InlineInput({
   if (type === 'select') {
     const options = optionsFor(field) ?? []
     return (
-      <select
-        autoFocus
-        aria-label={field.name}
-        disabled={busy}
+      <Selector
+        label={field.name}
+        isLabelHidden
+        size="sm"
+        isDisabled={busy}
         value={value}
-        onChange={(e) => {
-          onChange(e.target.value)
-        }}
-        onBlur={onCommit}
-        onKeyDown={onKeyDown}
-      >
-        <option value="">—</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        placeholder="—"
+        onChange={(next) => onChange(next)}
+        options={[
+          { value: '', label: '—' },
+          ...options.map((option) => ({ value: option, label: option })),
+        ]}
+      />
     )
   }
 
   if (type === 'checkbox') {
     return (
-      <input
-        type="checkbox"
-        autoFocus
-        aria-label={field.name}
-        disabled={busy}
-        checked={value === 'true'}
-        onChange={(e) => onChange(e.target.checked ? 'true' : '')}
+      // No autofocus or key handling here: a checkbox has no text to type
+      // into, so it commits on change and on the way out.
+      <CheckboxInput
+        label={field.name}
+        isLabelHidden
+        isDisabled={busy}
+        value={value === 'true'}
+        onChange={(checked) => onChange(checked ? 'true' : '')}
         onBlur={onCommit}
-        onKeyDown={onKeyDown}
       />
     )
   }
 
   return (
-    <input
-      type={type}
-      autoFocus
-      aria-label={field.name}
-      disabled={busy}
+    <TextInput
+      label={field.name}
+      isLabelHidden
+      hasAutoFocus
+      size="sm"
+      isDisabled={busy}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(next) => onChange(next)}
       onBlur={onCommit}
       onKeyDown={onKeyDown}
     />

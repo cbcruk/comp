@@ -153,6 +153,9 @@ export { toOptions } from './reference-select/reference-select.utils.js'
 export type { ReferenceOption } from './reference-select/reference-select.utils.js'
 export { referenceWidgets } from './reference-select/reference-widgets.js'
 
+export { AdminTheme } from './theme/admin-theme.js'
+export type { AdminThemeProps } from './theme/admin-theme.js'
+
 export { AdminSite } from './site/admin-site.js'
 export { AdminIndex } from './site/admin-index.js'
 export { RecordScreen } from './site/record-screen.js'

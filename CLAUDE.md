@@ -358,7 +358,10 @@ truth.
   introspection is likewise SQLite-scoped and degrades to "no relations" on
   other dialects. Other dialects get their own builder behind the same
   signature when needed.
-- **Admin UI:** React 19 + Vite. API via Hono.
+- **Admin UI:** React 19 + Vite, on Astryx (`@astryxdesign/core`), whose
+  pre-built CSS means a consumer needs no StyleX toolchain. Theming is CSS
+  custom properties, so an app retheming does not fork a component. API via
+  Hono.
 - **Validation:** Effect `Schema`, derived from the Drizzle schema
   (`deriveInsertSchema` / `deriveUpdateSchema`). What crosses the wire is
   core's own `FieldIssue` (`{path, message}`), never the library's issue type
@@ -443,12 +446,20 @@ truth.
   — `inline-routes.test.ts` drives the Hono router over `node:sqlite` and caught
   an empty UPDATE that every unit test passed. Import `node:sqlite` through
   `createRequire`; Vite's builtin list predates it.
-- **Admin components are headless.** No imposed styles. They render plain
-  elements with `role`/`aria-*` and expose **render-prop slots** (`renderCell`,
-  `renderField`, `fieldWidgets`, `renderEmpty`, …) rather than boolean-prop
-  proliferation. They accept their root element's HTML attributes and merge them
-  with `mergeProps` (Base UI convention: `className` concat, `style`
-  shallow-merge, `on*` handlers chained, external overrides internal).
+- **Admin components ship a look.** This used to say headless, and the first
+  real consumer disproved it: given components that emitted no class names and
+  one `mergeProps` hook on each root, the app copied the example stylesheet and
+  hand-scoped it so its element selectors would not leak. That is what "bring
+  your own styles" costs, and every consumer would pay it again — so the admin
+  is built on Astryx (`@astryxdesign/core`) and ships one `styles.css`, the way
+  Django's admin and react-admin both answer this.
+  What survives from headless is the part that was working: **render-prop
+  slots** (`renderCell`, `renderField`, `fieldWidgets`, `renderEmpty`, …)
+  rather than boolean-prop proliferation, and roots that accept their element's
+  HTML attributes through `mergeProps` (Base UI convention: `className` concat,
+  `style` shallow-merge, `on*` handlers chained, external overrides internal).
+  Apps do not import Astryx — `AdminSite` wraps itself in `AdminTheme` — so
+  which design system is underneath stays Comp's business.
 - **Derived by default, overridable by prop.** Where a component can compute
   something from the collection metadata (FK labels, relation selects), do that
   and let the prop override it — don't require the app to supply what the

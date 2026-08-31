@@ -1,3 +1,8 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
 import { useState, type JSX } from 'react'
 import type { PasskeyClient } from './passkey-client.types.js'
 
@@ -43,37 +48,37 @@ export function PasskeyLogin({
   }
 
   return (
-    <form onSubmit={(e) => e.preventDefault()}>
-      <label>
-        User
-        <input
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          placeholder="user id"
+    <VStack as="form" gap={3} onSubmit={(e) => e.preventDefault()}>
+      <TextInput
+        label="User"
+        value={userId}
+        placeholder="user id"
+        onChange={(next) => setUserId(next)}
+      />
+      <HStack gap={2}>
+        <Button
+          label="Register passkey"
+          variant="secondary"
+          isDisabled={busy || userId === ''}
+          isLoading={busy}
+          onClick={() =>
+            run(
+              () => client.register(userId, userId),
+              'Passkey registered',
+              false,
+            )
+          }
         />
-      </label>
-      <button
-        type="button"
-        disabled={busy || userId === ''}
-        onClick={() =>
-          run(
-            () => client.register(userId, userId),
-            'Passkey registered',
-            false,
-          )
-        }
-      >
-        Register passkey
-      </button>
-      <button
-        type="button"
-        disabled={busy || userId === ''}
-        onClick={() => run(() => client.login(userId), 'Signed in', true)}
-      >
-        Sign in
-      </button>
-      {status && <p role="status">{status}</p>}
-      {error && <p role="alert">{error}</p>}
-    </form>
+        <Button
+          label="Sign in"
+          variant="primary"
+          isDisabled={busy || userId === ''}
+          isLoading={busy}
+          onClick={() => run(() => client.login(userId), 'Signed in', true)}
+        />
+      </HStack>
+      {status && <Banner status="success" title={status} role="status" />}
+      {error && <Banner status="error" title={error} role="alert" />}
+    </VStack>
   )
 }

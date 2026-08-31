@@ -1,4 +1,9 @@
 import type { FileSummary } from '@comp/core'
+import { Button } from '@astryxdesign/core/Button'
+import { FileInput } from '@astryxdesign/core/FileInput'
+import { Link } from '@astryxdesign/core/Link'
+import { Thumbnail } from '@astryxdesign/core/Thumbnail'
+import { VStack } from '@astryxdesign/core/VStack'
 import { useState, type ComponentPropsWithoutRef, type JSX } from 'react'
 import type { CompClient } from '../client/create-client.types.js'
 import { mergeProps } from '../merge-props/merge-props.js'
@@ -52,6 +57,11 @@ export function FileField({
   const [preview, setPreview] = useState<string | null>(null)
   const shown = preview ?? (value ? url : undefined)
 
+  function clear(): void {
+    onChange('')
+    setPreview(null)
+  }
+
   async function choose(chosen: File): Promise<void> {
     setUploading(true)
     setError(null)
@@ -67,35 +77,44 @@ export function FileField({
   }
 
   return (
-    <div {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
-      <label>
-        {file.field}
-        <input
-          type="file"
-          {...(file.accept ? { accept: file.accept } : {})}
-          disabled={uploading}
-          onChange={(event) => {
-            const chosen = event.target.files?.[0]
-            if (chosen) void choose(chosen)
-          }}
-        />
-      </label>
-
-      {uploading && <p>Uploading…</p>}
-      {error && <span role="alert">{error}</span>}
+    <VStack gap={2} {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
+      <FileInput
+        label={file.field}
+        // The bytes are uploaded on pick, so the control never holds a File —
+        // what the record keeps is the key the store answered with.
+        value={null}
+        isLoading={uploading}
+        isDisabled={uploading}
+        {...(file.accept ? { accept: file.accept } : {})}
+        {...(file.maxBytes !== null ? { maxSize: file.maxBytes } : {})}
+        {...(error ? { status: { type: 'error' as const, message: error } } : {})}
+        onChange={(chosen) => {
+          const picked = Array.isArray(chosen) ? chosen[0] : chosen
+          if (picked) void choose(picked)
+        }}
+      />
 
       {shown &&
         (isImage(file, shown) ? (
-          <img src={shown} alt={`${file.field} preview`} />
+          <Thumbnail
+            src={shown}
+            alt={`${file.field} preview`}
+            label={value}
+            isLoading={uploading}
+            {...(value && !uploading ? { onRemove: clear } : {})}
+          />
         ) : (
-          <a href={shown}>{value}</a>
+          <Link href={shown}>{value}</Link>
         ))}
 
-      {value && !uploading && (
-        <button type="button" onClick={() => { onChange(''); setPreview(null) }}>
-          Clear {file.field}
-        </button>
+      {value && !uploading && !isImage(file, shown) && (
+        <Button
+          label={`Clear ${file.field}`}
+          variant="secondary"
+          size="sm"
+          onClick={clear}
+        />
       )}
-    </div>
+    </VStack>
   )
 }

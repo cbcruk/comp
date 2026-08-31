@@ -6,7 +6,14 @@ import {
   toPayload,
 } from '../collection-form/collection-form.utils.js'
 
-export interface InlineRow {
+/**
+ * A row of an inline while it is being edited.
+ *
+ * A type alias rather than an interface so it satisfies the table's
+ * `Record<string, unknown>` bound — TypeScript gives object literal types an
+ * implicit index signature and interfaces none.
+ */
+export type InlineRow = {
   /** Stable identity for rendering and editing — not the record's key. */
   key: string
   /** Primary key of a stored row; null for one added but not yet saved. */

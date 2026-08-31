@@ -1,3 +1,10 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { DeleteImpact } from '@comp/core'
 import { useEffect, useState, type JSX } from 'react'
 import type { DeleteScreenProps } from './admin-site.types.js'
@@ -44,44 +51,47 @@ export function DeleteScreen({
 
   if (error) {
     return (
-      <section>
-        <p role="alert">{error.message}</p>
-        <button type="button" onClick={back}>
-          Back
-        </button>
-      </section>
+      <VStack as="section" gap={3}>
+        <Banner status="error" title={error.message} role="alert" />
+        <HStack>
+          <Button label="Back" variant="secondary" onClick={back} />
+        </HStack>
+      </VStack>
     )
   }
-  if (!impact) return <p>Checking what this would affect…</p>
+  if (!impact) return <Spinner label="Checking what this would affect…" />
 
   const lines = describeImpact(impact)
 
   return (
-    <section>
-      <h2>
+    <VStack as="section" gap={3}>
+      <Heading level={2}>
         Delete {collection.label.toLowerCase()} {id}?
-      </h2>
-      <p>{summarizeImpact(impact)}</p>
+      </Heading>
+      <Text>{summarizeImpact(impact)}</Text>
 
       {lines.length > 0 && (
-        <ul>
+        <VStack gap={1}>
           {lines.map((line) => (
-            <li
+            <Text
               key={line.collection}
+              size="sm"
+              color={line.blocking ? 'accent' : 'secondary'}
               {...(line.blocking ? { role: 'alert' } : {})}
             >
               {line.text}
-            </li>
+            </Text>
           ))}
-        </ul>
+        </VStack>
       )}
 
-      <button type="button" onClick={back}>
-        Cancel
-      </button>
-      <button
-        type="button"
-        disabled={impact.blocked || busy}
+      <HStack gap={2}>
+        <Button label="Cancel" variant="secondary" onClick={back} />
+      <Button
+        label={impact.blocked ? 'Cannot delete' : 'Delete'}
+        variant="destructive"
+        isDisabled={impact.blocked || busy}
+        isLoading={busy}
         onClick={async () => {
           setBusy(true)
           try {
@@ -96,9 +106,8 @@ export function DeleteScreen({
             setBusy(false)
           }
         }}
-      >
-        {impact.blocked ? 'Cannot delete' : 'Delete'}
-      </button>
-    </section>
+      />
+      </HStack>
+    </VStack>
   )
 }

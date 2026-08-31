@@ -1,3 +1,6 @@
+import { Selector } from '@astryxdesign/core/Selector'
+import { Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import { type JSX } from 'react'
 import {
   DEFAULT_REFERENCE_LIMIT,
@@ -39,27 +42,31 @@ export function ReferenceSelect({
     current !== '' && !options.some((option) => option.value === current)
 
   return (
-    <label>
-      {control.field.name}
-      <select
+    <VStack gap={1}>
+      <Selector
+        label={control.field.name}
         value={control.value}
-        required={required}
-        onChange={(e) => control.onChange(e.target.value)}
-      >
-        <option value="">—</option>
-        {missing && <option value={current}>{current}</option>}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        isRequired={required}
+        placeholder="—"
+        hasSearch
+        onChange={(next) => control.onChange(next)}
+        {...(error ? { status: { type: 'error' as const, message: error.message } } : {})}
+        options={[
+          { value: '', label: '—' },
+          // A value already set but outside the offered records still renders,
+          // by its key, rather than silently reading as blank.
+          ...(missing ? [{ value: current, label: current }] : []),
+          ...options.map((option) => ({
+            value: option.value,
+            label: option.label,
+          })),
+        ]}
+      />
       {truncated && (
-        <span role="note">
+        <Text size="sm" color="secondary" role="note">
           {`showing the first ${String(options.length)} ${collection}`}
-        </span>
+        </Text>
       )}
-      {error && <span role="alert">{error.message}</span>}
-    </label>
+    </VStack>
   )
 }

@@ -1,6 +1,12 @@
-import type { ComponentPropsWithoutRef, JSX } from 'react'
-import { mergeProps } from '../merge-props/merge-props.js'
-import type { CollectionListProps } from './collection-list.types.js'
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
+import { Table, useTableSortable } from '@astryxdesign/core/Table'
+import type { TableColumn } from '@astryxdesign/core/Table'
+import { useMemo, type JSX } from 'react'
+import type {
+  CollectionListProps,
+  ColumnSort,
+  Row,
+} from './collection-list.types.js'
 
 function defaultCell(value: unknown): string {
   if (value === null || value === undefined) return ''
@@ -8,13 +14,25 @@ function defaultCell(value: unknown): string {
   return String(value)
 }
 
-/**
- * Render a collection's list view from the core data contract. Purely
- * presentational — it renders what the query layer resolved and nothing more.
- * Cell/header/empty rendering are render-prop slots rather than prop flags.
- */
-const SORT_INDICATOR = { asc: ' ▲', desc: ' ▼' } as const
+/** Comp says `asc`/`desc`; the table says `ascending`/`descending`. */
+function toTableSort(sort: ColumnSort | undefined) {
+  if (!sort?.field || !sort.direction) return []
+  const direction = sort.direction === 'asc' ? 'ascending' : 'descending'
+  return [{ sortKey: sort.field, direction } as const]
+}
 
+/**
+ * A collection's list view.
+ *
+ * Purely presentational — it renders what the query layer resolved and nothing
+ * more. Sorting is **controlled**: the header reports which column was asked
+ * for and the rows arrive already sorted, because a page is a window onto a
+ * table and sorting the window would put the wrong rows in it.
+ *
+ * Selection is an ordinary leading column rather than a plugin, so one
+ * `renderCell` contract covers every cell and a row's id stays the list's own
+ * idea rather than the table's.
+ */
 export function CollectionList({
   columns,
   rows,
@@ -26,87 +44,71 @@ export function CollectionList({
   sortable,
   ...rest
 }: CollectionListProps): JSX.Element {
+  const sortPlugin = useTableSortable<Row>({
+    sort: toTableSort(sort),
+    onSortChange: (next) => {
+      const first = next[0]
+      if (sort && first) sort.onSort(first.sortKey)
+    },
+    allowUnsortedState: true,
+  })
+
+  const tableColumns = useMemo<TableColumn<Row>[]>(() => {
+    const selectionColumn: TableColumn<Row>[] = selection
+      ? [
+          {
+            key: '__select',
+            width: { type: 'pixel', value: 48 },
+            header: selection.onToggleAll ? (
+              <CheckboxInput
+                label="Select all"
+                isLabelHidden
+                value={selection.allSelected ?? false}
+                onChange={selection.onToggleAll}
+              />
+            ) : null,
+            renderCell: (row: Row) => {
+              const id = selection.getRowId(row)
+              if (id === null) return null
+              return (
+                <CheckboxInput
+                  label={`Select ${id}`}
+                  isLabelHidden
+                  value={selection.selected.has(id)}
+                  onChange={() => selection.onToggle(id)}
+                />
+              )
+            },
+          },
+        ]
+      : []
+
+    return [
+      ...selectionColumn,
+      ...columns.map<TableColumn<Row>>((column) => ({
+        key: column,
+        header: renderHeader ? renderHeader(column) : column,
+        // A column the server cannot order by offers no sort: a control that
+        // looks like it sorts and does nothing is worse than a plain heading.
+        sortable: Boolean(sort) && (!sortable || sortable.includes(column)),
+        renderCell: (row: Row) =>
+          renderCell
+            ? renderCell({ column, value: row[column], row })
+            : defaultCell(row[column]),
+      })),
+    ]
+  }, [columns, renderCell, renderHeader, selection, sort, sortable])
+
   if (rows.length === 0 && renderEmpty) {
     return <>{renderEmpty()}</>
   }
 
-  function headerContent(column: string): JSX.Element | string {
-    const label = renderHeader ? renderHeader(column) : column
-    // A column the server cannot order by gets no button: a control that looks
-    // like it sorts and does nothing is worse than a plain heading.
-    if (!sort || (sortable && !sortable.includes(column))) return <>{label}</>
-    const active = sort.field === column ? sort.direction : null
-    return (
-      <button type="button" onClick={() => sort.onSort(column)}>
-        {label}
-        {active ? SORT_INDICATOR[active] : ''}
-      </button>
-    )
-  }
-
-  function ariaSort(column: string): 'ascending' | 'descending' | 'none' {
-    if (!sort || sort.field !== column || !sort.direction) return 'none'
-    return sort.direction === 'asc' ? 'ascending' : 'descending'
-  }
-
   return (
-    <table {...mergeProps<ComponentPropsWithoutRef<'table'>>({}, rest)}>
-      <thead>
-        <tr>
-          {selection && (
-            <th>
-              {selection.onToggleAll && (
-                <input
-                  type="checkbox"
-                  aria-label="Select all"
-                  checked={selection.allSelected ?? false}
-                  onChange={selection.onToggleAll}
-                />
-              )}
-            </th>
-          )}
-          {columns.map((column) => (
-            <th
-              key={column}
-              aria-sort={
-                sort && (!sortable || sortable.includes(column))
-                  ? ariaSort(column)
-                  : undefined
-              }
-            >
-              {headerContent(column)}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, index) => {
-          const id = selection?.getRowId(row) ?? null
-          return (
-            <tr key={id ?? index}>
-              {selection && (
-                <td>
-                  {id !== null && (
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${id}`}
-                      checked={selection.selected.has(id)}
-                      onChange={() => selection.onToggle(id)}
-                    />
-                  )}
-                </td>
-              )}
-              {columns.map((column) => (
-                <td key={column}>
-                  {renderCell
-                    ? renderCell({ column, value: row[column], row })
-                    : defaultCell(row[column])}
-                </td>
-              ))}
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <Table<Row>
+      data={rows}
+      columns={tableColumns}
+      plugins={sort ? { sortable: sortPlugin } : {}}
+      {...rest}
+    />
   )
 }
