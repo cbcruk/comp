@@ -216,11 +216,63 @@ last` so an empty never takes a slot a value needed, and the column itself is
   subqueries, never a join: a record carrying two matching tags must come back
   once, and the total must still agree with the rows.
 
+- **`autocomplete_fields`** — a reference widget **searches** the far
+  collection instead of listing its first page. The page-as-collection version
+  was wrong in a way that hid itself: past that page a record could not be
+  linked, and worse, one already linked rendered as nothing — invisible, so
+  impossible to unlink, and the form quietly disagreed with the database. Two
+  halves fix it. The term goes over as `q`, resolved by the far collection's own
+  `search`, and the query asks for one row more than it shows so a capped list
+  can say it is a prefix — the rule the `values` filter already follows. And a
+  record read returns its links **with their labels** (`manyToManyLabels`), so
+  what is linked never depends on what the search happened to return. The write
+  payload stays keys alone; the labels travel beside it. `readLinks` keeps the
+  cheaper join-table-only query, because a write diffs keys against keys.
+
+- **`FileField`** — a column holds a file's key and a `FileStore` holds the
+  bytes, an adapter like `HistoryStore`. Django puts the upload and the column
+  in one field declaration; Drizzle has no such column type, so `files:
+["cover"]` names which text column carries a key and the store decides what a
+  key means. The upload is **its own request** (`POST
+/collections/:slug/files/:field`), which is why the write path still takes
+  JSON and why a file can be chosen on the _add_ form — there is no record yet,
+  so no id a key could be derived from, and the store naming the file is what
+  makes that possible. The cost is an abandoned form's orphan, which is a
+  store's to sweep.
+  Removal diverges from Django deliberately. Django stopped deleting on its own
+  in 1.3 because a rollback could leave a row without its file; Comp deletes
+  because the key is the store's own invention, so two records cannot reach the
+  same one, and because the delete runs **after** the write has committed. Its
+  failures are swallowed: an orphan is survivable, a record pointing at nothing
+  is not. The hook is in the mutation layer, so an HTTP write and an MCP write
+  sweep alike.
+
+- **`list_display` over a many-to-many** — Django reaches that cell with a
+  method on the model and pays a query per record for it. The traversal stays
+  refused, because a traversal is a join and a join through a join table
+  multiplies the record; `{ collect: "tags", field: "name" }` is an **aggregate**
+  instead, one correlated subquery per column, so the row set is untouched and
+  the total still agrees with it. Both of the subquery's tables are aliased and
+  every reference is qualified — Drizzle drops the table prefix when the outer
+  query has one table, so `where post_id = id` is ambiguous the moment the names
+  collide, and a relationship joining a table to itself is ambiguous even with
+  real table names. It carries `sortable: false` to the client, and the header
+  draws no sort button, because there is no column behind it to order by.
+
 **Next — each one is a vertical slice (core → server/MCP → admin)**
 
 - The Django parity backlog above is complete. Take the next slice from what
   the admin still cannot do (a two-pane `filter_horizontal` widget) rather than
   polishing what is built.
+- `useReferenceLabels` — the list's FK label map — still reads the far
+  collection's first page, the bug `autocomplete_fields` fixed everywhere else.
+  Its answer is different, though: resolve the labels for the ids **on the
+  page**, not a prefix of the collection.
+- Being consumed is not solved. The three things a linked consumer must
+  configure (build to `dist` because a bundler cannot follow NodeNext `.js`
+  specifiers into TypeScript source; a single `react`; a single `drizzle-orm`,
+  whose `Column` has a `protected` member and so is nominally distinct per copy)
+  are all silent failures if missed.
 
 When you implement one, say in the commit which Django _behavior_ you
 reproduced and confirm it was re-derived, not copied.
@@ -306,7 +358,10 @@ truth.
   introspection is likewise SQLite-scoped and degrades to "no relations" on
   other dialects. Other dialects get their own builder behind the same
   signature when needed.
-- **Admin UI:** React 19 + Vite. API via Hono.
+- **Admin UI:** React 19 + Vite, on Astryx (`@astryxdesign/core`), whose
+  pre-built CSS means a consumer needs no StyleX toolchain. Theming is CSS
+  custom properties, so an app retheming does not fork a component. API via
+  Hono.
 - **Validation:** Effect `Schema`, derived from the Drizzle schema
   (`deriveInsertSchema` / `deriveUpdateSchema`). What crosses the wire is
   core's own `FieldIssue` (`{path, message}`), never the library's issue type
@@ -391,12 +446,20 @@ truth.
   — `inline-routes.test.ts` drives the Hono router over `node:sqlite` and caught
   an empty UPDATE that every unit test passed. Import `node:sqlite` through
   `createRequire`; Vite's builtin list predates it.
-- **Admin components are headless.** No imposed styles. They render plain
-  elements with `role`/`aria-*` and expose **render-prop slots** (`renderCell`,
-  `renderField`, `fieldWidgets`, `renderEmpty`, …) rather than boolean-prop
-  proliferation. They accept their root element's HTML attributes and merge them
-  with `mergeProps` (Base UI convention: `className` concat, `style`
-  shallow-merge, `on*` handlers chained, external overrides internal).
+- **Admin components ship a look.** This used to say headless, and the first
+  real consumer disproved it: given components that emitted no class names and
+  one `mergeProps` hook on each root, the app copied the example stylesheet and
+  hand-scoped it so its element selectors would not leak. That is what "bring
+  your own styles" costs, and every consumer would pay it again — so the admin
+  is built on Astryx (`@astryxdesign/core`) and ships one `styles.css`, the way
+  Django's admin and react-admin both answer this.
+  What survives from headless is the part that was working: **render-prop
+  slots** (`renderCell`, `renderField`, `fieldWidgets`, `renderEmpty`, …)
+  rather than boolean-prop proliferation, and roots that accept their element's
+  HTML attributes through `mergeProps` (Base UI convention: `className` concat,
+  `style` shallow-merge, `on*` handlers chained, external overrides internal).
+  Apps do not import Astryx — `AdminSite` wraps itself in `AdminTheme` — so
+  which design system is underneath stays Comp's business.
 - **Derived by default, overridable by prop.** Where a component can compute
   something from the collection metadata (FK labels, relation selects), do that
   and let the prop override it — don't require the app to supply what the

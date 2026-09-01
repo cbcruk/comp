@@ -1,7 +1,7 @@
 {
   "name": "@comp/admin",
   "version": "0.0.0",
-  "description": "React admin UI for Comp — list, detail, forms, filters, actions",
+  "description": "React admin UI for Comp \u2014 list, detail, forms, filters, actions",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -11,10 +11,12 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    }
+    },
+    "./styles.css": "./styles.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "styles.css"
   ],
   "publishConfig": {
     "main": "./dist/index.js",
@@ -23,7 +25,8 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
-      }
+      },
+      "./styles.css": "./styles.css"
     }
   },
   "scripts": {
@@ -32,8 +35,11 @@
     "prepublishOnly": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@astryxdesign/core": "0.5.2",
+    "@astryxdesign/theme-neutral": "0.5.2",
     "@comp/core": "workspace:*",
-    "@simplewebauthn/browser": "^13.0.0"
+    "@simplewebauthn/browser": "^13.0.0",
+    "@stylexjs/stylex": "0.19.0"
   },
   "peerDependencies": {
     "react": "^19.0.0"

@@ -103,6 +103,18 @@ v0.1 in progress. Implemented end-to-end:
   request (`inlines: ["order_items"]`), resolved against the relation graph and
   scoped to the parent in SQL. Exposed over HTTP, MCP, and the React
   `InlineEditor`.
+- Reference widgets search rather than enumerate: the term goes to the far
+  collection's own `search`, the query asks for one row over the limit so a
+  capped list says it is a prefix, and a record read returns its links with
+  their labels — so a linked record outside the current results still shows,
+  and can still be unlinked.
+- File fields: `files: ["cover"]` makes a text column hold a key and a
+  `FileStore` hold the bytes, an adapter like `HistoryStore`. The upload is its
+  own request, so the write path stays JSON and a file can be chosen on the add
+  form. Replaced and deleted files are swept after the write commits.
+- A many-to-many in the list: `{ collect: "tags", field: "name" }` gathers it
+  into one cell with a correlated aggregate — one statement for the page, and
+  the row set and its total are untouched.
 - Many-to-many: `manyToMany: [{ collection: "tags", through: orderTags }]`
   names the join table and the far side; which key is whose comes from the
   schema. The widget checks off the related records, a save sets the whole
@@ -163,14 +175,25 @@ edit shows the offending field's message.
 Toast notifications (`useToasts` + `Toasts`) surface action success/failure;
 `CollectionBrowser` routes them through an optional `onNotify` callback.
 
-The list resolves FK columns to labels (a `references` prop), inline edits apply
-optimistically and reconcile with the server, and the example ships a small
-stylesheet. Admin components carry `aria-sort`/`aria-label`/`role` for
-accessibility.
+The list resolves FK columns to labels (a `references` prop) and inline edits
+apply optimistically and reconcile with the server.
 
-Admin components accept their root element's HTML attributes and merge them via
-a Base UI–style `mergeProps` (className concat, style merge, handlers chained,
-external overrides internal), so apps can style/extend the roots.
+The admin **comes with its look**. Screens are built on Astryx
+(`@astryxdesign/core`), and an app imports one stylesheet:
+
+```ts
+import '@comp/admin/styles.css'
+```
+
+`AdminSite` wraps itself in `AdminTheme`, so apps never import the design system
+themselves; pass `theme` to retheme, which is a set of CSS custom property
+overrides rather than a fork. Astryx ships pre-built CSS, so no StyleX
+toolchain is required downstream.
+
+Admin components still accept their root element's HTML attributes and merge
+them via a Base UI–style `mergeProps` (className concat, style merge, handlers
+chained, external overrides internal), and still take render-prop slots for
+cells, fields, and empty states.
 
 `@comp/mcp` exposes the same collections and actions over the Model Context
 Protocol (JSON-RPC, no SDK dependency): `createMcpHandler` generates

@@ -1,3 +1,9 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { InlineWritePayload } from '@comp/core'
 import { useEffect, useState, type JSX } from 'react'
 import { CollectionForm } from '../collection-form/collection-form.js'
@@ -11,6 +17,7 @@ import {
 } from '../inline-editor/inline-rows.js'
 import { changedLinks } from '../many-to-many/links.js'
 import { ManyToManySelect } from '../many-to-many/many-to-many-select.js'
+import { fileWidgets } from '../file-field/file-widgets.js'
 import { referenceWidgets } from '../reference-select/reference-widgets.js'
 import {
   extractIssues,
@@ -34,11 +41,15 @@ export function RecordScreen({
   onNotify,
   fieldWidgets,
 }: RecordScreenProps): JSX.Element {
-  const { record, inlines, manyToMany, loading, error } = useRecord(
-    client,
-    collection.slug,
-    id,
-  )
+  const {
+    record,
+    inlines,
+    manyToMany,
+    manyToManyLabels,
+    fileUrls,
+    loading,
+    error,
+  } = useRecord(client, collection.slug, id)
   const [rows, setRows] = useState<Record<string, InlineRow[]>>({})
   const [links, setLinks] = useState<Record<string, unknown[]>>({})
   const [rowErrors, setRowErrors] = useState<
@@ -71,8 +82,8 @@ export function RecordScreen({
     setLinks(seeded)
   }, [manyToMany, collection])
 
-  if (id !== null && loading) return <p>Loading…</p>
-  if (error) return <p role="alert">{error.message}</p>
+  if (id !== null && loading) return <Spinner label="Loading…" />
+  if (error) return <Banner status="error" title={error.message} role="alert" />
 
   const editing = id !== null
   const title = editing
@@ -97,14 +108,15 @@ export function RecordScreen({
   }
 
   return (
-    <section>
-      <h2>{title}</h2>
-      <button
-        type="button"
-        onClick={() => navigate({ view: 'list', slug: collection.slug })}
-      >
-        Back to {collection.labelPlural.toLowerCase()}
-      </button>
+    <VStack as="section" gap={4}>
+      <HStack justify="between" align="center" gap={3}>
+        <Heading level={2}>{title}</Heading>
+        <Button
+          label={`Back to ${collection.labelPlural.toLowerCase()}`}
+          variant="secondary"
+          onClick={() => navigate({ view: 'list', slug: collection.slug })}
+        />
+      </HStack>
 
       <CollectionForm
         key={`${collection.slug}-${id ?? 'new'}`}
@@ -115,6 +127,7 @@ export function RecordScreen({
         submitLabel={editing ? 'Save' : 'Create'}
         fieldWidgets={{
           ...referenceWidgets(client, collection.relations),
+          ...fileWidgets(client, collection.slug, collection.files, fileUrls),
           ...fieldWidgets,
         }}
         onSubmit={async (values) => {
@@ -190,6 +203,7 @@ export function RecordScreen({
             client={client}
             relation={relation}
             value={links[relation.name] ?? []}
+            labels={manyToManyLabels[relation.name]}
             onChange={(next) =>
               setLinks((prev) => ({ ...prev, [relation.name]: next }))
             }
@@ -217,27 +231,26 @@ export function RecordScreen({
         })}
       </CollectionForm>
 
-      {editing && (
-        <button
-          type="button"
-          onClick={() =>
-            navigate({ view: 'history', slug: collection.slug, id })
-          }
-        >
-          History
-        </button>
-      )}
-
-      {editing && can(collection, 'delete') && (
-        <button
-          type="button"
-          onClick={() =>
-            navigate({ view: 'delete', slug: collection.slug, id })
-          }
-        >
-          Delete
-        </button>
-      )}
-    </section>
+      <HStack gap={2}>
+        {editing && (
+          <Button
+            label="History"
+            variant="ghost"
+            onClick={() =>
+              navigate({ view: 'history', slug: collection.slug, id })
+            }
+          />
+        )}
+        {editing && can(collection, 'delete') && (
+          <Button
+            label="Delete"
+            variant="destructive"
+            onClick={() =>
+              navigate({ view: 'delete', slug: collection.slug, id })
+            }
+          />
+        )}
+      </HStack>
+    </VStack>
   )
 }

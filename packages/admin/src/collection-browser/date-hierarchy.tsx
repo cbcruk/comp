@@ -1,3 +1,7 @@
+import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { DateHierarchy } from '@comp/core'
 import type { JSX } from 'react'
 
@@ -26,32 +30,34 @@ export function DateHierarchyStrip({
   }
 
   return (
-    <nav aria-label={`Browse by ${hierarchy.field}`}>
-      <ol>
+    <VStack gap={2}>
+      <Breadcrumbs label={`Browse by ${hierarchy.field}`}>
         {hierarchy.breadcrumb.map((crumb) => (
-          <li key={crumb.path || 'all'}>
-            {crumb.path === value ? (
-              <span aria-current="page">{crumb.label}</span>
-            ) : (
-              <button type="button" onClick={() => onNavigate(crumb.path)}>
-                {crumb.label}
-              </button>
-            )}
-          </li>
+          <BreadcrumbItem
+            key={crumb.path || 'all'}
+            isCurrent={crumb.path === value}
+            {...(crumb.path === value
+              ? {}
+              : { onClick: () => onNavigate(crumb.path) })}
+          >
+            {crumb.label}
+          </BreadcrumbItem>
         ))}
-      </ol>
+      </Breadcrumbs>
 
       {hierarchy.choices.length > 0 && (
-        <ul>
+        <HStack gap={2} wrap="wrap">
           {hierarchy.choices.map((choice) => (
-            <li key={choice.path}>
-              <button type="button" onClick={() => onNavigate(choice.path)}>
-                {choice.label} ({choice.count})
-              </button>
-            </li>
+            <Button
+              key={choice.path}
+              label={`${choice.label} (${String(choice.count)})`}
+              variant="ghost"
+              size="sm"
+              onClick={() => onNavigate(choice.path)}
+            />
           ))}
-        </ul>
+        </HStack>
       )}
-    </nav>
+    </VStack>
   )
 }

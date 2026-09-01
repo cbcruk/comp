@@ -1,6 +1,7 @@
 import { getTableName, type Table } from 'drizzle-orm'
 import { introspectTable } from '../introspection/introspect-table.js'
 import { resolveFilters } from '../filters/resolve-filters.js'
+import { resolveFiles } from '../files/resolve-files.js'
 import { resolveForm } from '../form/resolve-form.js'
 import { resolveLabels } from '../site/labels.js'
 import { resolveSearch } from '../search/resolve-search.js'
@@ -56,6 +57,25 @@ export function defineCollection<TTable extends Table>(
     resolveManyToMany(slug, config.model, entry),
   )
 
+  const listColumns = resolveListDisplay(
+    slug,
+    config.model,
+    introspection.fields,
+    manyToMany,
+    config.listDisplay,
+  )
+  // The keys, not the declaration: a collected column is an object while
+  // authoring and a column name everywhere after, so every consumer — the sort
+  // check, the client's headers, the label guess — reads one kind of thing.
+  const listDisplay = listColumns.map((column) => column.key)
+
+  const form = resolveForm(
+    slug,
+    introspection.fields,
+    introspection.primaryKey,
+    config,
+  )
+
   return {
     slug,
     ...labels,
@@ -67,10 +87,10 @@ export function defineCollection<TTable extends Table>(
       config.labelField ??
       resolveLabelField(
         introspection.fields,
-        config.listDisplay,
+        listDisplay,
         introspection.primaryKey,
       ),
-    listDisplay: config.listDisplay,
+    listDisplay,
     filters: resolveFilters(
       introspection.fields,
       [
@@ -81,13 +101,10 @@ export function defineCollection<TTable extends Table>(
       ],
       manyToMany,
     ),
-    listColumns: resolveListDisplay(
-      slug,
-      config.model,
-      introspection.fields,
-      manyToMany,
-      config.listDisplay,
-    ),
+    listColumns,
+    sortable: listColumns
+      .filter((column) => column.sortable)
+      .map((column) => column.key),
     search: resolveSearch(
       slug,
       config.model,
@@ -98,14 +115,15 @@ export function defineCollection<TTable extends Table>(
     dateHierarchy: config.dateHierarchy ?? null,
     ordering: config.ordering ?? [],
     pageSize: config.pageSize ?? DEFAULT_PAGE_SIZE,
-    form: resolveForm(
-      slug,
-      introspection.fields,
-      introspection.primaryKey,
-      config,
-    ),
+    form,
     inlines: config.inlines ?? [],
     manyToMany,
+    files: resolveFiles(
+      slug,
+      introspection.fields,
+      form.readonly,
+      config.files ?? [],
+    ),
     manifest: {
       collection: slug,
       operations,

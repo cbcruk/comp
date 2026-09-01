@@ -4,11 +4,13 @@ import {
   buildLinkDelete,
   buildLinkInsert,
   buildLinkedIdsQuery,
+  buildLinkedRecordsQuery,
   buildTargetExistsQuery,
 } from '../query/build-m2m-query.js'
 import type { SqliteDb } from '../query/build-list-query.js'
 import { ValidationError, type FieldIssue } from '../errors/comp-error.js'
 import type {
+  LinkedRecord,
   ManyToManyResult,
   ManyToManySpec,
   ManyToManyWrite,
@@ -82,6 +84,23 @@ export async function readLinks(
   return rows.map((row) => row.value)
 }
 
+/** The linked records, each with the label it is recognized by. */
+export async function readLinkedRecords(
+  db: SqliteDb,
+  spec: ManyToManySpec,
+  parentId: unknown,
+): Promise<LinkedRecord[]> {
+  const rows = (await buildLinkedRecordsQuery(db, spec, parentId).all()) as {
+    value: unknown
+    label?: unknown
+  }[]
+  return rows.map((row) => ({
+    value: row.value,
+    label:
+      row.label === null || row.label === undefined ? null : String(row.label),
+  }))
+}
+
 /**
  * Every relationship's links for one record, keyed by name.
  *
@@ -94,7 +113,7 @@ export function readManyToMany(
   specs: ManyToManySpec[],
   row: Record<string, unknown>,
   allow?: (spec: ManyToManySpec) => Promise<boolean> | boolean,
-): Effect.Effect<Record<string, unknown[]> | undefined> {
+): Effect.Effect<Record<string, LinkedRecord[]> | undefined> {
   if (specs.length === 0) return Effect.succeed(undefined)
 
   // Independent per relationship, like an inline's rows; collected in
@@ -107,17 +126,17 @@ export function readManyToMany(
           ? yield* Effect.promise(async () => allow(spec))
           : true
         if (!permitted) return null
-        const ids = yield* Effect.promise(() =>
-          readLinks(db, spec, row[spec.parentKey]),
+        const records = yield* Effect.promise(() =>
+          readLinkedRecords(db, spec, row[spec.parentKey]),
         )
-        return { name: spec.name, ids }
+        return { name: spec.name, records }
       }),
     { concurrency: READ_CONCURRENCY },
   ).pipe(
     Effect.map((entries) => {
-      const result: Record<string, unknown[]> = {}
+      const result: Record<string, LinkedRecord[]> = {}
       for (const entry of entries) {
-        if (entry) result[entry.name] = entry.ids
+        if (entry) result[entry.name] = entry.records
       }
       return result
     }),

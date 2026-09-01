@@ -1,3 +1,10 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { EmptyState } from '@astryxdesign/core/EmptyState'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Pagination } from '@astryxdesign/core/Pagination'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import {
   useMemo,
   useState,
@@ -16,7 +23,7 @@ import { DateHierarchyStrip } from './date-hierarchy.js'
 import { choicesFor } from './filter-controls.js'
 import { FilterField } from './filter-field.js'
 import { searchPlaceholder } from './search-placeholder.js'
-import { hasNextPage, hasPrevPage, pageCount } from './pagination.js'
+import { pageCount } from './pagination.js'
 import { referencesFromRelations, resolveLabel } from './reference-labels.js'
 import { allSelected, rowId, toIds, toggle, toggleAll } from './selection.js'
 import { nextSort, parseSort } from './sorting.js'
@@ -95,9 +102,12 @@ export function CollectionBrowser({
 
     if (onOpenRecord && id !== null && column === collection.listDisplay[0]) {
       return (
-        <button type="button" onClick={() => onOpenRecord(id)}>
-          {display || '—'}
-        </button>
+        <Button
+          label={display || '—'}
+          variant="ghost"
+          size="sm"
+          onClick={() => onOpenRecord(id)}
+        />
       )
     }
 
@@ -120,12 +130,12 @@ export function CollectionBrowser({
         )
       }
       return (
-        <button
-          type="button"
+        <Button
+          label={display || '—'}
+          variant="ghost"
+          size="sm"
           onClick={() => edit.start(id, column, toInputValue(field, value))}
-        >
-          {display || '—'}
-        </button>
+        />
       )
     }
     return display
@@ -161,14 +171,15 @@ export function CollectionBrowser({
   return (
     <div {...mergeProps<ComponentPropsWithoutRef<'div'>>({}, rest)}>
       {collection.search.length > 0 && (
-        <input
-          type="search"
-          aria-label={`Search ${collection.slug}`}
+        <TextInput
+          label={`Search ${collection.slug}`}
+          isLabelHidden
           placeholder={searchPlaceholder(collection)}
-          title="Every word must match; quote a phrase to keep it together"
+          description="Every word must match; quote a phrase to keep it together"
+          hasClear
           value={query.q ?? ''}
           // Changing the query returns to the first page, like a filter does.
-          onChange={(e) => setQuery({ page: 1, q: e.target.value })}
+          onChange={(value) => setQuery({ page: 1, q: value })}
         />
       )}
 
@@ -201,29 +212,47 @@ export function CollectionBrowser({
       ))}
 
       {collection.actions.length > 0 && (
-        <div role="toolbar" aria-label="Actions">
+        <HStack gap={2} role="toolbar" aria-label="Actions">
           {collection.actions.map((action) => (
-            <button
+            <Button
               key={action.name}
-              type="button"
-              disabled={selected.size === 0 || running}
+              label={`${action.name} (${String(selected.size)})`}
+              variant="secondary"
+              isDisabled={selected.size === 0 || running}
+              isLoading={running}
               onClick={() => runAction(action.name)}
-            >
-              {action.name} ({selected.size})
-            </button>
+            />
           ))}
-        </div>
+        </HStack>
       )}
 
-      {error && <p role="alert">{error.message}</p>}
-      {actionError && <p role="alert">{actionError.message}</p>}
-      {edit.error && <p role="alert">{edit.error.message}</p>}
+      {[error, actionError, edit.error].map(
+        (shown, index) =>
+          shown && (
+            <Banner
+              key={index}
+              status="error"
+              title={shown.message}
+              role="alert"
+            />
+          ),
+      )}
 
       <CollectionList
         columns={collection.listDisplay}
+        sortable={collection.sortable}
         rows={rows}
         renderCell={cellRenderer}
-        renderEmpty={() => <p>{loading ? 'Loading…' : 'No records'}</p>}
+        renderEmpty={() =>
+          loading ? (
+            <Spinner label="Loading…" />
+          ) : (
+            <EmptyState
+              title="No records"
+              description={`Nothing in ${collection.labelPlural.toLowerCase()} matches this view.`}
+            />
+          )
+        }
         sort={{
           field: currentSort?.field ?? null,
           direction: currentSort?.direction ?? null,
@@ -238,25 +267,14 @@ export function CollectionBrowser({
         }}
       />
 
-      <nav aria-label="Pagination">
-        <button
-          type="button"
-          disabled={!hasPrevPage(page)}
-          onClick={() => setQuery({ page: page - 1 })}
-        >
-          Previous
-        </button>
-        <span>
-          Page {page} of {totalPages} ({total} total)
-        </span>
-        <button
-          type="button"
-          disabled={!hasNextPage(page, total, size || 1)}
-          onClick={() => setQuery({ page: page + 1 })}
-        >
-          Next
-        </button>
-      </nav>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={total}
+        pageSize={size || 1}
+        onChange={(next) => setQuery({ page: next })}
+        label={`${collection.labelPlural} pages`}
+      />
     </div>
   )
 }

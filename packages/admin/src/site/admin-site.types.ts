@@ -1,3 +1,4 @@
+import type { AdminThemeProps } from '../theme/admin-theme.js'
 import type { AdminRoute } from '@comp/core'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import type {
@@ -15,6 +16,10 @@ export interface AdminScreenContext {
 }
 
 export interface AdminSiteProps extends ComponentPropsWithoutRef<'div'> {
+  /** Design tokens; defaults to Astryx's neutral theme. */
+  theme?: AdminThemeProps['theme']
+  /** Colour mode; `system` follows the OS preference. */
+  mode?: AdminThemeProps['mode']
   client: CompClient
   /** Collections as the server listed them for this caller. */
   collections: CollectionSummary[]

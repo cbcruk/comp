@@ -84,7 +84,14 @@ export {
   optionsFor as filterOptionsFor,
 } from './collection-browser/filter-controls.js'
 export type { FilterControl } from './collection-browser/filter-controls.js'
-export { useReferenceOptions } from './collection-browser/use-reference-options.js'
+export {
+  DEFAULT_REFERENCE_LIMIT,
+  useReferenceOptions,
+} from './collection-browser/use-reference-options.js'
+export type {
+  ReferenceOptionsQuery,
+  ReferenceOptionsResult,
+} from './collection-browser/use-reference-options.js'
 export type { ParsedSort } from './collection-browser/sorting.js'
 export {
   buildLabelMap,
@@ -127,6 +134,10 @@ export {
 } from './inline-editor/inline-rows.js'
 export type { InlineRow } from './inline-editor/inline-rows.js'
 
+export { FileField } from './file-field/file-field.js'
+export type { FileFieldProps } from './file-field/file-field.js'
+export { fileWidgets } from './file-field/file-widgets.js'
+
 export { ManyToManySelect } from './many-to-many/many-to-many-select.js'
 export type { ManyToManySelectProps } from './many-to-many/many-to-many-select.js'
 export {
@@ -141,6 +152,9 @@ export type { ReferenceSelectProps } from './reference-select/reference-select.t
 export { toOptions } from './reference-select/reference-select.utils.js'
 export type { ReferenceOption } from './reference-select/reference-select.utils.js'
 export { referenceWidgets } from './reference-select/reference-widgets.js'
+
+export { AdminTheme } from './theme/admin-theme.js'
+export type { AdminThemeProps } from './theme/admin-theme.js'
 
 export { AdminSite } from './site/admin-site.js'
 export { AdminIndex } from './site/admin-index.js'

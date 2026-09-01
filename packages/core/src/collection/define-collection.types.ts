@@ -1,4 +1,5 @@
-import type { ListColumn } from './list-columns.js'
+import type { FileConfig, FileSummary } from '../files/file.types.js'
+import type { ListColumn, ListDisplayEntry } from './list-columns.js'
 import type { Table } from 'drizzle-orm'
 import type { FilterConfig, ResolvedFilter } from '../filters/filter.types.js'
 import type { ResolvedForm } from '../form/form.types.js'
@@ -53,8 +54,12 @@ export interface CollectionConfig<TTable extends Table> extends FormConfig<
   label?: string
   /** Name for the collection; defaults to the slug, humanized. */
   labelPlural?: string
-  /** Columns shown as columns in the list view. */
-  listDisplay: (ColumnKey<TTable> | (string & {}))[]
+  /**
+   * What the list shows, in order. A bare name is a column, `field__other`
+   * follows a foreign key, and `{ collect, field }` gathers a many-to-many
+   * into one cell.
+   */
+  listDisplay: ListDisplayEntry<ColumnKey<TTable> | (string & {})>[]
   /**
    * Columns offered as filters. A bare name infers what the column supports —
    * an enum offers its values, a date offers ranges, a foreign key offers the
@@ -96,6 +101,12 @@ export interface CollectionConfig<TTable extends Table> extends FormConfig<
    * the join table's own foreign keys.
    */
   manyToMany?: ManyToManyConfig[]
+  /**
+   * Columns that hold a file's key rather than text a person typed. The column
+   * stores whatever the {@link FileStore} named the file; the bytes never
+   * touch the row.
+   */
+  files?: FileConfig<ColumnKey<TTable>>[]
 }
 
 /**
@@ -122,6 +133,8 @@ export interface Collection {
   listDisplay: string[]
   /** The same columns, resolved against the schema. */
   listColumns: ListColumn[]
+  /** The subset of `listDisplay` the list may be ordered by. */
+  sortable: string[]
   /** Filters with their kind, choices, and nullability resolved. */
   filters: ResolvedFilter[]
   /** Search fields with their lookup and any relation traversal resolved. */
@@ -140,5 +153,7 @@ export interface Collection {
    * collection over the registry.
    */
   manyToMany: ManyToManyMeta[]
+  /** Columns holding a stored file's key, resolved against the schema. */
+  files: FileSummary[]
   manifest: CollectionManifest
 }

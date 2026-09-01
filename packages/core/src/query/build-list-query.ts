@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  getTableName,
   gte,
   lt,
   sql,
@@ -20,6 +21,7 @@ import {
 import { foreignTableFor } from '../introspection/foreign-table.js'
 import type { Collection } from '../collection/define-collection.types.js'
 import type { FilterMap, FilterValue } from '../filters/filter.types.js'
+import type { ManyToManySpec } from '../m2m/m2m.types.js'
 import { datePathRange } from '../hierarchy/date-path.js'
 import { filterConditions } from './build-filter-where.js'
 import { scopeConditions } from './build-scope-where.js'
@@ -155,6 +157,56 @@ function traversals(collection: Collection): {
   return { joins, selection, columns }
 }
 
+/**
+ * The extra selections a list's collected columns need.
+ *
+ * A correlated subquery per column, never a join. A join through a join table
+ * multiplies the record — a book with two authors would be listed twice, and
+ * the total would stop agreeing with the rows — which is the same reason the
+ * m2m *filter* and the m2m *search* are subqueries. Django reaches the same
+ * cell with a method on the model and pays a query per row for it; one
+ * aggregate per column costs the same whether the page holds one record or
+ * fifty.
+ *
+ * Aliased explicitly, like a traversal, so a driver that keys rows by column
+ * name cannot collide the far table's column with one of ours.
+ */
+function collected(
+  collection: Collection,
+  links: readonly ManyToManySpec[],
+): Record<string, SQL.Aliased> {
+  const selection: Record<string, SQL.Aliased> = {}
+  const bySlug = new Map(links.map((spec) => [spec.name, spec]))
+  // Both sides are aliased inside the subquery, and the outer reference is
+  // qualified by table. Neither is cosmetic: Drizzle emits bare column names
+  // when the outer query has one table, so `where book_id = id` would be
+  // ambiguous — and a relationship joining a table to itself would be
+  // ambiguous even qualified.
+  const link = sql.identifier('__collect_link')
+  const far = sql.identifier('__collect_target')
+  const id = (name: string): SQL => sql`${sql.identifier(name)}`
+
+  for (const entry of collection.listColumns) {
+    if (!entry.collect) continue
+    const spec = bySlug.get(entry.collect.relationship)
+    if (!spec) continue
+
+    const parent = columnsOf(collection.model)[spec.parentKey]
+    const label = columnsOf(spec.target.model)[entry.collect.field]
+    const targetKey = columnsOf(spec.target.model)[spec.targetKey]
+    const linkParent = columnsOf(spec.through)[spec.field]
+    const linkTarget = columnsOf(spec.through)[spec.targetField]
+    if (!parent || !label || !targetKey || !linkParent || !linkTarget) continue
+
+    selection[entry.key] =
+      sql`(select group_concat(${far}.${id(label.name)}, ${entry.collect.separator}) from ${id(getTableName(spec.through))} as ${link} inner join ${id(getTableName(spec.target.model))} as ${far} on ${far}.${id(targetKey.name)} = ${link}.${id(linkTarget.name)} where ${link}.${id(linkParent.name)} = ${id(getTableName(collection.model))}.${id(parent.name)})`.as(
+        entry.key,
+      )
+  }
+
+  return selection
+}
+
 /** The property name a column is known by on its table. */
 function nameOf(column: Column, columns: Record<string, Column>): string {
   for (const [key, candidate] of Object.entries(columns)) {
@@ -191,6 +243,7 @@ export function buildListQuery(
   db: SqliteDb,
   collection: Collection,
   params: ListParams = {},
+  links: readonly ManyToManySpec[] = [],
 ) {
   const where = buildListWhere(db, collection, params)
   const { joins, selection, columns } = traversals(collection)
@@ -206,6 +259,7 @@ export function buildListQuery(
   const selected = {
     ...(getTableColumns(collection.model) as Record<string, SQLiteColumn>),
     ...selection,
+    ...collected(collection, links),
   }
   let query = db.select(selected).from(model).$dynamic()
   for (const join of joins) query = query.leftJoin(join.table, join.on)

@@ -38,7 +38,10 @@ export function parseListParams(
   const ordering: FieldOrdering[] = []
   if (query.sort) {
     const [field, direction] = query.sort.split(':')
-    if (field && collection.listDisplay.includes(field)) {
+    // `sortable`, not `listDisplay`: a collected column is shown but has no
+    // column behind it, and ordering by it would be dropped further down
+    // without anything having said so.
+    if (field && collection.sortable.includes(field)) {
       ordering.push({
         field,
         direction: direction === 'desc' ? 'desc' : 'asc',

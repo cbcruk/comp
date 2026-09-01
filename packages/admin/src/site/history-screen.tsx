@@ -1,3 +1,11 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { EmptyState } from '@astryxdesign/core/EmptyState'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { Table } from '@astryxdesign/core/Table'
+import { VStack } from '@astryxdesign/core/VStack'
 import { describeHistory, type HistoryEntry } from '@comp/core'
 import { useEffect, useState, type JSX } from 'react'
 import type { HistoryScreenProps } from './admin-site.types.js'
@@ -37,48 +45,56 @@ export function HistoryScreen({
     }
   }, [client, collection.slug, id])
 
+  const rows = (entries ?? []).map((entry, index) => ({
+    key: `${String(entry.at)}-${String(index)}`,
+    when: new Date(entry.at),
+    who: entry.actor ?? '—',
+    what: describeHistory(entry),
+  }))
+
   return (
-    <section>
-      <h2>
-        History of {collection.label.toLowerCase()} {id}
-      </h2>
-      <button
-        type="button"
-        onClick={() => navigate({ view: 'change', slug: collection.slug, id })}
-      >
-        Back to the record
-      </button>
+    <VStack as="section" gap={4}>
+      <HStack justify="between" align="center" gap={3}>
+        <Heading level={2}>
+          History of {collection.label.toLowerCase()} {id}
+        </Heading>
+        <Button
+          label="Back to the record"
+          variant="secondary"
+          onClick={() =>
+            navigate({ view: 'change', slug: collection.slug, id })
+          }
+        />
+      </HStack>
 
-      {error && <p role="alert">{error.message}</p>}
-      {!entries && !error && <p>Loading…</p>}
+      {error && <Banner status="error" title={error.message} role="alert" />}
+      {!entries && !error && <Spinner label="Loading…" />}
       {entries?.length === 0 && (
-        <p>Nothing has been recorded for this record.</p>
+        <EmptyState
+          title="No history"
+          description="Nothing has been recorded for this record."
+        />
       )}
 
-      {entries && entries.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">When</th>
-              <th scope="col">Who</th>
-              <th scope="col">What</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry, index) => (
-              <tr key={`${String(entry.at)}-${String(index)}`}>
-                <td>
-                  <time dateTime={new Date(entry.at).toISOString()}>
-                    {new Date(entry.at).toLocaleString()}
-                  </time>
-                </td>
-                <td>{entry.actor ?? '—'}</td>
-                <td>{describeHistory(entry)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {rows.length > 0 && (
+        <Table
+          data={rows}
+          idKey="key"
+          columns={[
+            {
+              key: 'when',
+              header: 'When',
+              renderCell: (row) => (
+                <time dateTime={(row.when as Date).toISOString()}>
+                  {(row.when as Date).toLocaleString()}
+                </time>
+              ),
+            },
+            { key: 'who', header: 'Who' },
+            { key: 'what', header: 'What' },
+          ]}
+        />
       )}
-    </section>
+    </VStack>
   )
 }

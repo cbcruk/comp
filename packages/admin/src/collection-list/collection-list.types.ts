@@ -31,5 +31,10 @@ export interface CollectionListProps extends ComponentPropsWithoutRef<'table'> {
   /** Enables a leading checkbox column for bulk selection. */
   selection?: RowSelection
   /** Enables clickable, sortable column headers. */
+  /**
+   * Columns whose header may offer an order. Omit it and every column may;
+   * pass the collection's `sortable` to leave aggregates as plain headings.
+   */
+  sortable?: readonly string[]
   sort?: ColumnSort
 }

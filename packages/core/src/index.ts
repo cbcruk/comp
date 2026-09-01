@@ -208,11 +208,13 @@ export {
   checkLinkTargets,
   manyToManyNames,
   readLinks,
+  readLinkedRecords,
   readManyToMany,
   writeLinks,
   writeManyToMany,
 } from './m2m/m2m-write.js'
 export type {
+  LinkedRecord,
   ManyToManyConfig,
   ManyToManyMeta,
   ManyToManyResult,
@@ -224,8 +226,18 @@ export {
   buildLinkDelete,
   buildLinkInsert,
   buildLinkedIdsQuery,
+  buildLinkedRecordsQuery,
   manyToManyCondition,
 } from './query/build-m2m-query.js'
+
+export { checkUpload, resolveFiles } from './files/resolve-files.js'
+export type {
+  FileConfig,
+  FileStore,
+  FileSummary,
+  FileUpload,
+  StoredFile,
+} from './files/file.types.js'
 
 export { allowAll } from './auth/allow-all.js'
 export type {

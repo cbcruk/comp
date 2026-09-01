@@ -153,9 +153,37 @@ export function bindManyToMany(
 
       specs.push({ ...meta, targetKey, target })
     }
+    checkCollected(collection, specs)
     resolved.set(collection.slug, specs)
   }
   return resolved
+}
+
+/**
+ * Check every collected list column against the collection it gathers.
+ *
+ * Here rather than in `defineCollection` because the far side is only a table
+ * name until the registry turns it into a collection — the same reason
+ * `bindManyToMany` exists at all. Still a declaration-time failure, though: a
+ * column naming a field the far table lacks would aggregate nothing, and an
+ * empty cell reads as a record with no authors rather than as a typo.
+ */
+function checkCollected(
+  collection: Collection,
+  specs: readonly ManyToManySpec[],
+): void {
+  const bySlug = new Map(specs.map((spec) => [spec.name, spec]))
+  for (const column of collection.listColumns) {
+    if (!column.collect) continue
+    const spec = bySlug.get(column.collect.relationship)
+    if (!spec) continue
+    if (!spec.target.fields[column.collect.field]) {
+      throw new Error(
+        `listDisplay on "${collection.slug}" collects "${column.collect.relationship}" to ` +
+          `"${column.collect.field}", which is not a column on "${spec.target.slug}"`,
+      )
+    }
+  }
 }
 
 /** Strip a relationship down to what a client or tool schema can consume. */

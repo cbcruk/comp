@@ -95,3 +95,19 @@ export interface ManyToManyResult {
   linked: unknown[]
   unlinked: unknown[]
 }
+
+/**
+ * One record on the far side of a relationship, as a read reports it.
+ *
+ * A read returns the label beside the key because the form cannot look it up:
+ * the widget's options are a *search* over the far collection, so a linked
+ * record outside the current results would otherwise render as nothing at all
+ * — invisible, and impossible to unlink. The write payload stays keys alone
+ * ({@link ManyToManyWrite}); a label is not something a caller may set.
+ */
+export interface LinkedRecord {
+  /** The far side's key — what a write sends back. */
+  value: unknown
+  /** Its `labelField`, or null when the far collection declares none. */
+  label: string | null
+}

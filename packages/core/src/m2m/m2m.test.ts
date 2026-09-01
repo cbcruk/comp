@@ -2,7 +2,13 @@ import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
 import { describe, expect, it } from 'vitest'
 import { defineCollection } from '../collection/define-collection.js'
+import {
+  buildLinkedIdsQuery,
+  buildLinkedRecordsQuery,
+} from '../query/build-m2m-query.js'
 import { buildListQuery } from '../query/build-list-query.js'
+import { defineCollection } from '../collection/define-collection.js'
+import { readLinkedRecords } from './m2m-write.js'
 import { bindManyToMany, manyToManySummary } from './resolve-m2m.js'
 
 const posts = sqliteTable('posts', {
@@ -178,5 +184,94 @@ describe('filtering by a many-to-many', () => {
   it('asks for the records with no links at all', () => {
     expect(sqlFor({ op: 'isnull', value: true }).sql).toContain('not in')
     expect(sqlFor({ op: 'isnull', value: false }).sql).toContain(' in (')
+  })
+})
+
+describe('reading a many-to-many', () => {
+  const spec = bindManyToMany([postCollection, tagCollection]).get('posts')![0]!
+
+  it('joins the far table so a linked record can say its name', () => {
+    // Without the label the form has only keys, and its options are a search:
+    // a linked record outside the current results would render as nothing —
+    // invisible, and so impossible to unlink.
+    const { sql } = buildLinkedRecordsQuery(db, spec, 1).toSQL()
+    expect(sql).toContain('join')
+    expect(sql).toContain('"tags"')
+    // Aliased explicitly, because a driver that keys rows by column name would
+    // otherwise collide the far table's column with the join table's.
+    expect(sql).toContain('"label"')
+    expect(sql).toContain('"value"')
+  })
+
+  it('leaves the write path on the cheaper query', () => {
+    // A write diffs keys against keys and has no use for a label, so it must
+    // not start paying for the join that a read needs.
+    const { sql } = buildLinkedIdsQuery(db, spec, 1).toSQL()
+    expect(sql).not.toContain('join')
+  })
+
+  it('reports each link as a key and a label', async () => {
+    const rows = drizzle(async () => ({ rows: [[7, 'rush']] }))
+    expect(await readLinkedRecords(rows, spec, 1)).toEqual([
+      { value: 7, label: 'rush' },
+    ])
+  })
+
+  it('says a link has no label rather than inventing one', async () => {
+    // The far collection may declare no `labelField`; a key rendered as its own
+    // name is still better than a blank row.
+    const rows = drizzle(async () => ({ rows: [[7, null]] }))
+    expect(await readLinkedRecords(rows, spec, 1)).toEqual([
+      { value: 7, label: null },
+    ])
+  })
+})
+
+describe('a collected column', () => {
+  const posts = defineCollection({
+    model: postCollection.model,
+    listDisplay: ['title', { collect: 'tags', field: 'name' }],
+    manyToMany: [{ collection: 'tags', through: postTags }],
+  })
+  const specs = bindManyToMany([posts, tagCollection]).get('posts') ?? []
+  const { sql, params } = buildListQuery(db, posts, {}, specs).toSQL()
+
+  it('aggregates in a correlated subquery, never a join', () => {
+    // A join through the join table would list a post once per tag, and then
+    // the total would stop agreeing with the rows.
+    expect(sql).toContain('group_concat')
+    expect(sql).toContain('post_tags')
+    expect(sql).not.toContain('left join')
+    expect(sql).not.toContain('distinct')
+    expect(params).toContain(', ')
+  })
+
+  it('is selected under its own key, aliased', () => {
+    // Same rule a traversal follows: a driver keying rows by column name would
+    // otherwise collide the far table's column with one of ours.
+    expect(sql).toContain('"tags__name"')
+  })
+
+  /**
+   * Every column in the subquery is qualified, and both of its tables are
+   * aliased. Drizzle drops the table prefix when the outer query has one table,
+   * so an unqualified `where post_id = id` is ambiguous the moment the names
+   * collide — and a relationship joining a table to itself is ambiguous even
+   * with the real table names.
+   */
+  it('qualifies every reference so the subquery is not ambiguous', () => {
+    expect(sql).toContain('"post_tags" as "__collect_link"')
+    expect(sql).toContain('"tags" as "__collect_target"')
+    expect(sql).toContain('"__collect_link"."post_id" = "posts"."id"')
+    expect(sql).toContain('"__collect_target"."id" = "__collect_link"."tag_id"')
+    // Nothing in the subquery names a bare column.
+    const subquery = sql.slice(sql.indexOf('(select group_concat'))
+    expect(subquery).not.toMatch(/[\s(]"(id|name|post_id|tag_id)"/)
+  })
+
+  it('costs one aggregate per column, not one query per row', () => {
+    // Django reaches this cell with a method and pays per record; the whole
+    // page is one statement here.
+    expect(sql.match(/group_concat/g)).toHaveLength(1)
   })
 })
