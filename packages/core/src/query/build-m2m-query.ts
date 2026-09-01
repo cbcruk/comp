@@ -77,9 +77,7 @@ export function buildLinkedRecordsQuery(
   return db
     .select({
       value: sql`${linkTarget}`.mapWith(linkTarget).as('value'),
-      ...(label
-        ? { label: sql`${label}`.mapWith(label).as('label') }
-        : {}),
+      ...(label ? { label: sql`${label}`.mapWith(label).as('label') } : {}),
     })
     .from(spec.through as unknown as SQLiteTable)
     .innerJoin(spec.target.model as unknown as SQLiteTable, eq(linkTarget, key))

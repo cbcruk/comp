@@ -620,7 +620,10 @@ export function createAdminRouter(config: AdminRouterConfig): Hono {
 
     const refusal = checkUpload(summary, file.type, file.size)
     if (refusal) {
-      return c.json({ error: refusal, issues: [{ path: [field], message: refusal }] }, 422)
+      return c.json(
+        { error: refusal, issues: [{ path: [field], message: refusal }] },
+        422,
+      )
     }
 
     const stored = await store.put({

@@ -118,10 +118,7 @@ describe('sweeping files a write left unreferenced', () => {
 
   it('touches nothing when no store is configured', async () => {
     const row = await runEffect(
-      deleteRecord(
-        { db: dbReturning([1, 'a', 'kept.webp']), collection },
-        1,
-      ),
+      deleteRecord({ db: dbReturning([1, 'a', 'kept.webp']), collection }, 1),
     )
     expect(row).toMatchObject({ cover: 'kept.webp' })
   })

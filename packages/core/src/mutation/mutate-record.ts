@@ -178,7 +178,8 @@ export function updateRecord(
   return Effect.gen(function* () {
     // The read is needed by history, and now also by a file field: without the
     // old row there is no way to know which key the write replaced.
-    const sweeping = Boolean(context.files) && context.collection.files.length > 0
+    const sweeping =
+      Boolean(context.files) && context.collection.files.length > 0
     const before =
       context.before ??
       (context.history || sweeping

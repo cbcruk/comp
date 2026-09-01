@@ -232,10 +232,10 @@ last` so an empty never takes a slot a value needed, and the column itself is
 - **`FileField`** — a column holds a file's key and a `FileStore` holds the
   bytes, an adapter like `HistoryStore`. Django puts the upload and the column
   in one field declaration; Drizzle has no such column type, so `files:
-  ["cover"]` names which text column carries a key and the store decides what a
+["cover"]` names which text column carries a key and the store decides what a
   key means. The upload is **its own request** (`POST
-  /collections/:slug/files/:field`), which is why the write path still takes
-  JSON and why a file can be chosen on the *add* form — there is no record yet,
+/collections/:slug/files/:field`), which is why the write path still takes
+  JSON and why a file can be chosen on the _add_ form — there is no record yet,
   so no id a key could be derived from, and the store naming the file is what
   makes that possible. The cost is an abandoned form's orphan, which is a
   store's to sweep.

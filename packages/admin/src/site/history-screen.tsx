@@ -61,7 +61,9 @@ export function HistoryScreen({
         <Button
           label="Back to the record"
           variant="secondary"
-          onClick={() => navigate({ view: 'change', slug: collection.slug, id })}
+          onClick={() =>
+            navigate({ view: 'change', slug: collection.slug, id })
+          }
         />
       </HStack>
 

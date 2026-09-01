@@ -46,7 +46,9 @@ function DefaultField({
   value,
   onChange,
   status,
-}: FieldControl & { status?: { type: 'error'; message: string } }): JSX.Element {
+}: FieldControl & {
+  status?: { type: 'error'; message: string }
+}): JSX.Element {
   const type = inputTypeFor(field)
   const isRequired = field.notNull && !field.hasDefault
 
@@ -243,7 +245,9 @@ export function CollectionForm({
         ) : (
           <DefaultField
             {...control}
-            {...(first ? { status: { type: 'error' as const, message: first } } : {})}
+            {...(first
+              ? { status: { type: 'error' as const, message: first } }
+              : {})}
           />
         )}
         {rest.map((message, i) => (
@@ -274,11 +278,7 @@ export function CollectionForm({
             gap={3}
             key={group.title ?? `group-${String(groupIndex)}`}
           >
-            {group.title && (
-              <Heading level={3}>
-                {group.title}
-              </Heading>
-            )}
+            {group.title && <Heading level={3}>{group.title}</Heading>}
             {group.description && (
               <Text size="sm" color="secondary">
                 {group.description}

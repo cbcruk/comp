@@ -198,9 +198,10 @@ function collected(
     const linkTarget = columnsOf(spec.through)[spec.targetField]
     if (!parent || !label || !targetKey || !linkParent || !linkTarget) continue
 
-    selection[entry.key] = sql`(select group_concat(${far}.${id(label.name)}, ${entry.collect.separator}) from ${id(getTableName(spec.through))} as ${link} inner join ${id(getTableName(spec.target.model))} as ${far} on ${far}.${id(targetKey.name)} = ${link}.${id(linkTarget.name)} where ${link}.${id(linkParent.name)} = ${id(getTableName(collection.model))}.${id(parent.name)})`.as(
-      entry.key,
-    )
+    selection[entry.key] =
+      sql`(select group_concat(${far}.${id(label.name)}, ${entry.collect.separator}) from ${id(getTableName(spec.through))} as ${link} inner join ${id(getTableName(spec.target.model))} as ${far} on ${far}.${id(targetKey.name)} = ${link}.${id(linkTarget.name)} where ${link}.${id(linkParent.name)} = ${id(getTableName(collection.model))}.${id(parent.name)})`.as(
+        entry.key,
+      )
   }
 
   return selection

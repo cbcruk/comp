@@ -87,7 +87,9 @@ export function FileField({
         isDisabled={uploading}
         {...(file.accept ? { accept: file.accept } : {})}
         {...(file.maxBytes !== null ? { maxSize: file.maxBytes } : {})}
-        {...(error ? { status: { type: 'error' as const, message: error } } : {})}
+        {...(error
+          ? { status: { type: 'error' as const, message: error } }
+          : {})}
         onChange={(chosen) => {
           const picked = Array.isArray(chosen) ? chosen[0] : chosen
           if (picked) void choose(picked)

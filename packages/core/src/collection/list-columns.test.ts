@@ -102,7 +102,10 @@ describe('resolving list columns', () => {
 describe('collecting a many-to-many into one cell', () => {
   const collect = (field = 'name', separator?: string) =>
     declare(
-      ['title', { collect: 'tags', field, ...(separator ? { separator } : {}) }],
+      [
+        'title',
+        { collect: 'tags', field, ...(separator ? { separator } : {}) },
+      ],
       true,
     )
 
@@ -125,7 +128,9 @@ describe('collecting a many-to-many into one cell', () => {
   })
 
   it('takes its own separator', () => {
-    expect(collect('name', ' / ').listColumns[1]?.collect?.separator).toBe(' / ')
+    expect(collect('name', ' / ').listColumns[1]?.collect?.separator).toBe(
+      ' / ',
+    )
   })
 
   it('refuses a relationship the collection does not declare', () => {

@@ -26,8 +26,7 @@ export interface CollectConfig<TRelationship extends string = string> {
 
 /** One entry of `listDisplay` while authoring. */
 export type ListDisplayEntry<TField extends string = string> =
-  | TField
-  | CollectConfig
+  TField | CollectConfig
 
 /** How a collected column was resolved. */
 export interface CollectedColumn {

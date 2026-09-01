@@ -87,26 +87,26 @@ export function DeleteScreen({
 
       <HStack gap={2}>
         <Button label="Cancel" variant="secondary" onClick={back} />
-      <Button
-        label={impact.blocked ? 'Cannot delete' : 'Delete'}
-        variant="destructive"
-        isDisabled={impact.blocked || busy}
-        isLoading={busy}
-        onClick={async () => {
-          setBusy(true)
-          try {
-            await client.remove(collection.slug, id)
-            onNotify?.('success', `${collection.label} ${id} deleted`)
-            navigate({ view: 'list', slug: collection.slug })
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err)
-            if (onNotify) onNotify('error', message)
-            else setError(new Error(message))
-          } finally {
-            setBusy(false)
-          }
-        }}
-      />
+        <Button
+          label={impact.blocked ? 'Cannot delete' : 'Delete'}
+          variant="destructive"
+          isDisabled={impact.blocked || busy}
+          isLoading={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await client.remove(collection.slug, id)
+              onNotify?.('success', `${collection.label} ${id} deleted`)
+              navigate({ view: 'list', slug: collection.slug })
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err)
+              if (onNotify) onNotify('error', message)
+              else setError(new Error(message))
+            } finally {
+              setBusy(false)
+            }
+          }}
+        />
       </HStack>
     </VStack>
   )

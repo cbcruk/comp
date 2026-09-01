@@ -50,7 +50,9 @@ export function ReferenceSelect({
         placeholder="—"
         hasSearch
         onChange={(next) => control.onChange(next)}
-        {...(error ? { status: { type: 'error' as const, message: error.message } } : {})}
+        {...(error
+          ? { status: { type: 'error' as const, message: error.message } }
+          : {})}
         options={[
           { value: '', label: '—' },
           // A value already set but outside the offered records still renders,

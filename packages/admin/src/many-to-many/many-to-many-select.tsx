@@ -89,8 +89,7 @@ export function ManyToManySelect({
     })
   }, [options])
 
-  const labelFor = (key: string): string =>
-    labels?.[key] ?? seen[key] ?? key
+  const labelFor = (key: string): string => labels?.[key] ?? seen[key] ?? key
 
   const linkedKeys = value.map((id) => String(id))
   const unlinkedOptions = options.filter(
